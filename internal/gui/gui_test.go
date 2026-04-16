@@ -16,6 +16,8 @@ import (
 
 	appcore "godocmirrortranslator/internal/app"
 	"godocmirrortranslator/internal/config"
+	"godocmirrortranslator/internal/domain"
+	"godocmirrortranslator/internal/provider"
 )
 
 type noopPicker struct{}
@@ -54,6 +56,59 @@ func (d fakeDevice) SystemScaleForWindow(fyne.Window) float32 {
 
 func (d fakeDevice) Locale() fyne.Locale {
 	return fyne.Locale("en-US")
+}
+
+type blockingProvider struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (p *blockingProvider) Name() string {
+	return "mock"
+}
+
+func (p *blockingProvider) AnalyzePage(ctx context.Context, req provider.AnalyzeRequest) (*domain.DocumentPage, error) {
+	select {
+	case p.started <- struct{}{}:
+	default:
+	}
+
+	select {
+	case <-p.release:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	page := &domain.DocumentPage{
+		SourceImagePath:   req.ImagePath,
+		SourceImageWidth:  req.SourceImageWidth,
+		SourceImageHeight: req.SourceImageHeight,
+		Blocks: []domain.TextBlock{{
+			ID:             "mock-title",
+			SourceText:     "Привіт",
+			TranslatedText: "Hallo",
+			X:              20,
+			Y:              30,
+			Width:          200,
+			Height:         50,
+			FontSize:       24,
+			FontFamily:     "Noto Sans",
+		}},
+		Metadata: map[string]string{
+			"provider": "mock",
+			"model":    "mock-v1",
+		},
+	}
+	page.Normalize()
+	return page, nil
+}
+
+func (p *blockingProvider) ValidateConfig(provider.ProviderConfig) error {
+	return nil
+}
+
+func (p *blockingProvider) SupportedModels() []string {
+	return []string{"mock-v1"}
 }
 
 func TestProcessDisabledUntilRequiredFieldsAreValid(t *testing.T) {
@@ -228,25 +283,102 @@ func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
 	}
 }
 
+func TestProcessingDisablesInteractiveControls(t *testing.T) {
+	application := appcore.New("test")
+	providerImpl := &blockingProvider{
+		started: make(chan struct{}, 1),
+		release: make(chan struct{}),
+	}
+	application.ProviderFactories["mock"] = func(provider.ProviderConfig) provider.Provider {
+		return providerImpl
+	}
+
+	ui, tempDir, _ := newTestUIWithApplication(t, nil, application)
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 128, 128)
+
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
+	ui.refreshValidation()
+	ui.startProcessing()
+
+	waitFor(t, time.Second, func() bool {
+		select {
+		case <-providerImpl.started:
+			return true
+		default:
+			return false
+		}
+	})
+
+	for _, check := range []struct {
+		name     string
+		disabled bool
+	}{
+		{"input entry", ui.inputEntry.Disabled()},
+		{"input browse", ui.inputBrowseButton.Disabled()},
+		{"output entry", ui.outputDirEntry.Disabled()},
+		{"output browse", ui.outputBrowseButton.Disabled()},
+		{"provider select", ui.providerSelect.Disabled()},
+		{"save settings", ui.saveButton.Disabled()},
+		{"process", ui.processButton.Disabled()},
+	} {
+		if !check.disabled {
+			t.Fatalf("%s should be disabled while processing", check.name)
+		}
+	}
+
+	close(providerImpl.release)
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+
+	if ui.inputEntry.Disabled() {
+		t.Fatal("input entry should be re-enabled after processing")
+	}
+	if ui.inputBrowseButton.Disabled() {
+		t.Fatal("input browse should be re-enabled after processing")
+	}
+	if ui.outputDirEntry.Disabled() {
+		t.Fatal("output entry should be re-enabled after processing")
+	}
+	if ui.outputBrowseButton.Disabled() {
+		t.Fatal("output browse should be re-enabled after processing")
+	}
+	if ui.providerSelect.Disabled() {
+		t.Fatal("provider select should be re-enabled after processing")
+	}
+	if ui.processButton.Disabled() {
+		t.Fatal("process button should be enabled again after successful processing")
+	}
+}
+
 func newTestUI(t *testing.T) (*UI, string, string) {
 	t.Helper()
-	return newTestUIWithDevice(t, nil)
+	return newTestUIWithApplication(t, nil, appcore.New("test"))
 }
 
 func newTestUIWithDevice(t *testing.T, device fyne.Device) (*UI, string, string) {
+	t.Helper()
+	return newTestUIWithApplication(t, device, appcore.New("test"))
+}
+
+func newTestUIWithApplication(t *testing.T, device fyne.Device, application *appcore.Application) (*UI, string, string) {
 	t.Helper()
 
 	tempDir := t.TempDir()
 	cfgPath := filepath.Join(tempDir, "config.json")
 	cfg := config.Default()
 	cfg.DefaultOutputDir = filepath.Join(tempDir, "default-out")
+	t.Setenv("LANG", "en_US.UTF-8")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
 
 	fyneApp := test.NewTempApp(t)
 	window := fyneApp.NewWindow("test")
 	if device == nil {
 		device = fyneApp.Driver().Device()
 	}
-	ui := newUI(context.Background(), fyneApp, device, window, appcore.New("test"), cfgPath, cfg, noopPicker{})
+	ui := newUI(context.Background(), fyneApp, device, window, application, cfgPath, cfg, noopPicker{})
 	return ui, tempDir, cfgPath
 }
 

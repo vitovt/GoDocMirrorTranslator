@@ -40,33 +40,35 @@ type UI struct {
 	configPath string
 	cfg        config.Config
 
-	inputEntry        *widget.Entry
-	outputDirEntry    *widget.Entry
-	templateEntry     *widget.Entry
-	providerSelect    *widget.Select
-	modelSelect       *widget.Select
-	sourceLangEntry   *widget.Entry
-	targetLangEntry   *widget.Entry
-	timeoutEntry      *widget.Entry
-	fontFamilyEntry   *widget.Entry
-	fontSizeEntry     *widget.Entry
-	colorEntry        *widget.Entry
-	opacityEntry      *widget.Entry
-	preserveColumns   *widget.Check
-	saveLayoutJSON    *widget.Check
-	openAIKeyEntry    *widget.Entry
-	geminiKeyEntry    *widget.Entry
-	openAIImageDetail *widget.Select
-	saveButton        *widget.Button
-	processButton     *widget.Button
-	openOutputButton  *widget.Button
-	progress          *widget.ProgressBarInfinite
-	statusLabel       *widget.Label
-	validationLabel   *widget.Label
-	detailsEntry      *widget.Entry
-	lastOutputDir     string
-	lastOutputPath    string
-	running           bool
+	inputBrowseButton  *widget.Button
+	outputBrowseButton *widget.Button
+	inputEntry         *widget.Entry
+	outputDirEntry     *widget.Entry
+	templateEntry      *widget.Entry
+	providerSelect     *widget.Select
+	modelSelect        *widget.Select
+	sourceLangEntry    *widget.Entry
+	targetLangEntry    *widget.Entry
+	timeoutEntry       *widget.Entry
+	fontFamilyEntry    *widget.Entry
+	fontSizeEntry      *widget.Entry
+	colorEntry         *widget.Entry
+	opacityEntry       *widget.Entry
+	preserveColumns    *widget.Check
+	saveLayoutJSON     *widget.Check
+	openAIKeyEntry     *widget.Entry
+	geminiKeyEntry     *widget.Entry
+	openAIImageDetail  *widget.Select
+	saveButton         *widget.Button
+	processButton      *widget.Button
+	openOutputButton   *widget.Button
+	progress           *widget.ProgressBarInfinite
+	statusLabel        *widget.Label
+	validationLabel    *widget.Label
+	detailsEntry       *widget.Entry
+	lastOutputDir      string
+	lastOutputPath     string
+	running            bool
 }
 
 func Run(ctx context.Context, application *appcore.Application, version string, configPath string) error {
@@ -112,8 +114,14 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 
 	ui.inputEntry = widget.NewEntry()
 	ui.inputEntry.SetPlaceHolder("Select a source image")
+	ui.inputBrowseButton = widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
+		ui.pickInputImage()
+	})
 	ui.outputDirEntry = widget.NewEntry()
 	ui.outputDirEntry.SetPlaceHolder("Choose an output folder")
+	ui.outputBrowseButton = widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
+		ui.pickOutputDir()
+	})
 	ui.templateEntry = widget.NewEntry()
 	ui.providerSelect = widget.NewSelect(application.ProviderNames(), func(string) {
 		ui.syncModelOptions()
@@ -180,12 +188,8 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 }
 
 func (u *UI) content() fyne.CanvasObject {
-	inputRow := container.NewBorder(nil, nil, nil, widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
-		u.pickInputImage()
-	}), u.inputEntry)
-	outputRow := container.NewBorder(nil, nil, nil, widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
-		u.pickOutputDir()
-	}), u.outputDirEntry)
+	inputRow := container.NewBorder(nil, nil, nil, u.inputBrowseButton, u.inputEntry)
+	outputRow := container.NewBorder(nil, nil, nil, u.outputBrowseButton, u.outputDirEntry)
 
 	form := widget.NewForm(
 		widget.NewFormItem("Input Image", inputRow),
@@ -314,6 +318,7 @@ func (u *UI) syncAdvancedOptions() {
 }
 
 func (u *UI) refreshValidation() {
+	u.refreshInteractivity()
 	settingsErr := u.settingsValidationError()
 	processErr := u.processValidationError()
 
@@ -338,6 +343,28 @@ func (u *UI) refreshValidation() {
 	default:
 		u.validationLabel.SetText("")
 	}
+}
+
+func (u *UI) refreshInteractivity() {
+	for _, control := range u.interactiveControls() {
+		if u.running {
+			control.Disable()
+			continue
+		}
+		control.Enable()
+	}
+
+	if u.running {
+		u.openOutputButton.Disable()
+		return
+	}
+
+	u.syncAdvancedOptions()
+	if u.hasOutputTarget() {
+		u.openOutputButton.Enable()
+		return
+	}
+	u.openOutputButton.Disable()
 }
 
 func (u *UI) settingsValidationError() error {
@@ -616,4 +643,42 @@ func isSupportedImagePath(path string) bool {
 
 func isMobileDevice(device fyne.Device) bool {
 	return device != nil && device.IsMobile()
+}
+
+func (u *UI) hasOutputTarget() bool {
+	if isMobileDevice(u.device) {
+		return strings.TrimSpace(u.lastOutputPath) != ""
+	}
+	return strings.TrimSpace(u.lastOutputDir) != ""
+}
+
+func (u *UI) interactiveControls() []disableable {
+	return []disableable{
+		u.inputBrowseButton,
+		u.outputBrowseButton,
+		u.inputEntry,
+		u.outputDirEntry,
+		u.templateEntry,
+		u.providerSelect,
+		u.modelSelect,
+		u.sourceLangEntry,
+		u.targetLangEntry,
+		u.timeoutEntry,
+		u.fontFamilyEntry,
+		u.fontSizeEntry,
+		u.colorEntry,
+		u.opacityEntry,
+		u.preserveColumns,
+		u.saveLayoutJSON,
+		u.openAIKeyEntry,
+		u.geminiKeyEntry,
+		u.openAIImageDetail,
+		u.saveButton,
+		u.processButton,
+	}
+}
+
+type disableable interface {
+	Disable()
+	Enable()
 }
