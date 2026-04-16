@@ -20,6 +20,8 @@ import (
 
 const DefaultOutputTemplate = "{input_basename}_{provider}_{timestamp}.svg"
 
+var atomicWriteFile = writeAtomically
+
 type RenderRequest struct {
 	InputPath      string
 	OutputDir      string
@@ -130,7 +132,7 @@ func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResu
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return RenderResult{}, fmt.Errorf("create output directory: %w", err)
 	}
-	if err := writeAtomically(outputPath, renderBytes); err != nil {
+	if err := atomicWriteFile(outputPath, renderBytes); err != nil {
 		return RenderResult{}, fmt.Errorf("write svg: %w", err)
 	}
 
@@ -139,10 +141,10 @@ func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResu
 		jsonPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".json"
 		jsonBytes, err := json.MarshalIndent(page, "", "  ")
 		if err != nil {
-			return RenderResult{}, fmt.Errorf("marshal layout json: %w", err)
+			return RenderResult{}, cleanupRenderOutputs([]string{outputPath}, fmt.Errorf("marshal layout json: %w", err))
 		}
-		if err := writeAtomically(jsonPath, append(jsonBytes, '\n')); err != nil {
-			return RenderResult{}, fmt.Errorf("write layout json: %w", err)
+		if err := atomicWriteFile(jsonPath, append(jsonBytes, '\n')); err != nil {
+			return RenderResult{}, cleanupRenderOutputs([]string{outputPath, jsonPath}, fmt.Errorf("write layout json: %w", err))
 		}
 		result.LayoutJSONPath = jsonPath
 	}
@@ -277,4 +279,20 @@ func writeAtomically(path string, data []byte) error {
 		return err
 	}
 	return os.Rename(tempName, path)
+}
+
+func cleanupRenderOutputs(paths []string, renderErr error) error {
+	var cleanupFailures []string
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			cleanupFailures = append(cleanupFailures, fmt.Sprintf("%s: %v", path, err))
+		}
+	}
+	if len(cleanupFailures) == 0 {
+		return renderErr
+	}
+	return fmt.Errorf("%w; cleanup failed: %s", renderErr, strings.Join(cleanupFailures, "; "))
 }

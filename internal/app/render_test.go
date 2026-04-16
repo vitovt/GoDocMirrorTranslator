@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -27,6 +28,47 @@ func TestRenderValidatesProviderConfigBeforeAnalyze(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "validate provider config") {
 		t.Fatalf("Render() error = %v, want provider validation failure", err)
+	}
+}
+
+func TestRenderCleansUpSVGWhenLayoutJSONWriteFails(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	originalWrite := atomicWriteFile
+	t.Cleanup(func() {
+		atomicWriteFile = originalWrite
+	})
+	atomicWriteFile = func(path string, data []byte) error {
+		if filepath.Ext(path) == ".json" {
+			return fmt.Errorf("boom")
+		}
+		return writeAtomically(path, data)
+	}
+
+	application := New("test")
+	_, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      filepath.Join(tempDir, "out"),
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+	})
+	if err == nil {
+		t.Fatal("Render() error = nil, want layout json write failure")
+	}
+	if !strings.Contains(err.Error(), "write layout json") {
+		t.Fatalf("Render() error = %v, want layout json write failure", err)
+	}
+
+	outputPath := filepath.Join(tempDir, "out", "translated.svg")
+	if _, statErr := os.Stat(outputPath); !os.IsNotExist(statErr) {
+		t.Fatalf("expected svg output %q to be cleaned up, stat err = %v", outputPath, statErr)
+	}
+	jsonPath := filepath.Join(tempDir, "out", "translated.json")
+	if _, statErr := os.Stat(jsonPath); !os.IsNotExist(statErr) {
+		t.Fatalf("expected json output %q to be absent, stat err = %v", jsonPath, statErr)
 	}
 }
 
