@@ -1,15 +1,15 @@
 # Technical Specification — Go Document Mirror Translator
 
 ## 1. Project Summary
-Build a cross-platform desktop and CLI application in **Go** that:
-- accepts a single input image (`.jpg`, `.jpeg`, `.png`);
+Build a cross-platform GUI and CLI application in **Go** that:
+- accepts a single input image (`.jpg`, `.jpeg`, `.png`, `.webp`);
 - sends the image to an AI provider;
 - receives structured page layout + translation data;
 - generates an **A4 SVG** file with:
   - the original image as background;
   - translated text overlaid as editable text elements;
 - supports manual post-editing in **Inkscape**;
-- provides a **Fyne GUI** and a **CLI** using the same core logic.
+- provides a **Fyne GUI** on desktop and Android, and a **CLI** on desktop platforms, using the same core logic.
 
 ## 2. Technology Stack
 - Language: **Go**
@@ -26,11 +26,11 @@ Build a cross-platform desktop and CLI application in **Go** that:
 
 ### In Scope (v1)
 - Single-image processing
-- Input formats: JPG, JPEG, PNG, WEBP (Is 20 MB or smaller)
-- Output format: SVG
+- Input formats: JPG, JPEG, PNG, WEBP (20 MiB or smaller)
+- Output formats: SVG and optional layout JSON export
 - OpenAI provider
 - Gemini provider
-- Fyne desktop GUI
+- Fyne GUI for Linux, Windows, macOS, and Android
 - CLI interface
 - Local configuration storage
 - Native-first file/folder pickers
@@ -41,6 +41,7 @@ Build a cross-platform desktop and CLI application in **Go** that:
 - PDF output
 - ODG output
 - Batch processing
+- Layout JSON import
 - In-app visual layout editor
 - OCR-only mode without LLM
 - Cloud sync
@@ -51,9 +52,10 @@ Build a cross-platform desktop and CLI application in **Go** that:
 ### 4.1 Input
 The application must:
 - accept exactly one input image per processing run;
-- support `.jpg`, `.jpeg`, `.png`, `webp`;
+- support `.jpg`, `.jpeg`, `.png`, `.webp`;
 - validate file existence and readability;
 - detect image dimensions;
+- reject files larger than 20 MiB with a clear error;
 - reject unsupported or invalid files with clear errors.
 
 ### 4.2 Processing
@@ -61,8 +63,8 @@ The application must:
 - send the image to the selected AI provider;
 - request structured output in a unified internal schema;
 - detect text blocks approximately matching the original layout;
-- translate text from **SOURCE LANG** to **DESTINATION LANG**;
-- by default source language is **Ukrainian** and destination language is **German**;
+- translate text from the configured source language to the configured target language;
+- by default source language is **Ukrainian** and target language is **German**;
 - preserve rough block/column structure;
 - return confidence values where available.
 
@@ -73,14 +75,15 @@ The application must generate an **A4 SVG** file that:
 - preserves editable text, not paths;
 - uses UTF-8 encoding;
 - opens correctly in Inkscape;
-- is valid XML/SVG.
+- is valid XML/SVG;
+- optionally writes a layout JSON file, when requested, that serializes the normalized internal page model used for rendering.
 
 ### 4.4 GUI
 The GUI must support:
 - selecting an input image;
 - selecting an output directory;
 - editing an output filename template;
-- selecting provider and model and specific AI/model options;
+- selecting provider, model, and provider-specific advanced options;
 - network/AI timeout;
 - entering and saving API keys locally;
 - configuring rendering options;
@@ -117,8 +120,9 @@ The CLI must support:
 - The internal page model must be provider-agnostic and renderer-agnostic.
 
 ### 5.4 Portability
-- Primary target: Linux
-- Secondary targets: Windows, macOS, android
+- Required v1 GUI targets: Linux, Windows, macOS, and Android.
+- Required v1 CLI targets: Linux, Windows, and macOS.
+- Android support in v1 is GUI-only.
 
 ## 6. Architecture
 
@@ -162,6 +166,20 @@ Define a neutral internal model for page processing.
 - confidence
 - notes
 
+#### Field Semantics
+- `source image width/height` are the original input image dimensions in pixels.
+- `page format` is `A4` in v1.
+- `orientation` is `portrait` or `landscape`.
+- `x`, `y`, `width`, and `height` are floating-point values in original source-image pixel space with the origin at the top-left corner.
+- `font size` is expressed in original source-image pixel space and is scaled proportionally by the renderer to the A4 canvas.
+- `rotation` is clockwise degrees and defaults to `0`.
+- `align` is one of `start`, `center`, or `end`.
+- `color` is an optional CSS/SVG color value and falls back to renderer defaults when absent.
+- `opacity` is in `[0,1]` and defaults to `1`.
+- `line height` is a positive multiplier and defaults to `1.2`.
+- `confidence` is optional and, when present, is in `[0,1]`.
+- `source text` is required for every block, and unreadable text must use the literal value `[unreadable]`.
+
 ### 6.3 Provider Interface
 All providers must implement a shared interface.
 
@@ -172,7 +190,12 @@ type Provider interface {
     ValidateConfig(cfg ProviderConfig) error
     SupportedModels() []string
 }
-````
+```
+
+### 6.3.1 AnalyzeRequest and ProviderConfig
+`AnalyzeRequest` must include a readable source image reference or bytes, original source image width and height, source language, target language, selected model, and request timeout.
+
+`ProviderConfig` must include API key or equivalent credential reference, default model if any, and provider-specific advanced options loaded from local config.
 
 ### 6.4 Renderer Interface
 
@@ -185,6 +208,9 @@ type Renderer interface {
     FileExtension() string
 }
 ```
+
+### 6.4.1 RenderOptions
+`RenderOptions` must include font family, default font size, text color, opacity, preserve-columns behavior, and any renderer-specific defaults explicitly allowed in v1.
 
 ## 7. Repository Structure
 
@@ -224,12 +250,14 @@ type Renderer interface {
 
 Both providers must map their response into the same internal schema.
 
+Provider adapters may create transient resized or recompressed images to satisfy provider API limits, but they must normalize all returned coordinates and size-related values back into the original source-image pixel space before constructing the internal page model.
+
 ### 8.3 Prompt Contract
 
 The provider request must instruct the model to:
 
-* read handwritten or mixed handwritten/printed Ukrainian text;
-* translate it into German;
+* read handwritten or mixed handwritten/printed text in the configured source language;
+* translate it into the configured target language;
 * group content into approximate text blocks;
 * preserve rough visual layout;
 * return only structured output;
@@ -283,6 +311,14 @@ Default template:
 {input_basename}_{provider}_{timestamp}.svg
 ```
 
+Variable formats:
+
+* `{date}` => `YYYY-MM-DD`
+* `{time}` => `HH-MM-SS`
+* `{timestamp}` => `YYYYMMDD-HHMMSS` in local time
+
+Collision handling: if the target SVG path already exists, append `-1`, `-2`, and so on before the extension instead of overwriting. When layout JSON export is enabled, write the JSON file next to the SVG output using the same basename and a `.json` extension.
+
 ## 10. GUI Requirements
 
 ### 10.1 Main Screen
@@ -296,6 +332,7 @@ The main window must contain:
 * output filename template field
 * provider selector
 * model selector
+* provider advanced settings
 * source language selector
 * target language selector
 * rendering settings
@@ -311,14 +348,15 @@ The main window must contain:
 * Validation errors must be visible in the UI.
 * Long-running tasks must run asynchronously.
 * Previous settings must be restored on next launch.
+* Provider-specific advanced options are edited in the GUI and persisted to local config.
 
 ### 10.3 File Pickers
 
 * Use native file/folder pickers as the primary implementation.
 
-### 10.3 Adaptive design
+### 10.4 Adaptive Design
 
-* Gui must be flexible and looks confient in different screen sizes and orienttaions, including Android
+* GUI must be flexible and look confident on different screen sizes and orientations, including Android.
 
 ## 11. CLI Requirements
 
@@ -344,7 +382,7 @@ The `render` command must support:
 ```text
 --input
 --output-dir
---output-name
+--output-template
 --provider
 --model
 --source-lang
@@ -353,12 +391,13 @@ The `render` command must support:
 --font-size
 --opacity
 --color
---page-format
 --config
 --save-layout-json
 --timeout
 --verbose
 ```
+
+`--save-layout-json` writes the normalized internal page model next to the SVG output using the same basename and a `.json` extension.
 
 ### 11.3 Help Output
 
@@ -388,6 +427,7 @@ The application must store:
 * overlay color
 * overlay opacity
 * preserve-columns setting
+* provider-specific advanced options supported by the GUI
 * GUI preferences
 
 ### 12.2 Rules
@@ -397,6 +437,7 @@ The application must store:
 * Environment variables override config defaults and are overridden by CLI flags.
 * API keys must never appear in logs or error messages.
 * API key fields in GUI must be masked.
+* The CLI uses provider-specific advanced options from effective config and does not expose per-run override flags for them in v1.
 
 ### 12.3 Precedence
 
@@ -406,6 +447,16 @@ Configuration precedence:
 2. config file / local preferences
 3. environment variables
 4. CLI flags
+
+### 12.4 Storage Location and Permissions
+
+Store config in the per-user config directory for the host OS under a stable app-specific subdirectory.
+
+A missing config file is not an error.
+
+If the config file contains API keys, create it with user-only permissions on Unix-like systems and the closest current-user-only equivalent on Windows.
+
+`config get` must mask API keys by default.
 
 ## 13. Error Handling Requirements
 
@@ -492,9 +543,11 @@ Cover:
 * Go module
 * CLI application
 * Fyne GUI
+* Android APK
 * OpenAI provider
 * Gemini provider
 * SVG renderer
+* optional layout JSON export
 * local config support
 * automated tests
 * README
@@ -508,14 +561,16 @@ The v1 architecture must allow adding:
 * FODG renderer
 * additional providers
 * batch mode
-* layout JSON export/import
+* layout JSON import
 
 ## 17. Acceptance Criteria
 
 ### Functional
 
 * User can select an image in GUI and generate an SVG successfully.
+* User can select an image in the Android GUI and generate an SVG successfully.
 * User can process the same image from CLI.
+* When requested, the CLI writes a JSON export of the normalized layout next to the SVG output.
 * Generated SVG opens in Inkscape.
 * Overlay text remains editable as text.
 * Settings persist locally.
@@ -526,6 +581,7 @@ The v1 architecture must allow adding:
 * Provider layer is isolated from renderer layer.
 * GUI and CLI both use the same core processing flow.
 * SVG renderer is independent from provider implementation.
+* Android APK builds successfully.
 * Test suite passes.
 * Lint passes.
 
