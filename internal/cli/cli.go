@@ -10,6 +10,7 @@ import (
 
 	"godocmirrortranslator/internal/app"
 	"godocmirrortranslator/internal/config"
+	"godocmirrortranslator/internal/provider"
 	base "godocmirrortranslator/internal/renderer"
 )
 
@@ -104,6 +105,7 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	req.ProviderConfig = providerConfigFromConfig(cfg, req.ProviderName, req.Model)
 
 	result, err := application.Render(ctx, req)
 	if err != nil {
@@ -272,6 +274,23 @@ func appRenderOptionsFromConfig(cfg config.Config) base.RenderOptions {
 		HasOpacity:      true,
 		PreserveColumns: cfg.PreserveColumns,
 	}
+}
+
+func providerConfigFromConfig(cfg config.Config, providerName, model string) provider.ProviderConfig {
+	providerCfg := provider.ProviderConfig{
+		DefaultModel:    model,
+		AdvancedOptions: map[string]string{},
+	}
+	switch providerName {
+	case "openai":
+		providerCfg.APIKey = cfg.OpenAIAPIKey
+	case "gemini":
+		providerCfg.APIKey = cfg.GeminiAPIKey
+	}
+	for key, value := range cfg.ProviderOptions[providerName] {
+		providerCfg.AdvancedOptions[key] = value
+	}
+	return providerCfg
 }
 
 func printHelp(w io.Writer) {

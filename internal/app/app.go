@@ -11,16 +11,25 @@ import (
 	svgrenderer "godocmirrortranslator/internal/renderer/svg"
 )
 
+type ProviderFactory func(cfg provider.ProviderConfig) provider.Provider
+
 type Application struct {
-	Providers map[string]provider.Provider
-	Renderers map[string]base.Renderer
-	Version   string
+	ProviderFactories map[string]ProviderFactory
+	Renderers         map[string]base.Renderer
+	Version           string
 }
 
 func New(version string) *Application {
-	providers := map[string]provider.Provider{}
-	for _, current := range []provider.Provider{mock.New(), openai.New(), gemini.New()} {
-		providers[current.Name()] = current
+	providerFactories := map[string]ProviderFactory{
+		"mock": func(cfg provider.ProviderConfig) provider.Provider {
+			return mock.New(cfg)
+		},
+		"openai": func(cfg provider.ProviderConfig) provider.Provider {
+			return openai.New(cfg)
+		},
+		"gemini": func(cfg provider.ProviderConfig) provider.Provider {
+			return gemini.New(cfg)
+		},
 	}
 
 	renderers := map[string]base.Renderer{}
@@ -29,15 +38,15 @@ func New(version string) *Application {
 	}
 
 	return &Application{
-		Providers: providers,
-		Renderers: renderers,
-		Version:   version,
+		ProviderFactories: providerFactories,
+		Renderers:         renderers,
+		Version:           version,
 	}
 }
 
 func (a *Application) ProviderNames() []string {
-	names := make([]string, 0, len(a.Providers))
-	for name := range a.Providers {
+	names := make([]string, 0, len(a.ProviderFactories))
+	for name := range a.ProviderFactories {
 		names = append(names, name)
 	}
 	sort.Strings(names)

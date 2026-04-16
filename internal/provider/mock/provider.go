@@ -10,7 +10,7 @@ import (
 
 type Provider struct{}
 
-func New() *Provider {
+func New(provider.ProviderConfig) *Provider {
 	return &Provider{}
 }
 

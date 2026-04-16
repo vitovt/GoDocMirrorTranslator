@@ -25,6 +25,7 @@ type RenderRequest struct {
 	OutputDir      string
 	OutputTemplate string
 	ProviderName   string
+	ProviderConfig provider.ProviderConfig
 	RendererName   string
 	Model          string
 	SourceLanguage string
@@ -78,9 +79,13 @@ func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResu
 		req.OutputDir = filepath.Dir(req.InputPath)
 	}
 
-	providerImpl, ok := a.Providers[req.ProviderName]
+	providerFactory, ok := a.ProviderFactories[req.ProviderName]
 	if !ok {
 		return RenderResult{}, fmt.Errorf("unknown provider %q", req.ProviderName)
+	}
+	providerImpl := providerFactory(req.ProviderConfig)
+	if err := providerImpl.ValidateConfig(req.ProviderConfig); err != nil {
+		return RenderResult{}, fmt.Errorf("validate provider config: %w", err)
 	}
 	rendererImpl, ok := a.Renderers[req.RendererName]
 	if !ok {
