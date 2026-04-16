@@ -1,0 +1,65 @@
+model = "gpt-5.4"
+model_provider = "openai"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+profile = "project-autonomous"
+project_doc_max_bytes = 131072
+project_doc_fallback_filenames = ["SPEC.md", "STATE.md"]
+project_root_markers = [".git", "SPEC.md", "go.mod"]
+web_search = "live"
+file_opener = "vscode"
+
+[features]
+codex_hooks = true
+unified_exec = true
+
+[sandbox_workspace_write]
+writable_roots = []
+network_access = true
+exclude_tmpdir_env_var = false
+exclude_slash_tmp = false
+
+[tools]
+view_image = true
+
+[profiles]
+
+[profiles.project-autonomous]
+model = "gpt-5.4"
+model_provider = "openai"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+web_search = "live"
+tools_view_image = true
+
+[profiles.spec-review]
+model = "gpt-5.4"
+model_provider = "openai"
+approval_policy = "never"
+sandbox_mode = "read-only"
+web_search = "live"
+tools_view_image = true
+
+[profiles.project-safe]
+model = "gpt-5.4"
+model_provider = "openai"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+tools_view_image = true
+
+[[skills.config]]
+path = "../.agents/skills/go-repo-workflow"
+enabled = true
+
+[[skills.config]]
+path = "../.agents/skills/fyne-gui-workflow"
+enabled = true
+
+[[skills.config]]
+path = "../.agents/skills/state-sync"
+enabled = true
+
+[[skills.config]]
+path = "../.agents/skills/spec-driven-dev"
+enabled = true

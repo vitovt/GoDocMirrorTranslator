@@ -1,0 +1,3 @@
+# Codex local runtime state
+.codex/local/*
+!.codex/local/.gitkeep
