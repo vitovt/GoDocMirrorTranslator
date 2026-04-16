@@ -127,3 +127,96 @@ func TestAnalyzePageReturnsAuthenticationFailure(t *testing.T) {
 		t.Fatalf("AnalyzePage() error = %v, want authentication failure", err)
 	}
 }
+
+func TestAnalyzePageParsesFencedStructuredOutput(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(generateContentResponse{
+			Candidates: []candidateResponse{{
+				FinishReason: "STOP",
+				Content: contentResponse{
+					Parts: []contentPartResponse{{
+						Text: "```json\n{\"blocks\":[{\"id\":\"body\",\"source_text\":\"Текст\",\"translated_text\":\"Text\",\"x\":16,\"y\":32,\"width\":180,\"height\":60}]}\n```",
+					}},
+				},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	p := New(provider.ProviderConfig{APIKey: "test-key"})
+	p.baseURL = server.URL
+	p.httpClient = server.Client()
+
+	page, err := p.AnalyzePage(context.Background(), provider.AnalyzeRequest{
+		ImagePath:         "page.png",
+		ImageBytes:        []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a},
+		SourceImageWidth:  640,
+		SourceImageHeight: 960,
+		SourceLanguage:    "Ukrainian",
+		TargetLanguage:    "German",
+	})
+	if err != nil {
+		t.Fatalf("AnalyzePage() error = %v", err)
+	}
+	if len(page.Blocks) != 1 || page.Blocks[0].TranslatedText != "Text" {
+		t.Fatalf("page blocks = %#v, want fenced-json translated block", page.Blocks)
+	}
+}
+
+func TestAnalyzePageReturnsBlockedRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(generateContentResponse{
+			PromptFeedback: promptFeedback{BlockReason: "SAFETY"},
+		})
+	}))
+	defer server.Close()
+
+	p := New(provider.ProviderConfig{APIKey: "test-key"})
+	p.baseURL = server.URL
+	p.httpClient = server.Client()
+
+	_, err := p.AnalyzePage(context.Background(), provider.AnalyzeRequest{
+		ImagePath:         "page.png",
+		ImageBytes:        []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a},
+		SourceImageWidth:  640,
+		SourceImageHeight: 960,
+		SourceLanguage:    "Ukrainian",
+		TargetLanguage:    "German",
+	})
+	if err == nil {
+		t.Fatal("AnalyzePage() error = nil, want blocked-request error")
+	}
+	if !strings.Contains(err.Error(), "provider blocked request") {
+		t.Fatalf("AnalyzePage() error = %v, want blocked-request error", err)
+	}
+}
+
+func TestAnalyzePageReturnsFinishReasonWithoutStructuredOutput(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(generateContentResponse{
+			Candidates: []candidateResponse{{
+				FinishReason: "MAX_TOKENS",
+			}},
+		})
+	}))
+	defer server.Close()
+
+	p := New(provider.ProviderConfig{APIKey: "test-key"})
+	p.baseURL = server.URL
+	p.httpClient = server.Client()
+
+	_, err := p.AnalyzePage(context.Background(), provider.AnalyzeRequest{
+		ImagePath:         "page.png",
+		ImageBytes:        []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a},
+		SourceImageWidth:  640,
+		SourceImageHeight: 960,
+		SourceLanguage:    "Ukrainian",
+		TargetLanguage:    "German",
+	})
+	if err == nil {
+		t.Fatal("AnalyzePage() error = nil, want finish-reason error")
+	}
+	if !strings.Contains(err.Error(), "provider finished with reason MAX_TOKENS") {
+		t.Fatalf("AnalyzePage() error = %v, want finish-reason error", err)
+	}
+}

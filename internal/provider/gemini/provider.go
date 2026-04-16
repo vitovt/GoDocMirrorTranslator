@@ -158,9 +158,9 @@ func (p *Provider) AnalyzePage(ctx context.Context, req provider.AnalyzeRequest)
 		return nil, err
 	}
 
-	var analysis provider.AnalysisResponse
-	if err := json.Unmarshal([]byte(outputText), &analysis); err != nil {
-		return nil, fmt.Errorf("parse provider response: %w", err)
+	analysis, err := provider.ParseStructuredOutputText(outputText)
+	if err != nil {
+		return nil, err
 	}
 
 	page := analysis.ToDocumentPage(p.Name(), model, req)

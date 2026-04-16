@@ -138,3 +138,108 @@ func TestAnalyzePageReturnsAuthenticationFailure(t *testing.T) {
 		t.Fatalf("AnalyzePage() error = %v, want authentication failure", err)
 	}
 }
+
+func TestAnalyzePageParsesFencedStructuredOutput(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(responsesResponse{
+			Status: "completed",
+			Output: []responsesResponseOutput{{
+				Type: "message",
+				Content: []responsesResponseContent{{
+					Type: "output_text",
+					Text: "```json\n{\"blocks\":[{\"id\":\"title\",\"source_text\":\"Привіт\",\"translated_text\":\"Hallo\",\"x\":12,\"y\":24,\"width\":220,\"height\":48}]}\n```",
+				}},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	p := New(provider.ProviderConfig{APIKey: "test-key"})
+	p.baseURL = server.URL
+	p.httpClient = server.Client()
+
+	page, err := p.AnalyzePage(context.Background(), provider.AnalyzeRequest{
+		ImagePath:         "page.png",
+		ImageBytes:        []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a},
+		SourceImageWidth:  640,
+		SourceImageHeight: 960,
+		SourceLanguage:    "Ukrainian",
+		TargetLanguage:    "German",
+	})
+	if err != nil {
+		t.Fatalf("AnalyzePage() error = %v", err)
+	}
+	if len(page.Blocks) != 1 || page.Blocks[0].TranslatedText != "Hallo" {
+		t.Fatalf("page blocks = %#v, want fenced-json translated block", page.Blocks)
+	}
+}
+
+func TestAnalyzePageReturnsRefusal(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(responsesResponse{
+			Status: "completed",
+			Output: []responsesResponseOutput{{
+				Type: "message",
+				Content: []responsesResponseContent{{
+					Type:    "refusal",
+					Refusal: "cannot comply",
+				}},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	p := New(provider.ProviderConfig{APIKey: "test-key"})
+	p.baseURL = server.URL
+	p.httpClient = server.Client()
+
+	_, err := p.AnalyzePage(context.Background(), provider.AnalyzeRequest{
+		ImagePath:         "page.png",
+		ImageBytes:        []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a},
+		SourceImageWidth:  640,
+		SourceImageHeight: 960,
+		SourceLanguage:    "Ukrainian",
+		TargetLanguage:    "German",
+	})
+	if err == nil {
+		t.Fatal("AnalyzePage() error = nil, want refusal error")
+	}
+	if !strings.Contains(err.Error(), "provider refused request") {
+		t.Fatalf("AnalyzePage() error = %v, want refusal error", err)
+	}
+}
+
+func TestAnalyzePageReturnsMissingStructuredOutput(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(responsesResponse{
+			Status: "completed",
+			Output: []responsesResponseOutput{{
+				Type: "message",
+				Content: []responsesResponseContent{{
+					Type: "output_text",
+					Text: "   ",
+				}},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	p := New(provider.ProviderConfig{APIKey: "test-key"})
+	p.baseURL = server.URL
+	p.httpClient = server.Client()
+
+	_, err := p.AnalyzePage(context.Background(), provider.AnalyzeRequest{
+		ImagePath:         "page.png",
+		ImageBytes:        []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a},
+		SourceImageWidth:  640,
+		SourceImageHeight: 960,
+		SourceLanguage:    "Ukrainian",
+		TargetLanguage:    "German",
+	})
+	if err == nil {
+		t.Fatal("AnalyzePage() error = nil, want missing structured output error")
+	}
+	if !strings.Contains(err.Error(), "did not include structured output text") {
+		t.Fatalf("AnalyzePage() error = %v, want missing structured output error", err)
+	}
+}
