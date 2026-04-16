@@ -48,6 +48,34 @@ func TestRunHelpIncludesRenderFlagsAndProviderOptionExample(t *testing.T) {
 	}
 }
 
+func TestSubcommandHelpReturnsSuccess(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "render", args: []string{"render", "--help"}, want: "-input"},
+		{name: "gui", args: []string{"gui", "--help"}, want: "-config"},
+		{name: "config init", args: []string{"config", "init", "--help"}, want: "-config"},
+		{name: "config get", args: []string{"config", "get", "--help"}, want: "-config"},
+		{name: "config set", args: []string{"config", "set", "--help"}, want: "-config"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			code := Run(context.Background(), tt.args, &stdout, &stderr)
+			if code != 0 {
+				t.Fatalf("Run(%v) exit code = %d, stderr = %s", tt.args, code, stderr.String())
+			}
+			if !strings.Contains(stderr.String(), tt.want) {
+				t.Fatalf("stderr for %v missing %q in %q", tt.args, tt.want, stderr.String())
+			}
+		})
+	}
+}
+
 func TestRunRender(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")

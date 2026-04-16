@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -56,6 +57,9 @@ func runGUI(ctx context.Context, application *app.Application, args []string, st
 	configPath := ""
 	fs.StringVar(&configPath, "config", "", "Optional config file path")
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 2
 	}
 	if err := gui.Run(ctx, application, Version, configPath); err != nil {
@@ -66,6 +70,7 @@ func runGUI(ctx context.Context, application *app.Application, args []string, st
 }
 
 func runRender(ctx context.Context, application *app.Application, args []string, stdout io.Writer, stderr io.Writer) int {
+	showHelpOnly := hasHelpFlag(args)
 	configPath := ""
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--config" {
@@ -79,10 +84,14 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 		}
 	}
 
-	cfg, _, err := config.LoadEffective(configPath)
-	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "render: load config: %v\n", err)
-		return 1
+	cfg := config.Default()
+	if !showHelpOnly {
+		var err error
+		cfg, _, err = config.LoadEffective(configPath)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "render: load config: %v\n", err)
+			return 1
+		}
 	}
 
 	req := app.RenderRequest{
@@ -116,6 +125,9 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 	fs.StringVar(&configPath, "config", configPath, "Optional config file path")
 
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 2
 	}
 	req.ProviderConfig = cfg.ProviderConfig(req.ProviderName, req.Model)
@@ -158,6 +170,9 @@ func runConfigInit(args []string, stdout io.Writer, stderr io.Writer) int {
 	configPath := ""
 	fs.StringVar(&configPath, "config", "", "Optional config file path")
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 2
 	}
 
@@ -181,6 +196,9 @@ func runConfigGet(args []string, stdout io.Writer, stderr io.Writer) int {
 	configPath := ""
 	fs.StringVar(&configPath, "config", "", "Optional config file path")
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 2
 	}
 
@@ -216,6 +234,9 @@ func runConfigSet(args []string, stdout io.Writer, stderr io.Writer) int {
 	configPath := ""
 	fs.StringVar(&configPath, "config", "", "Optional config file path")
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 2
 	}
 
@@ -326,4 +347,14 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  app providers list")
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Config precedence: built-in defaults, config file, environment, CLI flags")
+}
+
+func hasHelpFlag(args []string) bool {
+	for _, arg := range args {
+		switch arg {
+		case "--help", "-h", "help":
+			return true
+		}
+	}
+	return false
 }
