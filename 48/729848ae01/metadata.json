@@ -1,0 +1,31 @@
+{
+  "cli_version": "dev",
+  "checkpoint_id": "48729848ae01",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "internal/app/app.go",
+    "internal/app/render.go",
+    "internal/cli/cli.go",
+    "internal/provider/gemini/provider.go",
+    "internal/provider/mock/provider.go",
+    "internal/provider/openai/provider.go",
+    "internal/renderer/svg/renderer.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/48/729848ae01/0/metadata.json",
+      "transcript": "/48/729848ae01/0/full.jsonl",
+      "content_hash": "/48/729848ae01/0/content_hash.txt",
+      "prompt": "/48/729848ae01/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8273880,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 7682560,
+    "output_tokens": 198066,
+    "api_call_count": 106
+  }
+}
