@@ -1,0 +1,123 @@
+review AGENTS.md and STATE.md, make them more project-independent in order to use in other golang projects with another SPEC.md
+
+---
+
+no, don't update AGENTS.md and STATE.md. I've just looked at. They are suitable for current project.
+NOW:
+Analyze helper Makefile. Adapt it to go+fyne instead go+gogio, change AGENTS.md to use primary this make commands instead of raw go commands to format, build, test and so on.
+
+---
+
+try again to read those files.
+
+---
+
+Make corresponding commits.
+Read SPEC.md, AGENTS.md, and STATE.md. Audit the specification for ambiguity, missing constraints, risky assumptions, inconsistent terminology, and implementation gaps. Produce a prioritized review with exact proposed edits to SPEC.md, but do not edit files yet.
+
+---
+
+1. Propose accepted
+2. I want json in v1
+3. Propose accepted
+4. Propose accepted
+5. fully promote Android into v1 deliverables and acceptance
+6. Propose accepted
+7. in v1. provider options should be configured only in gui/saved config. Cli override over default/config settings are not necessary on this stage.
+8. Propose accepted
+9. Propose accepted
+10. Propose accepted
+
+---
+
+Commit changes.
+Then Read again SPEC.md, AGENTS.md, and STATE.md. Create a concrete implementation plan for milestone 1, then start implementing the repository skeleton, domain model, renderer interface, SVG renderer, CLI wiring, and tests in small reviewable commits.
+
+---
+
+continue
+
+---
+
+continue now
+
+---
+
+I've run `codex --profile project-autonomous`, in .codex/config.toml I see:
+```
+[profiles]
+
+[profiles.project-autonomous]
+model = "gpt-5.4"
+model_provider = "openai"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+web_search = "live"
+tools_view_image = true
+```
+
+But there are still problems with permissions. Check environment and say what to fix.
+
+---
+
+$ cat  ~/.codex/config.toml 
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+personality = "pragmatic"
+approvals_reviewer = "user"
+
+[projects."/home/vitovt/Desktop/Недороблені-недопушені_проги"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Dev"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Antigravity"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/var/diaries/generalmd/01_Projects/YouTube/Deutschland-investigation"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/var/diaries/generalmd/.obsidian/plugins/csv-codeblock"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/Documents/Projects/Horoshop/yml_catalog"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Downloads/del/Horoshop/dev.zolotoy-standart.com.ua-BITRIX"]
+trust_level = "trusted"
+
+[notice]
+"hide_gpt-5.1-codex-max_migration_prompt" = true
+
+[notice.model_migrations]
+"gpt-5.1-codex-max" = "gpt-5.2-codex"
+"gpt-5.3-codex" = "gpt-5.4"
+"gpt-5.2" = "gpt-5.4"
+
+#[mcp_servers.playwright]
+#command = "npx"
+#args = ["@playwright/mcp@latest"]
+
+[tui]
+status_line = ["model-name", "model-with-reasoning", "current-dir", "project-root", "context-remaining", "context-used", "five-hour-limit", "weekly-limit", "context-window-size", "used-tokens", "session-id"]
+
+[profiles.spec-review]
+approvals_reviewer = "user"
+[projects."/home/vitovt/Desktop/Dev/GoDocMirrorTranslator"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Dev/WeatherChecker3"]
+trust_level = "trusted"
+
+---
+
+I've changed bwrap apparmor rules. Try access again
+
+---
+
+Now make commits and continue developing.
+
+---
+
+continue
