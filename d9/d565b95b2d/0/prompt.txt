@@ -9,3 +9,8 @@ Analyze helper Makefile. Adapt it to go+fyne instead go+gogio, change AGENTS.md 
 ---
 
 try again to read those files.
+
+---
+
+Make corresponding commits.
+Read SPEC.md, AGENTS.md, and STATE.md. Audit the specification for ambiguity, missing constraints, risky assumptions, inconsistent terminology, and implementation gaps. Produce a prioritized review with exact proposed edits to SPEC.md, but do not edit files yet.
