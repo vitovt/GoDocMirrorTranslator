@@ -38,13 +38,15 @@ Before any non-trivial work:
 - Avoid global mutable state.
 - Return wrapped errors with context.
 - Keep packages focused.
-- Run `gofmt -w` on modified Go files.
+- Prefer the repository `make` targets over raw `go` commands for routine workflows.
+- Run `make fmt` after modifying Go files.
 
 ## Validation rules
 Before finishing code changes:
-- Run `gofmt -w` on modified Go files.
-- Run `go test ./...`.
-- Run `golangci-lint run` if available.
+- Run `make fmt-check`.
+- Run `make test`.
+- Run `make lint` if available.
+- Prefer `make check` when the standard validation bundle is needed.
 - If validation cannot be run, say exactly why.
 
 ## Fyne rules
@@ -146,7 +148,11 @@ Before committing:
 * If uncertain, propose 2–3 candidate commit messages and choose the clearest one.
 
 ## Preferred commands
-- `go test ./...`
-- `gofmt -w`
-- `golangci-lint run`
-- `go run ./cmd/app --help`
+- `make fmt`
+- `make fmt-check`
+- `make test`
+- `make lint`
+- `make check`
+- `make build`
+- `make android`
+- `make run-help`

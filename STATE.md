@@ -40,9 +40,11 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - `internal/cli` contains CLI wiring only.
 
 ## Validation rules
-- Run `gofmt -w` on changed Go files.
-- Run `go test ./...` before finalizing code changes.
-- Run `golangci-lint run` when available.
+- Prefer the repository `make` targets as the primary workflow entrypoints.
+- Run `make fmt-check` on changed Go files.
+- Run `make test` before finalizing code changes.
+- Run `make lint` when available.
+- Use `make check` for the standard validation bundle.
 
 ## Current milestone
 Bootstrap repository and Codex working environment.
