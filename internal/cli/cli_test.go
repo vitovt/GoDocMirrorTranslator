@@ -54,11 +54,12 @@ func TestSubcommandHelpReturnsSuccess(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "render", args: []string{"render", "--help"}, want: "-input"},
-		{name: "gui", args: []string{"gui", "--help"}, want: "-config"},
-		{name: "config init", args: []string{"config", "init", "--help"}, want: "-config"},
-		{name: "config get", args: []string{"config", "get", "--help"}, want: "-config"},
-		{name: "config set", args: []string{"config", "set", "--help"}, want: "-config"},
+		{name: "render", args: []string{"render", "--help"}, want: "Usage: app render [flags]"},
+		{name: "gui", args: []string{"gui", "--help"}, want: "Usage: app gui [flags]"},
+		{name: "config", args: []string{"config", "--help"}, want: "Usage: app config <init|get|set> [flags]"},
+		{name: "config init", args: []string{"config", "init", "--help"}, want: "Usage: app config init [flags]"},
+		{name: "config get", args: []string{"config", "get", "--help"}, want: "Usage: app config get [flags] [KEY]"},
+		{name: "config set", args: []string{"config", "set", "--help"}, want: "Usage: app config set [flags] KEY VALUE"},
 	}
 
 	for _, tt := range tests {
@@ -69,10 +70,30 @@ func TestSubcommandHelpReturnsSuccess(t *testing.T) {
 			if code != 0 {
 				t.Fatalf("Run(%v) exit code = %d, stderr = %s", tt.args, code, stderr.String())
 			}
-			if !strings.Contains(stderr.String(), tt.want) {
-				t.Fatalf("stderr for %v missing %q in %q", tt.args, tt.want, stderr.String())
+			output := stdout.String() + stderr.String()
+			if !strings.Contains(output, tt.want) {
+				t.Fatalf("help output for %v missing %q in %q", tt.args, tt.want, output)
 			}
 		})
+	}
+}
+
+func TestRenderHelpIncludesExamplesAndPrecedence(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{"render", "--help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run(render --help) exit code = %d, stderr = %s", code, stderr.String())
+	}
+	output := stdout.String() + stderr.String()
+	for _, want := range []string{
+		"Examples:",
+		"--save-layout-json",
+		"Config precedence: built-in defaults, config file, environment, CLI flags",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("render help missing %q in %q", want, output)
+		}
 	}
 }
 

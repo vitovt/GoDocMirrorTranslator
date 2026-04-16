@@ -54,6 +54,9 @@ func Run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 func runGUI(ctx context.Context, application *app.Application, args []string, stderr io.Writer) int {
 	fs := flag.NewFlagSet("gui", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	fs.Usage = func() {
+		printGUIUsage(stderr, fs)
+	}
 	configPath := ""
 	fs.StringVar(&configPath, "config", "", "Optional config file path")
 	if err := fs.Parse(args); err != nil {
@@ -107,6 +110,9 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 
 	fs := flag.NewFlagSet("render", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	fs.Usage = func() {
+		printRenderUsage(stderr, fs)
+	}
 
 	fs.StringVar(&req.InputPath, "input", req.InputPath, "Path to the input image")
 	fs.StringVar(&req.OutputDir, "output-dir", req.OutputDir, "Directory for generated files")
@@ -147,8 +153,12 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 
 func runConfig(args []string, stdout io.Writer, stderr io.Writer) int {
 	if len(args) == 0 {
-		_, _ = fmt.Fprintln(stderr, "config command requires a subcommand: init, get, set")
-		return 2
+		printConfigUsage(stderr)
+		return 0
+	}
+	if len(args) == 1 && hasHelpFlag(args) {
+		printConfigUsage(stdout)
+		return 0
 	}
 
 	switch args[0] {
@@ -167,6 +177,9 @@ func runConfig(args []string, stdout io.Writer, stderr io.Writer) int {
 func runConfigInit(args []string, stdout io.Writer, stderr io.Writer) int {
 	fs := flag.NewFlagSet("config init", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	fs.Usage = func() {
+		printConfigInitUsage(stderr, fs)
+	}
 	configPath := ""
 	fs.StringVar(&configPath, "config", "", "Optional config file path")
 	if err := fs.Parse(args); err != nil {
@@ -193,6 +206,9 @@ func runConfigInit(args []string, stdout io.Writer, stderr io.Writer) int {
 func runConfigGet(args []string, stdout io.Writer, stderr io.Writer) int {
 	fs := flag.NewFlagSet("config get", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	fs.Usage = func() {
+		printConfigGetUsage(stderr, fs)
+	}
 	configPath := ""
 	fs.StringVar(&configPath, "config", "", "Optional config file path")
 	if err := fs.Parse(args); err != nil {
@@ -231,6 +247,9 @@ func runConfigGet(args []string, stdout io.Writer, stderr io.Writer) int {
 func runConfigSet(args []string, stdout io.Writer, stderr io.Writer) int {
 	fs := flag.NewFlagSet("config set", flag.ContinueOnError)
 	fs.SetOutput(stderr)
+	fs.Usage = func() {
+		printConfigSetUsage(stderr, fs)
+	}
 	configPath := ""
 	fs.StringVar(&configPath, "config", "", "Optional config file path")
 	if err := fs.Parse(args); err != nil {
@@ -347,6 +366,79 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  app providers list")
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Config precedence: built-in defaults, config file, environment, CLI flags")
+}
+
+func printRenderUsage(w io.Writer, fs *flag.FlagSet) {
+	_, _ = fmt.Fprintln(w, "Usage: app render [flags]")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Render one input image to an editable A4 SVG overlay.")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Flags:")
+	fs.PrintDefaults()
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Examples:")
+	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider mock")
+	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider openai --model gpt-4.1-mini --save-layout-json")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Config precedence: built-in defaults, config file, environment, CLI flags")
+}
+
+func printGUIUsage(w io.Writer, fs *flag.FlagSet) {
+	_, _ = fmt.Fprintln(w, "Usage: app gui [flags]")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Launch the Fyne GUI.")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Flags:")
+	fs.PrintDefaults()
+}
+
+func printConfigUsage(w io.Writer) {
+	_, _ = fmt.Fprintln(w, "Usage: app config <init|get|set> [flags]")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Manage persisted local configuration values.")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Subcommands:")
+	_, _ = fmt.Fprintln(w, "  init")
+	_, _ = fmt.Fprintln(w, "  get")
+	_, _ = fmt.Fprintln(w, "  set")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Examples:")
+	_, _ = fmt.Fprintln(w, "  app config init")
+	_, _ = fmt.Fprintln(w, "  app config get default_provider")
+	_, _ = fmt.Fprintln(w, "  app config set provider_options.openai.image_detail high")
+}
+
+func printConfigInitUsage(w io.Writer, fs *flag.FlagSet) {
+	_, _ = fmt.Fprintln(w, "Usage: app config init [flags]")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Create the config file with defaults if it does not already exist.")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Flags:")
+	fs.PrintDefaults()
+}
+
+func printConfigGetUsage(w io.Writer, fs *flag.FlagSet) {
+	_, _ = fmt.Fprintln(w, "Usage: app config get [flags] [KEY]")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Read the effective configuration or one specific key.")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Flags:")
+	fs.PrintDefaults()
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Example:")
+	_, _ = fmt.Fprintln(w, "  app config get provider_options.openai.image_detail")
+}
+
+func printConfigSetUsage(w io.Writer, fs *flag.FlagSet) {
+	_, _ = fmt.Fprintln(w, "Usage: app config set [flags] KEY VALUE")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Persist one configuration value.")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Flags:")
+	fs.PrintDefaults()
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Example:")
+	_, _ = fmt.Fprintln(w, "  app config set provider_options.openai.image_detail high")
 }
 
 func hasHelpFlag(args []string) bool {
