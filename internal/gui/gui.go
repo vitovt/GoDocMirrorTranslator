@@ -396,15 +396,8 @@ func (u *UI) settingsValidationError() error {
 	if cfg.Timeout <= 0 {
 		return fmt.Errorf("timeout must be positive")
 	}
-	switch cfg.DefaultProvider {
-	case "openai":
-		if strings.TrimSpace(cfg.OpenAIAPIKey) == "" {
-			return fmt.Errorf("openai api key is required")
-		}
-	case "gemini":
-		if strings.TrimSpace(cfg.GeminiAPIKey) == "" {
-			return fmt.Errorf("gemini api key is required")
-		}
+	if err := u.application.ValidateProviderConfig(cfg.DefaultProvider, cfg.ProviderConfig(cfg.DefaultProvider, cfg.DefaultModel)); err != nil {
+		return err
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"sort"
 
 	"godocmirrortranslator/internal/provider"
@@ -61,4 +62,12 @@ func (a *Application) SupportedModels(providerName string, cfg provider.Provider
 	models := append([]string(nil), factory(cfg).SupportedModels()...)
 	sort.Strings(models)
 	return models
+}
+
+func (a *Application) ValidateProviderConfig(providerName string, cfg provider.ProviderConfig) error {
+	factory, ok := a.ProviderFactories[providerName]
+	if !ok {
+		return fmt.Errorf("unknown provider %q", providerName)
+	}
+	return factory(cfg).ValidateConfig(cfg)
 }

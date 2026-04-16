@@ -150,6 +150,19 @@ func TestProviderSelectionUpdatesModelsAndAdvancedOptions(t *testing.T) {
 	}
 }
 
+func TestSettingsValidationUsesApplicationProviderValidation(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	ui.providerSelect.SetSelected("openai")
+	ui.openAIKeyEntry.SetText("")
+	ui.syncModelOptions()
+	ui.refreshValidation()
+
+	if !strings.Contains(ui.validationLabel.Text, "openai API key is required") {
+		t.Fatalf("validationLabel = %q, want application provider validation message", ui.validationLabel.Text)
+	}
+}
+
 func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui, _, cfgPath := newTestUI(t)
 
