@@ -28,6 +28,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - GUI and CLI must share one application core.
 - Renderer interface must support SVG now and FODG later.
 - Provider adapters must normalize into one internal `DocumentPage` / `TextBlock` model.
+- Provider instances are constructed per render from effective runtime config so credentials and advanced options do not leak into global mutable state.
 - No business logic inside GUI widgets.
 
 ## Repository conventions
@@ -36,7 +37,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - `internal/app` holds use cases, render orchestration, file output, and filename templating.
 - `internal/config` holds local config defaults, path resolution, environment overlays, masking, and persistence.
 - `internal/provider/mock` is the development/test provider.
-- `internal/provider/openai` and `internal/provider/gemini` currently contain placeholders for upcoming adapters.
+- `internal/provider/openai` and `internal/provider/gemini` currently validate credentials and still contain placeholder analyze implementations.
 - `internal/renderer` holds renderer contracts.
 - `internal/renderer/svg` contains the current SVG renderer.
 - `internal/cli` contains CLI wiring only.
@@ -51,14 +52,13 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - In this environment, set `GOCACHE=/tmp/go-build` when the default Go cache is not writable.
 
 ## Current milestone
-Milestone 1 foundation is in progress: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, CLI wiring, local config persistence, and baseline tests are in place.
+Milestone 1 foundation is in progress: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, CLI wiring, local config persistence, provider runtime-config injection, and baseline tests are in place.
 
 ## Next implementation targets
-1. Replace provider placeholders with real OpenAI and Gemini adapters.
-2. Expand CLI coverage around config and error reporting.
-3. Add GUI shell, validation state, and native picker integration.
-4. Add golden files and broader renderer/provider tests.
-5. Reconcile the accepted spec decisions back into `SPEC.md`.
+1. Replace provider placeholder analyze implementations with real OpenAI and Gemini adapters.
+2. Add GUI shell, validation state, and native picker integration.
+3. Add golden files and broader renderer/provider tests.
+4. Reconcile the accepted spec decisions back into `SPEC.md`.
 
 ## Open decisions
 - Exact native picker package choice
