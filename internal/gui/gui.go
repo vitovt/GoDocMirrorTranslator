@@ -52,6 +52,7 @@ type UI struct {
 	colorEntry        *widget.Entry
 	opacityEntry      *widget.Entry
 	preserveColumns   *widget.Check
+	saveLayoutJSON    *widget.Check
 	openAIKeyEntry    *widget.Entry
 	geminiKeyEntry    *widget.Entry
 	openAIImageDetail *widget.Select
@@ -81,7 +82,6 @@ func Run(ctx context.Context, application *appcore.Application, version string, 
 	window.Resize(fyne.NewSize(960, 760))
 
 	ui := newUI(ctx, guiApp, window, application, resolvedPath, cfg, dialogPicker{})
-	window.SetContent(ui.content())
 	window.SetCloseIntercept(func() {
 		if _, err := ui.saveSettings(); err != nil {
 			dialog.ShowError(err, window)
@@ -127,6 +127,9 @@ func newUI(ctx context.Context, guiApp fyne.App, window fyne.Window, application
 	ui.preserveColumns = widget.NewCheck("", func(bool) {
 		ui.refreshValidation()
 	})
+	ui.saveLayoutJSON = widget.NewCheck("", func(bool) {
+		ui.refreshValidation()
+	})
 	ui.openAIKeyEntry = widget.NewPasswordEntry()
 	ui.geminiKeyEntry = widget.NewPasswordEntry()
 	ui.openAIImageDetail = widget.NewSelect([]string{"auto", "low", "high"}, func(string) {
@@ -161,6 +164,7 @@ func newUI(ctx context.Context, guiApp fyne.App, window fyne.Window, application
 	ui.detailsEntry.Disable()
 
 	ui.installChangeHandlers()
+	window.SetContent(ui.content())
 	ui.applyConfig(cfg)
 	ui.syncModelOptions()
 	ui.syncAdvancedOptions()
@@ -191,6 +195,7 @@ func (u *UI) content() fyne.CanvasObject {
 		widget.NewFormItem("Overlay Color", u.colorEntry),
 		widget.NewFormItem("Overlay Opacity", u.opacityEntry),
 		widget.NewFormItem("Preserve Columns", u.preserveColumns),
+		widget.NewFormItem("Save Layout JSON", u.saveLayoutJSON),
 		widget.NewFormItem("OpenAI API Key", u.openAIKeyEntry),
 		widget.NewFormItem("Gemini API Key", u.geminiKeyEntry),
 		widget.NewFormItem("OpenAI Image Detail", u.openAIImageDetail),
@@ -251,6 +256,8 @@ func (u *UI) applyConfig(cfg config.Config) {
 	u.colorEntry.SetText(cfg.OverlayColor)
 	u.opacityEntry.SetText(fmt.Sprintf("%g", cfg.OverlayOpacity))
 	u.preserveColumns.SetChecked(cfg.PreserveColumns)
+	u.saveLayoutJSON.Checked = cfg.SaveLayoutJSONEnabled()
+	u.saveLayoutJSON.Refresh()
 	u.openAIKeyEntry.SetText(cfg.OpenAIAPIKey)
 	u.geminiKeyEntry.SetText(cfg.GeminiAPIKey)
 	u.openAIImageDetail.SetSelected(configValue(cfg.ProviderOptions, "openai", "image_detail", "auto"))
@@ -417,6 +424,7 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	cfg.OverlayColor = strings.TrimSpace(u.colorEntry.Text)
 	cfg.OverlayOpacity = opacity
 	cfg.PreserveColumns = u.preserveColumns.Checked
+	cfg.SetSaveLayoutJSONEnabled(u.saveLayoutJSON.Checked)
 	cfg.OpenAIAPIKey = strings.TrimSpace(u.openAIKeyEntry.Text)
 	cfg.GeminiAPIKey = strings.TrimSpace(u.geminiKeyEntry.Text)
 	if cfg.ProviderOptions == nil {
@@ -442,7 +450,7 @@ func (u *UI) buildRenderRequest(cfg config.Config) appcore.RenderRequest {
 		TargetLanguage: cfg.TargetLanguage,
 		Timeout:        cfg.Timeout,
 		RenderOptions:  cfg.RenderOptions(),
-		SaveLayoutJSON: true,
+		SaveLayoutJSON: cfg.SaveLayoutJSONEnabled(),
 	}
 }
 

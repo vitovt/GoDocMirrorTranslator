@@ -75,6 +75,7 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui.templateEntry.SetText("saved_{provider}.svg")
 	ui.sourceLangEntry.SetText("Polish")
 	ui.targetLangEntry.SetText("German")
+	ui.saveLayoutJSON.SetChecked(false)
 	ui.syncModelOptions()
 	ui.modelSelect.SetSelected("gpt-4.1-mini")
 
@@ -95,6 +96,9 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	if loaded.OutputTemplate != "saved_{provider}.svg" {
 		t.Fatalf("OutputTemplate = %q, want saved_{provider}.svg", loaded.OutputTemplate)
 	}
+	if loaded.SaveLayoutJSONEnabled() {
+		t.Fatal("SaveLayoutJSONEnabled() = true, want false")
+	}
 }
 
 func TestStartProcessingWithMockProvider(t *testing.T) {
@@ -105,6 +109,7 @@ func TestStartProcessingWithMockProvider(t *testing.T) {
 
 	ui.inputEntry.SetText(inputPath)
 	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
+	ui.saveLayoutJSON.SetChecked(true)
 	ui.refreshValidation()
 	ui.startProcessing()
 
@@ -138,6 +143,42 @@ func TestStartProcessingWithMockProvider(t *testing.T) {
 	}
 }
 
+func TestNewUIDisablesLayoutJSONByDefault(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+	if ui.saveLayoutJSON.Checked {
+		t.Fatal("saveLayoutJSON.Checked = true, want false from default config")
+	}
+}
+
+func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
+	ui, tempDir, _ := newTestUI(t)
+
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 128, 128)
+
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
+	ui.saveLayoutJSON.SetChecked(false)
+	ui.refreshValidation()
+	ui.startProcessing()
+
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+
+	outputs := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")
+	if len(outputs) != 1 {
+		t.Fatalf("details = %q, want only svg path", ui.detailsEntry.Text)
+	}
+	if filepath.Ext(outputs[0]) != ".svg" {
+		t.Fatalf("details = %q, want svg output path", ui.detailsEntry.Text)
+	}
+	jsonPath := strings.TrimSuffix(outputs[0], filepath.Ext(outputs[0])) + ".json"
+	if _, err := os.Stat(jsonPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no layout json at %q, stat err = %v", jsonPath, err)
+	}
+}
+
 func newTestUI(t *testing.T) (*UI, string, string) {
 	t.Helper()
 
@@ -149,7 +190,6 @@ func newTestUI(t *testing.T) (*UI, string, string) {
 	fyneApp := test.NewTempApp(t)
 	window := fyneApp.NewWindow("test")
 	ui := newUI(context.Background(), fyneApp, window, appcore.New("test"), cfgPath, cfg, noopPicker{})
-	window.SetContent(ui.content())
 	return ui, tempDir, cfgPath
 }
 

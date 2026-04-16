@@ -107,3 +107,18 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 		t.Fatalf("languages = %q -> %q, want Polish -> German", cfg.SourceLanguage, cfg.TargetLanguage)
 	}
 }
+
+func TestSaveLayoutJSONPreferenceDefaultsToDisabled(t *testing.T) {
+	cfg := Default()
+	if cfg.SaveLayoutJSONEnabled() {
+		t.Fatal("SaveLayoutJSONEnabled() = true, want false by default")
+	}
+}
+
+func TestSetSaveLayoutJSONEnabledPersistsBoolean(t *testing.T) {
+	cfg := Default()
+	cfg.SetSaveLayoutJSONEnabled(false)
+	if cfg.SaveLayoutJSONEnabled() {
+		t.Fatal("SaveLayoutJSONEnabled() = true, want false after update")
+	}
+}
