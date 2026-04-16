@@ -1,0 +1,402 @@
+MODULE_PATH := $(shell sed -n 's/^module //p' go.mod 2>/dev/null | head -n1)
+APP_NAME ?= $(notdir $(MODULE_PATH))
+APP_ID ?= $(if $(APP_NAME),com.vitovt.$(APP_NAME),)
+MAIN_PKG ?= ./cmd/app
+MAIN_PKG_REL := $(patsubst ./%,%,$(MAIN_PKG))
+
+BUILD_DIR ?= build
+DIST_DIR ?= dist
+
+FYNE ?= fyne
+ANDROID_ICON_PATH ?= $(if $(MAIN_PKG_REL),$(MAIN_PKG_REL)/appicon.png,)
+ANDROID_HOME_FALLBACK := $(or $(ANDROID_HOME),$(ANDROID_SDK_ROOT),$(HOME)/Android/Sdk)
+ANDROID_PACKAGE_ARGS ?=
+
+LINUX_GOARCH ?= amd64
+WINDOWS_GOARCH ?= amd64
+MAC_GOARCH ?= amd64
+
+LINUX_CGO_ENABLED ?= 1
+WINDOWS_CGO_ENABLED ?= 1
+MAC_CGO_ENABLED ?= 1
+
+ARTIFACT_TARGETS ?= linux windows android
+ARCHIVE_DESKTOP_ARTIFACTS ?= 0
+
+PROJECT_TUNE_HINT ?= APP_NAME is derived from the basename of the module path in go.mod; MAIN_PKG defaults to ./cmd/app for this repo.
+LINUX_HOST_DEPS_HINT ?= Fyne desktop builds on Linux usually need CGO plus native OpenGL/X11 headers such as gcc, pkg-config, libgl1-mesa-dev, and xorg-dev.
+WINDOWS_HOST_DEPS_HINT ?= Fyne Windows builds usually need CGO enabled and, on Linux hosts, a MinGW-w64 cross toolchain.
+ANDROID_HOST_DEPS_HINT ?= Android packaging uses the fyne CLI plus the Android SDK/NDK and Java toolchain expected by Fyne.
+PROJECTNAME_REGEX := ^[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*$$
+ARCHIVE_DESKTOP_ENABLED := $(filter 1 true TRUE yes YES on ON,$(ARCHIVE_DESKTOP_ARTIFACTS))
+
+APP_NAME_DISPLAY := $(if $(APP_NAME),$(APP_NAME),<missing: run make init PROJECTNAME=github.com/acme/myapp>)
+APP_ID_DISPLAY := $(if $(APP_ID),$(APP_ID),<derived after go.mod/module init>)
+MAIN_PKG_DISPLAY := $(if $(MAIN_PKG),$(MAIN_PKG),<derived after go.mod/module init>)
+ANDROID_ICON_PATH_DISPLAY := $(if $(ANDROID_ICON_PATH),$(ANDROID_ICON_PATH),<derived after go.mod/module init>)
+MODULE_PATH_DISPLAY := $(if $(MODULE_PATH),$(MODULE_PATH),<missing>)
+
+EXACT_TAG := $(shell git describe --tags --exact-match 2>/dev/null || true)
+MAIN_PKG_ABS := $(abspath $(MAIN_PKG))
+VERSION ?= $(shell \
+	if git rev-parse --git-dir >/dev/null 2>&1; then \
+		exact=$$(git describe --tags --exact-match 2>/dev/null || true); \
+		last=$$(git describe --tags --abbrev=0 2>/dev/null || true); \
+		sha=$$(git rev-parse --short HEAD 2>/dev/null || echo nogit); \
+		dirty=$$(if [ -n "$$(git status --porcelain 2>/dev/null)" ]; then echo "-dirty"; fi); \
+		if [ -n "$$exact" ]; then \
+			printf "%s%s" "$$exact" "$$dirty"; \
+		elif [ -n "$$last" ]; then \
+			printf "%s-%s-dev%s" "$$last" "$$sha" "$$dirty"; \
+		else \
+			printf "0.0.0-%s-dev%s" "$$sha" "$$dirty"; \
+		fi; \
+	else \
+		echo "0.0.0-local"; \
+	fi)
+
+TEST_FILES := $(shell find . -type f -name '*_test.go' -not -path './vendor/*' -not -path './build/*' -not -path './dist/*' 2>/dev/null)
+GO_FILES := $(shell find . -type f -name '*.go' -not -path './vendor/*' -not -path './build/*' -not -path './dist/*' 2>/dev/null)
+
+LINUX_BIN := $(BUILD_DIR)/linux/$(APP_NAME)
+WINDOWS_BIN := $(BUILD_DIR)/windows/$(APP_NAME).exe
+MAC_BIN := $(BUILD_DIR)/mac/$(APP_NAME)
+ANDROID_APK := $(BUILD_DIR)/android/$(APP_NAME).apk
+
+ARTIFACT_DIR := $(DIST_DIR)/$(VERSION)
+ifneq ($(ARCHIVE_DESKTOP_ENABLED),)
+LINUX_ARTIFACT := $(ARTIFACT_DIR)/$(APP_NAME)_$(VERSION)_linux_$(LINUX_GOARCH).tar.gz
+WINDOWS_ARTIFACT := $(ARTIFACT_DIR)/$(APP_NAME)_$(VERSION)_windows_$(WINDOWS_GOARCH).zip
+else
+LINUX_ARTIFACT := $(ARTIFACT_DIR)/$(APP_NAME)_$(VERSION)_linux_$(LINUX_GOARCH)
+WINDOWS_ARTIFACT := $(ARTIFACT_DIR)/$(APP_NAME)_$(VERSION)_windows_$(WINDOWS_GOARCH).exe
+endif
+ANDROID_ARTIFACT := $(ARTIFACT_DIR)/$(APP_NAME)_$(VERSION)_android.apk
+CHECKSUM_FILE := $(ARTIFACT_DIR)/SHA256SUMS.txt
+
+ARTIFACT_FILES :=
+ifneq ($(filter linux,$(ARTIFACT_TARGETS)),)
+ARTIFACT_FILES += $(LINUX_ARTIFACT)
+endif
+ifneq ($(filter windows,$(ARTIFACT_TARGETS)),)
+ARTIFACT_FILES += $(WINDOWS_ARTIFACT)
+endif
+ifneq ($(filter android,$(ARTIFACT_TARGETS)),)
+ARTIFACT_FILES += $(ANDROID_ARTIFACT)
+endif
+RELEASE_ASSETS := $(ARTIFACT_FILES) $(CHECKSUM_FILE)
+
+.DEFAULT_GOAL := help
+
+.PHONY: help init ensure-module prepare deps mod-tidy fmt fmt-check lint test check build linux windows mac android run-help artifacts snapshot release release-check clean
+
+help:
+	@echo "UNIVERSAL GO BUILD / TEST / PACKAGE / RELEASE ENTRYPOINT"
+	@echo "Drop this Makefile into a Go project, then tune only the small project-specific variables at the top."
+	@echo "APP_NAME is derived automatically from the basename of the module path in go.mod."
+	@echo "If go.mod does not exist yet, run make init PROJECTNAME=<module_path> first."
+	@echo "Linux/Windows builds are expected to be common. Android support is optional and depends on the UI stack."
+	@echo "This repo uses Fyne. Desktop builds use go build, and Android packaging uses the fyne CLI."
+	@echo ""
+	@echo "Initialization:"
+	@echo "  make init PROJECTNAME=weatherchecker"
+	@echo "  make init PROJECTNAME=github.com/acme/weatherchecker"
+	@echo "  make init PROJECTNAME=gitlab.com/team/weather-tool"
+	@echo "  Allowed PROJECTNAME characters: lowercase letters, digits, '.', '_', '-', and '/'."
+	@echo ""
+	@echo "Artifact packaging:"
+	@echo "  Desktop artifacts are uploaded as raw binaries by default."
+	@echo "  Enable archive packaging with ARCHIVE_DESKTOP_ARTIFACTS=1."
+	@echo "  Example: make snapshot ARCHIVE_DESKTOP_ARTIFACTS=1"
+	@echo ""
+	@echo "Project tuning checklist:"
+	@echo "  1. Check that go.mod has the module path you want; APP_NAME comes from its basename."
+	@echo "  2. Override APP_ID only if the Android application id should not be com.vitovt.<APP_NAME>."
+	@echo "  3. Override MAIN_PKG only if your main package is not ./cmd/app."
+	@echo "  4. Set ARTIFACT_TARGETS to the platforms this repo actually releases."
+	@echo "  5. Review Linux/Windows/macOS CGO flags and platform commands for the current UI/toolchain."
+	@echo "  6. If Android exists, review ANDROID_ICON_PATH, ANDROID_PACKAGE_ARGS, and the required Fyne/Android toolchain."
+	@echo "  7. Replace the host dependency hints below with project-specific package/toolchain notes."
+	@echo ""
+	@echo "Configured project hints:"
+	@echo "  Tune hint: $(PROJECT_TUNE_HINT)"
+	@echo "  Linux deps hint: $(LINUX_HOST_DEPS_HINT)"
+	@echo "  Windows deps hint: $(WINDOWS_HOST_DEPS_HINT)"
+	@echo "  Android deps hint: $(ANDROID_HOST_DEPS_HINT)"
+	@echo ""
+	@echo "Targets:"
+	@echo "  make help         - Show this help output (default)."
+	@echo "  make init         - Create go.mod after validating PROJECTNAME."
+	@echo "  make ensure-module - Fail early with a make init hint if go.mod/module is missing."
+	@echo "  make prepare      - Create local build and dist folders."
+	@echo "  make deps         - Download Go modules without mutating go.mod/go.sum."
+	@echo "  make mod-tidy     - Run go mod tidy explicitly."
+	@echo "  make fmt          - Format Go sources in-place."
+	@echo "  make fmt-check    - Fail if Go sources are not gofmt formatted."
+	@echo "  make lint         - Run golangci-lint when installed, or print a clear skip message."
+	@echo "  make test         - Run automated tests, or print a clear skip message if there are none."
+	@echo "  make check        - Run deps + fmt-check + lint + test."
+	@echo "  make build        - Build the default desktop target (currently linux)."
+	@echo "  make linux        - Build Linux binary (currently amd64 only)."
+	@echo "  make windows      - Build Windows binary (currently amd64 only)."
+	@echo "  make mac          - Build macOS binary (currently amd64 only, macOS host expected)."
+	@echo "  make android      - Build Android APK with the fyne CLI."
+	@echo "  make run-help     - Run the application with --help."
+	@echo "  make artifacts    - Package versioned release artifacts into $(DIST_DIR)/<version>/."
+	@echo "  make snapshot     - Build versioned local artifacts without publishing a GitHub release."
+	@echo "  make release-check - Validate git/gh release prerequisites without publishing."
+	@echo "  make release      - Verify release context, package assets, and publish a GitHub release."
+	@echo "  make clean        - Remove build and dist artifacts."
+	@echo ""
+	@echo "Release behavior:"
+	@echo "  release requires an exact git tag on HEAD, a clean git tree, gh installed, and gh auth ready."
+	@echo "  snapshot works from any commit and produces a -dev/-dirty version when HEAD is not an exact tag."
+	@echo "  Raw Linux/macOS binaries may require 'chmod +x' after download because release assets do not preserve Unix execute bits."
+	@echo "  Artifact coverage is intentionally limited to $(ARTIFACT_TARGETS); extend it per project when needed."
+	@echo ""
+	@echo "Current values:"
+	@echo "  MODULE_PATH:      $(MODULE_PATH_DISPLAY)"
+	@echo "  APP_NAME:         $(APP_NAME_DISPLAY)"
+	@echo "  APP_ID:           $(APP_ID_DISPLAY)"
+	@echo "  MAIN_PKG:         $(MAIN_PKG_DISPLAY)"
+	@echo "  VERSION:          $(VERSION)"
+	@echo "  ARTIFACT_TARGETS: $(ARTIFACT_TARGETS)"
+	@echo "  ARCHIVE_DESKTOP_ARTIFACTS: $(ARCHIVE_DESKTOP_ARTIFACTS)"
+	@echo "  BUILD_DIR:        $(BUILD_DIR)"
+	@echo "  DIST_DIR:         $(DIST_DIR)"
+	@echo "  ANDROID_ICON_PATH: $(ANDROID_ICON_PATH_DISPLAY)"
+	@echo "  FYNE:             $(FYNE)"
+
+init:
+	@if [ -f go.mod ]; then \
+		echo "go.mod already exists."; \
+		echo "Current module path: $(MODULE_PATH_DISPLAY)"; \
+		echo "If you want to reinitialize it, remove or rename go.mod first."; \
+		exit 1; \
+	fi
+	@if [ -z "$(PROJECTNAME)" ]; then \
+		echo "Error: PROJECTNAME is not supplied."; \
+		echo "Usage: make init PROJECTNAME=<module_path>"; \
+		echo "Allowed characters: lowercase letters, digits, '.', '_', '-', and '/'."; \
+		echo "Examples:"; \
+		echo "  make init PROJECTNAME=weatherchecker"; \
+		echo "  make init PROJECTNAME=github.com/acme/weatherchecker"; \
+		echo "  make init PROJECTNAME=gitlab.com/team/weather-tool"; \
+		exit 1; \
+	fi
+	@if ! printf '%s\n' "$(PROJECTNAME)" | grep -Eq '$(PROJECTNAME_REGEX)'; then \
+		echo "Invalid PROJECTNAME: $(PROJECTNAME)"; \
+		echo "Allowed format: lowercase letters/digits plus '.', '_', '-' with optional '/' path segments."; \
+		echo "Examples:"; \
+		echo "  weatherchecker"; \
+		echo "  github.com/acme/weatherchecker"; \
+		echo "  gitlab.com/team/weather-tool"; \
+		exit 1; \
+	fi
+	@echo "Initializing Go project with module path '$(PROJECTNAME)'..."
+	@go mod init $(PROJECTNAME)
+	@go mod tidy
+	@echo "Project initialized successfully."
+	@echo "Derived APP_NAME: $$(basename "$(PROJECTNAME)")"
+
+ensure-module:
+	@if [ ! -f go.mod ]; then \
+		echo "go.mod was not found."; \
+		echo "Run: make init PROJECTNAME=github.com/acme/myapp"; \
+		echo "Allowed characters: lowercase letters, digits, '.', '_', '-', and '/'."; \
+		echo "Examples:"; \
+		echo "  make init PROJECTNAME=weatherchecker"; \
+		echo "  make init PROJECTNAME=github.com/acme/weatherchecker"; \
+		echo "  make init PROJECTNAME=gitlab.com/team/weather-tool"; \
+		exit 1; \
+	fi
+	@if [ -z "$(MODULE_PATH)" ] || [ -z "$(APP_NAME)" ]; then \
+		echo "go.mod exists but the module line could not be parsed."; \
+		echo "Expected a line like: module github.com/acme/myapp"; \
+		echo "Fix go.mod or reinitialize with: make init PROJECTNAME=github.com/acme/myapp"; \
+		exit 1; \
+	fi
+
+prepare:
+	@mkdir -p $(BUILD_DIR)/linux $(BUILD_DIR)/windows $(BUILD_DIR)/mac $(BUILD_DIR)/android $(DIST_DIR)
+
+deps: ensure-module
+	@echo "Downloading Go modules..."
+	@go mod download
+	@go mod verify
+
+mod-tidy: ensure-module
+	@echo "Running go mod tidy..."
+	@go mod tidy
+
+fmt:
+	@if [ -z "$(strip $(GO_FILES))" ]; then \
+		echo "No Go files found, skipping format."; \
+	else \
+		echo "Formatting Go files..."; \
+		gofmt -s -w $(GO_FILES); \
+	fi
+
+fmt-check:
+	@if [ -z "$(strip $(GO_FILES))" ]; then \
+		echo "No Go files found, skipping format check."; \
+	else \
+		unformatted=$$(gofmt -l $(GO_FILES)); \
+		if [ -n "$$unformatted" ]; then \
+			echo "Go files are not formatted. Run 'make fmt'."; \
+			printf '%s\n' "$$unformatted"; \
+			exit 1; \
+		fi; \
+		echo "Formatting check passed."; \
+	fi
+
+lint: ensure-module
+	@if ! command -v golangci-lint >/dev/null 2>&1; then \
+		echo "golangci-lint is not installed, skipping lint."; \
+	else \
+		echo "Running golangci-lint..."; \
+		golangci-lint run; \
+	fi
+
+test: ensure-module
+	@if [ -z "$(strip $(TEST_FILES))" ]; then \
+		echo "No tests found, skipping."; \
+	else \
+		echo "Running Go tests..."; \
+		go test ./...; \
+	fi
+
+check: deps fmt-check lint test
+	@echo "Checks completed."
+
+build: linux
+
+linux: check prepare
+	@echo "Building Linux binary..."
+	@GOOS=linux GOARCH=$(LINUX_GOARCH) CGO_ENABLED=$(LINUX_CGO_ENABLED) go build -o $(LINUX_BIN) $(MAIN_PKG)
+	@echo "Linux build completed: $(LINUX_BIN)"
+
+windows: check prepare
+	@echo "Building Windows binary..."
+	@GOOS=windows GOARCH=$(WINDOWS_GOARCH) CGO_ENABLED=$(WINDOWS_CGO_ENABLED) go build -o $(WINDOWS_BIN) $(MAIN_PKG)
+	@echo "Windows build completed: $(WINDOWS_BIN)"
+
+mac: check prepare
+	@if [ "$$(go env GOHOSTOS)" = "darwin" ]; then \
+		echo "Building macOS binary..."; \
+		GOOS=darwin GOARCH=$(MAC_GOARCH) CGO_ENABLED=$(MAC_CGO_ENABLED) go build -o $(MAC_BIN) $(MAIN_PKG); \
+		echo "macOS build completed: $(MAC_BIN)"; \
+	else \
+		echo "mac target requires a macOS host (or a separately configured osxcross toolchain)."; \
+		echo "This repo currently treats non-macOS hosts as unsupported for mac builds."; \
+		exit 1; \
+	fi
+
+android: check prepare
+	@if ! command -v $(FYNE) >/dev/null 2>&1; then \
+		echo "Missing fyne CLI: $(FYNE)"; \
+		echo "Install it with: go install fyne.io/tools/cmd/fyne@latest"; \
+		exit 1; \
+	fi
+	@test -f $(ANDROID_ICON_PATH) || (echo "Missing Android icon: $(ANDROID_ICON_PATH)" && exit 1)
+	@ANDROID_HOME="$(ANDROID_HOME_FALLBACK)"; \
+	if [ ! -d "$$ANDROID_HOME" ]; then \
+		echo "Android SDK path not found. Set ANDROID_HOME or ANDROID_SDK_ROOT."; \
+		exit 1; \
+	fi; \
+	export ANDROID_HOME; \
+	echo "Building Android APK with Fyne..."; \
+	cd $(MAIN_PKG_ABS) && "$(FYNE)" package -os android -appID "$(APP_ID)" -icon "$(abspath $(ANDROID_ICON_PATH))" -name "$(APP_NAME)" $(ANDROID_PACKAGE_ARGS); \
+	test -f "$(MAIN_PKG_ABS)/$(APP_NAME).apk" || (echo "Expected APK was not produced: $(MAIN_PKG_ABS)/$(APP_NAME).apk" && exit 1); \
+	mv "$(MAIN_PKG_ABS)/$(APP_NAME).apk" "$(CURDIR)/$(ANDROID_APK)"; \
+	echo "Android build completed: $(ANDROID_APK)"
+
+run-help: ensure-module
+	@echo "Showing application help..."
+	@go run $(MAIN_PKG) --help
+
+$(LINUX_ARTIFACT): linux
+	@mkdir -p $(ARTIFACT_DIR)
+	@echo "Packaging Linux artifact: $@"
+ifneq ($(ARCHIVE_DESKTOP_ENABLED),)
+	@tar -C $(BUILD_DIR)/linux -czf $@ $(APP_NAME)
+else
+	@cp $(LINUX_BIN) $@
+	@chmod 755 $@
+endif
+
+$(WINDOWS_ARTIFACT): windows
+	@mkdir -p $(ARTIFACT_DIR)
+ifneq ($(ARCHIVE_DESKTOP_ENABLED),)
+	@if ! command -v zip >/dev/null 2>&1; then \
+		echo "zip is required to package Windows artifacts."; \
+		exit 1; \
+	fi
+	@echo "Packaging Windows artifact: $@"
+	@rm -f $@
+	@zip -jq $@ $(WINDOWS_BIN)
+else
+	@echo "Packaging Windows artifact: $@"
+	@cp $(WINDOWS_BIN) $@
+endif
+
+$(ANDROID_ARTIFACT): android
+	@mkdir -p $(ARTIFACT_DIR)
+	@echo "Packaging Android artifact: $@"
+	@cp $(ANDROID_APK) $@
+
+$(CHECKSUM_FILE): $(ARTIFACT_FILES)
+	@mkdir -p $(ARTIFACT_DIR)
+	@echo "Writing checksums: $@"
+	@cd $(ARTIFACT_DIR) && \
+	if command -v sha256sum >/dev/null 2>&1; then \
+		sha256sum $(notdir $(ARTIFACT_FILES)) > $(notdir $(CHECKSUM_FILE)); \
+	elif command -v shasum >/dev/null 2>&1; then \
+		shasum -a 256 $(notdir $(ARTIFACT_FILES)) > $(notdir $(CHECKSUM_FILE)); \
+	else \
+		echo "sha256sum or shasum is required to create checksums."; \
+		exit 1; \
+	fi
+
+artifacts: $(RELEASE_ASSETS)
+	@echo "Artifacts are ready in $(ARTIFACT_DIR)"
+
+snapshot: artifacts
+	@echo "Snapshot build completed for version $(VERSION)"
+
+release-check:
+	@if [ -z "$(EXACT_TAG)" ]; then \
+		last_tag=$$(git describe --tags --abbrev=0 2>/dev/null || echo "<none>"); \
+		echo "Release requires an exact git tag on HEAD."; \
+		echo "Current derived version is $(VERSION). Use 'make snapshot' for untagged builds."; \
+		echo "Last git tag was: $$last_tag"; \
+		echo "Recent commits (git log --oneline -n 10):"; \
+		git log --oneline -n 10; \
+		exit 1; \
+	fi
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Release requires a clean git working tree."; \
+		exit 1; \
+	fi
+	@if ! command -v gh >/dev/null 2>&1; then \
+		echo "GitHub CLI (gh) is required for make release."; \
+		exit 1; \
+	fi
+	@if ! gh auth status >/dev/null 2>&1; then \
+		echo "GitHub CLI is installed but not authenticated. Run 'gh auth login'."; \
+		exit 1; \
+	fi
+	@if gh release view "$(EXACT_TAG)" >/dev/null 2>&1; then \
+		echo "GitHub release $(EXACT_TAG) already exists."; \
+		exit 1; \
+	fi
+	@echo "Release context looks good for tag $(EXACT_TAG)."
+
+release: release-check artifacts
+	@echo "Publishing GitHub release $(EXACT_TAG)..."
+	@gh release create "$(EXACT_TAG)" $(RELEASE_ASSETS) --verify-tag --title "Release $(EXACT_TAG)" --generate-notes
+	@echo "GitHub release $(EXACT_TAG) published."
+
+clean:
+	@echo "Removing build and dist artifacts..."
+	@rm -rf $(BUILD_DIR) $(DIST_DIR)
