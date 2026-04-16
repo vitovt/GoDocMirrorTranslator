@@ -24,6 +24,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Mock provider available for development and integration tests
 - Live OpenAI and Gemini HTTP adapters using one shared structured-output schema and prompt contract
 - Initial Fyne desktop GUI shell with validation, async processing, config persistence, and picker adapters
+- GUI-controlled optional layout JSON export persisted through GUI preferences
 
 ## Architecture constraints
 - Domain model must stay provider-agnostic and renderer-agnostic.
@@ -40,6 +41,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - `internal/domain` holds core models and validation/defaulting logic.
 - `internal/app` holds use cases, render orchestration, file output, and filename templating.
 - `internal/config` holds local config defaults, path resolution, environment overlays, masking, and persistence.
+- `internal/config` also stores GUI preferences such as whether layout JSON export is enabled by default in the GUI.
 - `internal/prompts` holds shared provider prompt builders.
 - `internal/provider` holds the shared structured response contract and image-loading helpers used by provider adapters.
 - `internal/provider/mock` is the development/test provider.
