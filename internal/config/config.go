@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"godocmirrortranslator/internal/provider"
+	base "godocmirrortranslator/internal/renderer"
 )
 
 const (
@@ -264,6 +267,34 @@ func (c *Config) Set(key, value string) error {
 	}
 	c.normalize()
 	return nil
+}
+
+func (c Config) RenderOptions() base.RenderOptions {
+	return base.RenderOptions{
+		FontFamily:      c.DefaultFontFamily,
+		DefaultFontSize: c.DefaultFontSize,
+		TextColor:       c.OverlayColor,
+		Opacity:         c.OverlayOpacity,
+		HasOpacity:      true,
+		PreserveColumns: c.PreserveColumns,
+	}
+}
+
+func (c Config) ProviderConfig(providerName, model string) provider.ProviderConfig {
+	providerCfg := provider.ProviderConfig{
+		DefaultModel:    model,
+		AdvancedOptions: map[string]string{},
+	}
+	switch providerName {
+	case "openai":
+		providerCfg.APIKey = c.OpenAIAPIKey
+	case "gemini":
+		providerCfg.APIKey = c.GeminiAPIKey
+	}
+	for key, value := range c.ProviderOptions[providerName] {
+		providerCfg.AdvancedOptions[key] = value
+	}
+	return providerCfg
 }
 
 func maskSecret(value string) string {

@@ -10,8 +10,7 @@ import (
 
 	"godocmirrortranslator/internal/app"
 	"godocmirrortranslator/internal/config"
-	"godocmirrortranslator/internal/provider"
-	base "godocmirrortranslator/internal/renderer"
+	"godocmirrortranslator/internal/gui"
 )
 
 const Version = "dev"
@@ -38,8 +37,7 @@ func Run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 		_, _ = fmt.Fprintln(stdout, Version)
 		return 0
 	case "gui":
-		_, _ = fmt.Fprintln(stderr, "gui command is not implemented yet")
-		return 1
+		return runGUI(ctx, application, args[1:], stderr)
 	case "config":
 		return runConfig(args[1:], stdout, stderr)
 	case "help", "--help", "-h":
@@ -50,6 +48,21 @@ func Run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 	_, _ = fmt.Fprintf(stderr, "unknown command: %s\n", strings.Join(args, " "))
 	printHelp(stderr)
 	return 1
+}
+
+func runGUI(ctx context.Context, application *app.Application, args []string, stderr io.Writer) int {
+	fs := flag.NewFlagSet("gui", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	configPath := ""
+	fs.StringVar(&configPath, "config", "", "Optional config file path")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if err := gui.Run(ctx, application, Version, configPath); err != nil {
+		_, _ = fmt.Fprintf(stderr, "gui: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 func runRender(ctx context.Context, application *app.Application, args []string, stdout io.Writer, stderr io.Writer) int {
@@ -80,7 +93,7 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 		SourceLanguage: cfg.SourceLanguage,
 		TargetLanguage: cfg.TargetLanguage,
 		Timeout:        cfg.Timeout,
-		RenderOptions:  appRenderOptionsFromConfig(cfg),
+		RenderOptions:  cfg.RenderOptions(),
 	}
 
 	fs := flag.NewFlagSet("render", flag.ContinueOnError)
@@ -105,7 +118,7 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	req.ProviderConfig = providerConfigFromConfig(cfg, req.ProviderName, req.Model)
+	req.ProviderConfig = cfg.ProviderConfig(req.ProviderName, req.Model)
 
 	result, err := application.Render(ctx, req)
 	if err != nil {
@@ -263,34 +276,6 @@ func lookupConfigValue(cfg config.Config, key string) (string, error) {
 	default:
 		return "", fmt.Errorf("unknown config key %q", key)
 	}
-}
-
-func appRenderOptionsFromConfig(cfg config.Config) base.RenderOptions {
-	return base.RenderOptions{
-		FontFamily:      cfg.DefaultFontFamily,
-		DefaultFontSize: cfg.DefaultFontSize,
-		TextColor:       cfg.OverlayColor,
-		Opacity:         cfg.OverlayOpacity,
-		HasOpacity:      true,
-		PreserveColumns: cfg.PreserveColumns,
-	}
-}
-
-func providerConfigFromConfig(cfg config.Config, providerName, model string) provider.ProviderConfig {
-	providerCfg := provider.ProviderConfig{
-		DefaultModel:    model,
-		AdvancedOptions: map[string]string{},
-	}
-	switch providerName {
-	case "openai":
-		providerCfg.APIKey = cfg.OpenAIAPIKey
-	case "gemini":
-		providerCfg.APIKey = cfg.GeminiAPIKey
-	}
-	for key, value := range cfg.ProviderOptions[providerName] {
-		providerCfg.AdvancedOptions[key] = value
-	}
-	return providerCfg
 }
 
 func printHelp(w io.Writer) {

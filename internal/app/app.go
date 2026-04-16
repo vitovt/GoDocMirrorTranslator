@@ -52,3 +52,13 @@ func (a *Application) ProviderNames() []string {
 	sort.Strings(names)
 	return names
 }
+
+func (a *Application) SupportedModels(providerName string, cfg provider.ProviderConfig) []string {
+	factory, ok := a.ProviderFactories[providerName]
+	if !ok {
+		return nil
+	}
+	models := append([]string(nil), factory(cfg).SupportedModels()...)
+	sort.Strings(models)
+	return models
+}
