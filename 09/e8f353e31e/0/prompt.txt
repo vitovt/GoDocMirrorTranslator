@@ -1,0 +1,16 @@
+review AGENTS.md and STATE.md, make them more project-independent in order to use in other golang projects with another SPEC.md
+
+---
+
+no, don't update AGENTS.md and STATE.md. I've just looked at. They are suitable for current project.
+NOW:
+Analyze helper Makefile. Adapt it to go+fyne instead go+gogio, change AGENTS.md to use primary this make commands instead of raw go commands to format, build, test and so on.
+
+---
+
+try again to read those files.
+
+---
+
+Make corresponding commits.
+Read SPEC.md, AGENTS.md, and STATE.md. Audit the specification for ambiguity, missing constraints, risky assumptions, inconsistent terminology, and implementation gaps. Produce a prioritized review with exact proposed edits to SPEC.md, but do not edit files yet.
