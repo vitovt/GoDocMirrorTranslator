@@ -118,13 +118,14 @@ func TestRunRenderAppliesEnvOverridesBeforeConfigDefaults(t *testing.T) {
 
 	cfgPath := filepath.Join(tempDir, "config.json")
 	cfg := config.Default()
-	cfg.DefaultProvider = "mock"
+	cfg.DefaultProvider = "openai"
+	cfg.OutputTemplate = "from_config.svg"
 	if _, err := config.Save(cfgPath, cfg); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 
-	t.Setenv(config.EnvPrefix+"DEFAULT_PROVIDER", "gemini")
-	t.Setenv(config.EnvPrefix+"GEMINI_API_KEY", "test-gemini-key")
+	t.Setenv(config.EnvPrefix+"DEFAULT_PROVIDER", "mock")
+	t.Setenv(config.EnvPrefix+"OUTPUT_TEMPLATE", "from_env_{provider}.svg")
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -133,11 +134,12 @@ func TestRunRenderAppliesEnvOverridesBeforeConfigDefaults(t *testing.T) {
 		"--config", cfgPath,
 		"--input", inputPath,
 	}, &stdout, &stderr)
-	if code != 1 {
+	if code != 0 {
 		t.Fatalf("Run() exit code = %d, stderr = %s", code, stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "gemini provider is not implemented yet") {
-		t.Fatalf("stderr = %q, want gemini provider execution error", stderr.String())
+	outputPath := strings.TrimSpace(stdout.String())
+	if !strings.HasSuffix(outputPath, "from_env_mock.svg") {
+		t.Fatalf("output path = %q, want env-driven mock output name", outputPath)
 	}
 }
 
