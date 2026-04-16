@@ -296,6 +296,38 @@ func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
 	}
 }
 
+func TestStartProcessingUsesInputFolderWhenOutputDirEmpty(t *testing.T) {
+	ui, tempDir, _ := newTestUI(t)
+
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 128, 128)
+
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText("")
+	ui.refreshValidation()
+
+	if ui.processButton.Disabled() {
+		t.Fatalf("process button is disabled with empty output dir fallback: %s", ui.validationLabel.Text)
+	}
+
+	ui.startProcessing()
+
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+
+	outputPath := strings.TrimSpace(ui.detailsEntry.Text)
+	if outputPath == "" {
+		t.Fatal("detailsEntry.Text is empty, want rendered output path")
+	}
+	if filepath.Dir(outputPath) != tempDir {
+		t.Fatalf("output dir = %q, want input dir %q", filepath.Dir(outputPath), tempDir)
+	}
+	if _, err := os.Stat(outputPath); err != nil {
+		t.Fatalf("expected output %q to exist: %v", outputPath, err)
+	}
+}
+
 func TestProcessingDisablesInteractiveControls(t *testing.T) {
 	application := appcore.New("test")
 	providerImpl := &blockingProvider{

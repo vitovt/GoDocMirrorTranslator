@@ -118,7 +118,7 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 		ui.pickInputImage()
 	})
 	ui.outputDirEntry = widget.NewEntry()
-	ui.outputDirEntry.SetPlaceHolder("Choose an output folder")
+	ui.outputDirEntry.SetPlaceHolder("Optional; defaults to the input folder")
 	ui.outputBrowseButton = widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
 		ui.pickOutputDir()
 	})
@@ -415,9 +415,6 @@ func (u *UI) processValidationError() error {
 	}
 	if _, err := os.Stat(inputPath); err != nil {
 		return fmt.Errorf("input image must exist and be readable")
-	}
-	if strings.TrimSpace(u.outputDirEntry.Text) == "" {
-		return fmt.Errorf("output folder is required")
 	}
 	return nil
 }
