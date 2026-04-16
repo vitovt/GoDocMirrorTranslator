@@ -1,6 +1,10 @@
 package provider
 
-import "testing"
+import (
+	"bytes"
+	"strings"
+	"testing"
+)
 
 func TestLoadInputImageUsesRequestBytes(t *testing.T) {
 	req := AnalyzeRequest{
@@ -45,5 +49,35 @@ func TestAnalysisResponseToDocumentPageDefaultsUnreadableSource(t *testing.T) {
 	}
 	if page.Metadata["provider"] != "openai" || page.Metadata["model"] != "gpt-test" {
 		t.Fatalf("Metadata = %#v, want provider/model values", page.Metadata)
+	}
+}
+
+func TestLoadInputImageRejectsUnsupportedMIMEType(t *testing.T) {
+	req := AnalyzeRequest{
+		ImagePath:  "page.gif",
+		ImageBytes: []byte("GIF89a"),
+	}
+
+	_, err := LoadInputImage(req)
+	if err == nil {
+		t.Fatal("LoadInputImage() error = nil, want unsupported mime type error")
+	}
+	if !strings.Contains(err.Error(), "unsupported input image mime type") {
+		t.Fatalf("LoadInputImage() error = %v, want unsupported mime type", err)
+	}
+}
+
+func TestLoadInputImageRejectsOversizedBytes(t *testing.T) {
+	req := AnalyzeRequest{
+		ImagePath:  "page.png",
+		ImageBytes: bytes.Repeat([]byte{0x89}, maxInputImageBytes+1),
+	}
+
+	_, err := LoadInputImage(req)
+	if err == nil {
+		t.Fatal("LoadInputImage() error = nil, want size limit error")
+	}
+	if !strings.Contains(err.Error(), "exceeds 20 MiB") {
+		t.Fatalf("LoadInputImage() error = %v, want size limit error", err)
 	}
 }

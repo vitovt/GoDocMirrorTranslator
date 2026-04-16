@@ -13,6 +13,8 @@ import (
 
 const UnreadableText = "[unreadable]"
 
+const maxInputImageBytes = 20 * 1024 * 1024
+
 type AnalysisResponse struct {
 	Blocks []AnalysisBlock `json:"blocks"`
 }
@@ -97,6 +99,9 @@ func LoadInputImage(req AnalyzeRequest) (InputImage, error) {
 	if len(data) == 0 {
 		return InputImage{}, fmt.Errorf("input image is empty")
 	}
+	if len(data) > maxInputImageBytes {
+		return InputImage{}, fmt.Errorf("input image exceeds 20 MiB")
+	}
 
 	mimeType := ""
 	if req.ImagePath != "" {
@@ -107,6 +112,9 @@ func LoadInputImage(req AnalyzeRequest) (InputImage, error) {
 	}
 	if mimeType == "" || mimeType == "application/octet-stream" {
 		return InputImage{}, fmt.Errorf("unsupported input image mime type")
+	}
+	if !isSupportedInputMIMEType(mimeType) {
+		return InputImage{}, fmt.Errorf("unsupported input image mime type %q", mimeType)
 	}
 
 	return InputImage{
@@ -123,6 +131,15 @@ func ResolveModel(req AnalyzeRequest, cfg ProviderConfig, fallback string) strin
 		return cfg.DefaultModel
 	}
 	return fallback
+}
+
+func isSupportedInputMIMEType(mimeType string) bool {
+	switch strings.ToLower(strings.TrimSpace(mimeType)) {
+	case "image/jpeg", "image/png", "image/webp":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r AnalysisResponse) ToDocumentPage(providerName, model string, req AnalyzeRequest) *domain.DocumentPage {
