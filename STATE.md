@@ -23,6 +23,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Tests from day one
 - Mock provider available for development and integration tests
 - Live OpenAI and Gemini HTTP adapters using one shared structured-output schema and prompt contract
+- Initial Fyne desktop GUI shell with validation, async processing, config persistence, and picker adapters
 
 ## Architecture constraints
 - Domain model must stay provider-agnostic and renderer-agnostic.
@@ -32,6 +33,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Provider instances are constructed per render from effective runtime config so credentials and advanced options do not leak into global mutable state.
 - OpenAI and Gemini adapters share one prompt builder and one provider response schema, with transport kept provider-specific.
 - No business logic inside GUI widgets.
+- The GUI defaults to the shared application core and only orchestrates config, validation, picker input, and async render invocation.
 
 ## Repository conventions
 - `cmd/app` is the application entrypoint.
@@ -47,6 +49,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - `internal/renderer/svg` contains the current SVG renderer.
 - `internal/renderer/svg/testdata` holds stable SVG golden fixtures for renderer snapshots.
 - `internal/cli` contains CLI wiring only.
+- `internal/gui` contains the Fyne shell, validation logic, picker adapter, and GUI tests.
 - `tests/integration` contains render-flow integration tests.
 
 ## Validation rules
@@ -58,10 +61,10 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - In this environment, set `GOCACHE=/tmp/go-build` when the default Go cache is not writable.
 
 ## Current milestone
-Milestone 1 backend foundation is in place: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, live OpenAI and Gemini adapters, CLI wiring, local config persistence, provider runtime-config injection, baseline tests, and an initial SVG golden snapshot.
+Milestone 1 backend foundation and the initial desktop GUI shell are in place: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, live OpenAI and Gemini adapters, CLI wiring, GUI shell, local config persistence, provider runtime-config injection, baseline tests, and an initial SVG golden snapshot.
 
 ## Next implementation targets
-1. Add GUI shell, validation state, and native picker integration.
+1. Polish the GUI shell for Android/desktop differences, richer success/error UX, and additional provider-specific settings.
 2. Expand golden files and broader renderer/provider tests.
 3. Reconcile the accepted spec decisions back into `SPEC.md`.
 4. Harden provider behavior around parse failures, refusals, and larger-image handling as real usage reveals gaps.
