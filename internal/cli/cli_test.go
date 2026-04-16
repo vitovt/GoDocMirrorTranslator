@@ -28,6 +28,26 @@ func TestRunProvidersList(t *testing.T) {
 	}
 }
 
+func TestRunHelpIncludesRenderFlagsAndProviderOptionExample(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{"help"}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run(help) exit code = %d, stderr = %s", code, stderr.String())
+	}
+	output := stdout.String()
+	for _, want := range []string{
+		"--output-template TEMPLATE",
+		"--save-layout-json",
+		"provider_options.openai.image_detail",
+		"Config precedence: built-in defaults, config file, environment, CLI flags",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("help output missing %q in %q", want, output)
+		}
+	}
+}
+
 func TestRunRender(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")
