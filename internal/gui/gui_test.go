@@ -163,6 +163,26 @@ func TestSettingsValidationUsesApplicationProviderValidation(t *testing.T) {
 	}
 }
 
+func TestProcessValidationUsesApplicationInputValidation(t *testing.T) {
+	ui, tempDir, _ := newTestUI(t)
+
+	inputPath := filepath.Join(tempDir, "bad.png")
+	if err := os.WriteFile(inputPath, []byte("not-a-real-png"), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", inputPath, err)
+	}
+
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
+	ui.refreshValidation()
+
+	if !ui.processButton.Disabled() {
+		t.Fatal("process button should be disabled for invalid png input")
+	}
+	if !strings.Contains(ui.validationLabel.Text, "decode input image config") {
+		t.Fatalf("validationLabel = %q, want shared input validation error", ui.validationLabel.Text)
+	}
+}
+
 func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui, _, cfgPath := newTestUI(t)
 

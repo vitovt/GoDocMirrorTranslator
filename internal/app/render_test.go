@@ -31,6 +31,23 @@ func TestRenderValidatesProviderConfigBeforeAnalyze(t *testing.T) {
 	}
 }
 
+func TestValidateInputImageRejectsInvalidPNG(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "bad.png")
+	if err := os.WriteFile(inputPath, []byte("not-a-real-png"), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", inputPath, err)
+	}
+
+	application := New("test")
+	err := application.ValidateInputImage(inputPath)
+	if err == nil {
+		t.Fatal("ValidateInputImage() error = nil, want decode failure")
+	}
+	if !strings.Contains(err.Error(), "decode input image config") {
+		t.Fatalf("ValidateInputImage() error = %v, want decode failure", err)
+	}
+}
+
 func TestRenderCleansUpSVGWhenLayoutJSONWriteFails(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")

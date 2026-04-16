@@ -52,6 +52,11 @@ func (a *Application) RunRender(ctx context.Context, stdout io.Writer, req Rende
 	return err
 }
 
+func (a *Application) ValidateInputImage(path string) error {
+	_, _, err := validateInputImage(path)
+	return err
+}
+
 func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResult, error) {
 	if req.InputPath == "" {
 		return RenderResult{}, fmt.Errorf("input path is required")

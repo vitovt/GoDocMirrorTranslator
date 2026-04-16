@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -410,11 +409,8 @@ func (u *UI) processValidationError() error {
 	if inputPath == "" {
 		return fmt.Errorf("input image is required")
 	}
-	if !isSupportedImagePath(inputPath) {
-		return fmt.Errorf("input image must be .jpg, .jpeg, .png, or .webp")
-	}
-	if _, err := os.Stat(inputPath); err != nil {
-		return fmt.Errorf("input image must exist and be readable")
+	if err := u.application.ValidateInputImage(inputPath); err != nil {
+		return err
 	}
 	return nil
 }
@@ -619,16 +615,6 @@ func configValue(values map[string]map[string]string, providerName, key, fallbac
 		return fallback
 	}
 	return value
-}
-
-func isSupportedImagePath(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	for _, candidate := range supportedImageExtensions {
-		if ext == candidate {
-			return true
-		}
-	}
-	return false
 }
 
 func isMobileDevice(device fyne.Device) bool {
