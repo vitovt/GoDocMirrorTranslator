@@ -28,6 +28,34 @@ func (noopPicker) PickOutputDir(_ fyne.Window, onPicked func(path string, err er
 	onPicked("", nil)
 }
 
+type fakeDevice struct {
+	mobile bool
+}
+
+func (d fakeDevice) Orientation() fyne.DeviceOrientation {
+	return fyne.OrientationVertical
+}
+
+func (d fakeDevice) IsMobile() bool {
+	return d.mobile
+}
+
+func (d fakeDevice) IsBrowser() bool {
+	return false
+}
+
+func (d fakeDevice) HasKeyboard() bool {
+	return !d.mobile
+}
+
+func (d fakeDevice) SystemScaleForWindow(fyne.Window) float32 {
+	return 1
+}
+
+func (d fakeDevice) Locale() fyne.Locale {
+	return fyne.Locale("en-US")
+}
+
 func TestProcessDisabledUntilRequiredFieldsAreValid(t *testing.T) {
 	ui, tempDir, _ := newTestUI(t)
 
@@ -150,6 +178,27 @@ func TestNewUIDisablesLayoutJSONByDefault(t *testing.T) {
 	}
 }
 
+func TestNewUIUsesMobileOutputActionLabel(t *testing.T) {
+	ui, _, _ := newTestUIWithDevice(t, fakeDevice{mobile: true})
+	if ui.openOutputButton.Text != "Open Output File" {
+		t.Fatalf("openOutputButton.Text = %q, want mobile file label", ui.openOutputButton.Text)
+	}
+}
+
+func TestOpenOutputPathUsesFileOnMobile(t *testing.T) {
+	ui, _, _ := newTestUIWithDevice(t, fakeDevice{mobile: true})
+	ui.lastOutputDir = "/tmp/out"
+	ui.lastOutputPath = "/tmp/out/result.svg"
+
+	got, err := ui.openOutputPath()
+	if err != nil {
+		t.Fatalf("openOutputPath() error = %v", err)
+	}
+	if got != "/tmp/out/result.svg" {
+		t.Fatalf("openOutputPath() = %q, want mobile output file", got)
+	}
+}
+
 func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
 	ui, tempDir, _ := newTestUI(t)
 
@@ -181,6 +230,11 @@ func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
 
 func newTestUI(t *testing.T) (*UI, string, string) {
 	t.Helper()
+	return newTestUIWithDevice(t, nil)
+}
+
+func newTestUIWithDevice(t *testing.T, device fyne.Device) (*UI, string, string) {
+	t.Helper()
 
 	tempDir := t.TempDir()
 	cfgPath := filepath.Join(tempDir, "config.json")
@@ -189,7 +243,10 @@ func newTestUI(t *testing.T) (*UI, string, string) {
 
 	fyneApp := test.NewTempApp(t)
 	window := fyneApp.NewWindow("test")
-	ui := newUI(context.Background(), fyneApp, window, appcore.New("test"), cfgPath, cfg, noopPicker{})
+	if device == nil {
+		device = fyneApp.Driver().Device()
+	}
+	ui := newUI(context.Background(), fyneApp, device, window, appcore.New("test"), cfgPath, cfg, noopPicker{})
 	return ui, tempDir, cfgPath
 }
 

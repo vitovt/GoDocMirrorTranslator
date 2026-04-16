@@ -32,6 +32,7 @@ var supportedImageExtensions = []string{".jpg", ".jpeg", ".png", ".webp"}
 type UI struct {
 	ctx         context.Context
 	app         fyne.App
+	device      fyne.Device
 	window      fyne.Window
 	application *appcore.Application
 	picker      picker
@@ -64,6 +65,7 @@ type UI struct {
 	validationLabel   *widget.Label
 	detailsEntry      *widget.Entry
 	lastOutputDir     string
+	lastOutputPath    string
 	running           bool
 }
 
@@ -78,10 +80,13 @@ func Run(ctx context.Context, application *appcore.Application, version string, 
 	if strings.TrimSpace(version) != "" && version != "dev" {
 		window.SetTitle(windowTitle + " " + version)
 	}
-	window.SetMaster()
-	window.Resize(fyne.NewSize(960, 760))
+	device := guiApp.Driver().Device()
+	if !isMobileDevice(device) {
+		window.SetMaster()
+		window.Resize(fyne.NewSize(960, 760))
+	}
 
-	ui := newUI(ctx, guiApp, window, application, resolvedPath, cfg, dialogPicker{})
+	ui := newUI(ctx, guiApp, device, window, application, resolvedPath, cfg, dialogPicker{})
 	window.SetCloseIntercept(func() {
 		if _, err := ui.saveSettings(); err != nil {
 			dialog.ShowError(err, window)
@@ -93,10 +98,11 @@ func Run(ctx context.Context, application *appcore.Application, version string, 
 	return nil
 }
 
-func newUI(ctx context.Context, guiApp fyne.App, window fyne.Window, application *appcore.Application, configPath string, cfg config.Config, filePicker picker) *UI {
+func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne.Window, application *appcore.Application, configPath string, cfg config.Config, filePicker picker) *UI {
 	ui := &UI{
 		ctx:         ctx,
 		app:         guiApp,
+		device:      device,
 		window:      window,
 		application: application,
 		picker:      filePicker,
@@ -148,10 +154,10 @@ func newUI(ctx context.Context, guiApp fyne.App, window fyne.Window, application
 		ui.startProcessing()
 	})
 	ui.processButton.Importance = widget.HighImportance
-	ui.openOutputButton = widget.NewButtonWithIcon("Open Output Folder", theme.FolderOpenIcon(), func() {
+	ui.openOutputButton = widget.NewButtonWithIcon(ui.openOutputActionLabel(), theme.FolderOpenIcon(), func() {
 		if err := ui.openOutputDir(); err != nil {
 			dialog.ShowError(err, ui.window)
-			ui.setStatus("Failed to open output folder", err.Error())
+			ui.setStatus("Failed to open output", err.Error())
 		}
 	})
 	ui.openOutputButton.Disable()
@@ -482,6 +488,9 @@ func (u *UI) startProcessing() {
 	req := u.buildRenderRequest(cfg)
 
 	u.running = true
+	u.lastOutputDir = ""
+	u.lastOutputPath = ""
+	u.openOutputButton.Disable()
 	u.progress.Show()
 	u.setStatus("Processing document...", "")
 	u.refreshValidation()
@@ -499,6 +508,7 @@ func (u *UI) startProcessing() {
 			}
 
 			u.lastOutputDir = filepath.Dir(result.OutputPath)
+			u.lastOutputPath = result.OutputPath
 			u.openOutputButton.Enable()
 			details := []string{result.OutputPath}
 			if result.LayoutJSONPath != "" {
@@ -549,14 +559,35 @@ func (u *UI) pickOutputDir() {
 }
 
 func (u *UI) openOutputDir() error {
-	if strings.TrimSpace(u.lastOutputDir) == "" {
-		return fmt.Errorf("no output folder is available yet")
+	targetPath, err := u.openOutputPath()
+	if err != nil {
+		return err
 	}
-	target := (&url.URL{Scheme: "file", Path: filepath.ToSlash(u.lastOutputDir)})
+	target := (&url.URL{Scheme: "file", Path: filepath.ToSlash(targetPath)})
 	if err := u.app.OpenURL(target); err != nil {
-		return fmt.Errorf("open output folder: %w", err)
+		return fmt.Errorf("open output: %w", err)
 	}
 	return nil
+}
+
+func (u *UI) openOutputActionLabel() string {
+	if isMobileDevice(u.device) {
+		return "Open Output File"
+	}
+	return "Open Output Folder"
+}
+
+func (u *UI) openOutputPath() (string, error) {
+	if isMobileDevice(u.device) {
+		if strings.TrimSpace(u.lastOutputPath) == "" {
+			return "", fmt.Errorf("no output file is available yet")
+		}
+		return u.lastOutputPath, nil
+	}
+	if strings.TrimSpace(u.lastOutputDir) == "" {
+		return "", fmt.Errorf("no output folder is available yet")
+	}
+	return u.lastOutputDir, nil
 }
 
 func configValue(values map[string]map[string]string, providerName, key, fallback string) string {
@@ -581,4 +612,8 @@ func isSupportedImagePath(path string) bool {
 		}
 	}
 	return false
+}
+
+func isMobileDevice(device fyne.Device) bool {
+	return device != nil && device.IsMobile()
 }
