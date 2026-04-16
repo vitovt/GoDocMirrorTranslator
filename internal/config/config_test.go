@@ -122,3 +122,13 @@ func TestSetSaveLayoutJSONEnabledPersistsBoolean(t *testing.T) {
 		t.Fatal("SaveLayoutJSONEnabled() = true, want false after update")
 	}
 }
+
+func TestSetProviderOptionCreatesNestedMap(t *testing.T) {
+	cfg := Default()
+	if err := cfg.Set("provider_options.openai.image_detail", "high"); err != nil {
+		t.Fatalf("Set(provider option) error = %v", err)
+	}
+	if cfg.ProviderOptions["openai"]["image_detail"] != "high" {
+		t.Fatalf("ProviderOptions = %#v, want openai image_detail=high", cfg.ProviderOptions)
+	}
+}

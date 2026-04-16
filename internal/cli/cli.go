@@ -244,7 +244,16 @@ func runConfigSet(args []string, stdout io.Writer, stderr io.Writer) int {
 }
 
 func lookupConfigValue(cfg config.Config, key string) (string, error) {
-	switch strings.ToLower(key) {
+	normalizedKey := strings.ToLower(key)
+	if strings.HasPrefix(normalizedKey, "provider_options.") {
+		parts := strings.SplitN(normalizedKey, ".", 3)
+		if len(parts) != 3 || strings.TrimSpace(parts[1]) == "" || strings.TrimSpace(parts[2]) == "" {
+			return "", fmt.Errorf("provider option key must be provider_options.<provider>.<option>")
+		}
+		return cfg.ProviderOptions[parts[1]][parts[2]], nil
+	}
+
+	switch normalizedKey {
 	case "openai_api_key":
 		return cfg.OpenAIAPIKey, nil
 	case "gemini_api_key":

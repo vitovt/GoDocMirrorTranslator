@@ -186,6 +186,21 @@ func TestRunConfigCommands(t *testing.T) {
 	if strings.Contains(stdout.String(), "sk-secret-value") {
 		t.Fatalf("config get leaked raw API key: %q", stdout.String())
 	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run(context.Background(), []string{"config", "set", "--config", cfgPath, "provider_options.openai.image_detail", "high"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config set provider option exit code = %d, stderr = %s", code, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run(context.Background(), []string{"config", "get", "--config", cfgPath, "provider_options.openai.image_detail"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config get provider option exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if strings.TrimSpace(stdout.String()) != "high" {
+		t.Fatalf("config get provider option = %q, want high", stdout.String())
+	}
 }
 
 func writeTestPNG(t *testing.T, path string, width, height int) {

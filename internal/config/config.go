@@ -218,7 +218,12 @@ func (c *Config) ApplyEnv(lookup func(string) (string, bool)) error {
 }
 
 func (c *Config) Set(key, value string) error {
-	switch strings.ToLower(key) {
+	normalizedKey := strings.ToLower(key)
+	if strings.HasPrefix(normalizedKey, "provider_options.") {
+		return c.setProviderOption(normalizedKey, value)
+	}
+
+	switch normalizedKey {
 	case "openai_api_key":
 		c.OpenAIAPIKey = value
 	case "gemini_api_key":
@@ -328,6 +333,19 @@ func maskSecret(value string) string {
 		return "****"
 	}
 	return value[:2] + strings.Repeat("*", len(value)-4) + value[len(value)-2:]
+}
+
+func (c *Config) setProviderOption(key, value string) error {
+	parts := strings.SplitN(key, ".", 3)
+	if len(parts) != 3 || strings.TrimSpace(parts[1]) == "" || strings.TrimSpace(parts[2]) == "" {
+		return fmt.Errorf("provider option key must be provider_options.<provider>.<option>")
+	}
+	c.normalize()
+	if c.ProviderOptions[parts[1]] == nil {
+		c.ProviderOptions[parts[1]] = map[string]string{}
+	}
+	c.ProviderOptions[parts[1]][parts[2]] = value
+	return nil
 }
 
 func writeFileAtomically(path string, data []byte, perm os.FileMode) error {
