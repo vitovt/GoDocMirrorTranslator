@@ -21,6 +21,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Local config for provider selection, keys, and rendering defaults
 - Modular architecture
 - Tests from day one
+- Mock provider available for development and integration tests
 
 ## Architecture constraints
 - Domain model must stay provider-agnostic and renderer-agnostic.
@@ -31,13 +32,14 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 
 ## Repository conventions
 - `cmd/app` is the application entrypoint.
-- `internal/domain` holds core models.
-- `internal/app` holds use cases / orchestration.
-- `internal/provider/openai` and `internal/provider/gemini` hold adapters.
-- `internal/renderer/svg` is the first renderer.
-- `internal/renderer/fodg` is the next renderer.
-- `internal/gui` contains Fyne UI only.
+- `internal/domain` holds core models and validation/defaulting logic.
+- `internal/app` holds use cases, render orchestration, file output, and filename templating.
+- `internal/provider/mock` is the development/test provider.
+- `internal/provider/openai` and `internal/provider/gemini` currently contain placeholders for upcoming adapters.
+- `internal/renderer` holds renderer contracts.
+- `internal/renderer/svg` contains the current SVG renderer.
 - `internal/cli` contains CLI wiring only.
+- `tests/integration` contains render-flow integration tests.
 
 ## Validation rules
 - Prefer the repository `make` targets as the primary workflow entrypoints.
@@ -45,21 +47,17 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Run `make test` before finalizing code changes.
 - Run `make lint` when available.
 - Use `make check` for the standard validation bundle.
+- In this environment, set `GOCACHE=/tmp/go-build` when the default Go cache is not writable.
 
 ## Current milestone
-Bootstrap repository and Codex working environment.
+Milestone 1 foundation is in progress: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, CLI wiring, and baseline tests are in place.
 
 ## Next implementation targets
-1. Create repo skeleton.
-2. Add domain model.
-3. Add renderer interface.
-4. Add SVG renderer.
-5. Add mock provider.
-6. Add CLI.
-7. Add OpenAI provider.
-8. Add Gemini provider.
-9. Add GUI.
-10. Add tests and golden files.
+1. Add local config loading/saving and shared effective-config handling.
+2. Replace provider placeholders with real OpenAI and Gemini adapters.
+3. Expand CLI coverage around config and error reporting.
+4. Add GUI shell, validation state, and native picker integration.
+5. Add golden files and broader renderer/provider tests.
 
 ## Open decisions
 - Exact native picker package choice
