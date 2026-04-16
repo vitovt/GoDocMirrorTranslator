@@ -45,6 +45,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - `internal/provider/gemini` calls the Gemini `generateContent` API with inline image data and structured output.
 - `internal/renderer` holds renderer contracts.
 - `internal/renderer/svg` contains the current SVG renderer.
+- `internal/renderer/svg/testdata` holds stable SVG golden fixtures for renderer snapshots.
 - `internal/cli` contains CLI wiring only.
 - `tests/integration` contains render-flow integration tests.
 
@@ -57,11 +58,11 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - In this environment, set `GOCACHE=/tmp/go-build` when the default Go cache is not writable.
 
 ## Current milestone
-Milestone 1 backend foundation is in place: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, live OpenAI and Gemini adapters, CLI wiring, local config persistence, provider runtime-config injection, and baseline tests.
+Milestone 1 backend foundation is in place: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, live OpenAI and Gemini adapters, CLI wiring, local config persistence, provider runtime-config injection, baseline tests, and an initial SVG golden snapshot.
 
 ## Next implementation targets
 1. Add GUI shell, validation state, and native picker integration.
-2. Add golden files and broader renderer/provider tests.
+2. Expand golden files and broader renderer/provider tests.
 3. Reconcile the accepted spec decisions back into `SPEC.md`.
 4. Harden provider behavior around parse failures, refusals, and larger-image handling as real usage reveals gaps.
 
