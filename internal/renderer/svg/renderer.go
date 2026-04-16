@@ -92,6 +92,12 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 			lineHeight = domain.DefaultLineHeight
 		}
 		x := offsetX + (block.X * scale)
+		switch block.Align {
+		case domain.TextAlignCenter:
+			x += (block.Width * scale) / 2
+		case domain.TextAlignEnd:
+			x += block.Width * scale
+		}
 		y := offsetY + (block.Y * scale)
 		anchor := textAnchor(block.Align)
 		transform := ""

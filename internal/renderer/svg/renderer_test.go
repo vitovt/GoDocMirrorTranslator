@@ -48,6 +48,58 @@ func TestRenderEmbedsImageAndText(t *testing.T) {
 	}
 }
 
+func TestRenderOffsetsAlignedTextByBlockWidth(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 100, 100)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  100,
+		SourceImageHeight: 100,
+		Blocks: []domain.TextBlock{
+			{
+				SourceText:     "center",
+				TranslatedText: "Center",
+				X:              10,
+				Y:              20,
+				Width:          40,
+				Height:         10,
+				FontSize:       12,
+				Align:          domain.TextAlignCenter,
+			},
+			{
+				SourceText:     "end",
+				TranslatedText: "End",
+				X:              10,
+				Y:              40,
+				Width:          40,
+				Height:         10,
+				FontSize:       12,
+				Align:          domain.TextAlignEnd,
+			},
+		},
+	}
+
+	output, err := r.Render(context.Background(), page, base.DefaultRenderOptions())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	content := string(output)
+	for _, fragment := range []string{
+		`<text x="63.0000" y="85.5000"`,
+		`text-anchor="middle"`,
+		`<text x="105.0000" y="127.5000"`,
+		`text-anchor="end"`,
+	} {
+		if !strings.Contains(content, fragment) {
+			t.Fatalf("Render() output missing %q in %q", fragment, content)
+		}
+	}
+}
+
 func TestRenderMatchesGoldenFile(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")
