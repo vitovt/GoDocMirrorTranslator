@@ -84,6 +84,63 @@ func TestRunRenderUsesConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestRunRenderFailsWhenProviderCredentialsAreMissing(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	cfgPath := filepath.Join(tempDir, "config.json")
+	cfg := config.Default()
+	cfg.DefaultProvider = "openai"
+	if _, err := config.Save(cfgPath, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{
+		"render",
+		"--config", cfgPath,
+		"--input", inputPath,
+	}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("Run() exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "validate provider config") {
+		t.Fatalf("stderr = %q, want provider config validation error", stderr.String())
+	}
+}
+
+func TestRunRenderAppliesEnvOverridesBeforeConfigDefaults(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	cfgPath := filepath.Join(tempDir, "config.json")
+	cfg := config.Default()
+	cfg.DefaultProvider = "mock"
+	if _, err := config.Save(cfgPath, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	t.Setenv(config.EnvPrefix+"DEFAULT_PROVIDER", "gemini")
+	t.Setenv(config.EnvPrefix+"GEMINI_API_KEY", "test-gemini-key")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{
+		"render",
+		"--config", cfgPath,
+		"--input", inputPath,
+	}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("Run() exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "gemini provider is not implemented yet") {
+		t.Fatalf("stderr = %q, want gemini provider execution error", stderr.String())
+	}
+}
+
 func TestRunConfigCommands(t *testing.T) {
 	tempDir := t.TempDir()
 	cfgPath := filepath.Join(tempDir, "config.json")
