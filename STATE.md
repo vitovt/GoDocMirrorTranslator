@@ -25,6 +25,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Live OpenAI and Gemini HTTP adapters using one shared structured-output schema and prompt contract
 - Initial Fyne desktop GUI shell with validation, async processing, config persistence, and picker adapters
 - GUI-controlled optional layout JSON export persisted through GUI preferences
+- GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
 
 ## Architecture constraints
 - Domain model must stay provider-agnostic and renderer-agnostic.
@@ -35,6 +36,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - OpenAI and Gemini adapters share one prompt builder and one provider response schema, with transport kept provider-specific.
 - No business logic inside GUI widgets.
 - The GUI defaults to the shared application core and only orchestrates config, validation, picker input, and async render invocation.
+- GUI platform differences are handled at the edge: desktop window sizing/folder opening stays in the GUI layer, while mobile uses file-oriented output actions without changing application-core render behavior.
 
 ## Repository conventions
 - `cmd/app` is the application entrypoint.
