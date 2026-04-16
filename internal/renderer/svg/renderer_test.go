@@ -48,6 +48,44 @@ func TestRenderEmbedsImageAndText(t *testing.T) {
 	}
 }
 
+func TestRenderMatchesGoldenFile(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 4, 4)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  4,
+		SourceImageHeight: 4,
+		Blocks: []domain.TextBlock{{
+			SourceText:     "Привіт",
+			TranslatedText: "Hallo\nWelt",
+			X:              1,
+			Y:              1,
+			Width:          2,
+			Height:         1,
+			FontSize:       1,
+			Align:          domain.TextAlignCenter,
+		}},
+	}
+
+	output, err := r.Render(context.Background(), page, base.DefaultRenderOptions())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	goldenPath := filepath.Join("testdata", "translated_page.svg")
+	golden, err := os.ReadFile(goldenPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", goldenPath, err)
+	}
+
+	if string(output) != string(golden) {
+		t.Fatalf("Render() output did not match golden file %q", goldenPath)
+	}
+}
+
 func writeTestPNG(t *testing.T, path string, width, height int) {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
