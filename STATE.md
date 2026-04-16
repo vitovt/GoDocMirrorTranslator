@@ -23,6 +23,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Tests from day one
 - Mock provider available for development and integration tests
 - Live OpenAI and Gemini HTTP adapters using one shared structured-output schema and prompt contract
+- Live provider adapters now also share structured-output text normalization/parsing so fenced JSON and common empty-output failures are handled consistently
 - Initial Fyne desktop GUI shell with validation, async processing, config persistence, and picker adapters
 - GUI-controlled optional layout JSON export persisted through GUI preferences
 - GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
@@ -34,6 +35,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Provider adapters must normalize into one internal `DocumentPage` / `TextBlock` model.
 - Provider instances are constructed per render from effective runtime config so credentials and advanced options do not leak into global mutable state.
 - OpenAI and Gemini adapters share one prompt builder and one provider response schema, with transport kept provider-specific.
+- OpenAI and Gemini adapters also share structured-output text parsing/normalization inside `internal/provider` so transport-specific code does not duplicate JSON cleanup or parse behavior.
 - No business logic inside GUI widgets.
 - The GUI defaults to the shared application core and only orchestrates config, validation, picker input, and async render invocation.
 - GUI platform differences are handled at the edge: desktop window sizing/folder opening stays in the GUI layer, while mobile uses file-oriented output actions without changing application-core render behavior.
@@ -45,7 +47,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - `internal/config` holds local config defaults, path resolution, environment overlays, masking, and persistence.
 - `internal/config` also stores GUI preferences such as whether layout JSON export is enabled by default in the GUI.
 - `internal/prompts` holds shared provider prompt builders.
-- `internal/provider` holds the shared structured response contract and image-loading helpers used by provider adapters.
+- `internal/provider` holds the shared structured response contract, structured-output parsing helpers, and image-loading helpers used by provider adapters.
 - `internal/provider/mock` is the development/test provider.
 - `internal/provider/openai` calls the OpenAI Responses API with image input and structured output.
 - `internal/provider/gemini` calls the Gemini `generateContent` API with inline image data and structured output.
