@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"godocmirrortranslator/internal/config"
 )
 
 func TestRunProvidersList(t *testing.T) {
@@ -50,6 +52,80 @@ func TestRunRender(t *testing.T) {
 	jsonPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".json"
 	if _, err := os.Stat(jsonPath); err != nil {
 		t.Fatalf("expected layout json at %q: %v", jsonPath, err)
+	}
+}
+
+func TestRunRenderUsesConfigDefaults(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	cfgPath := filepath.Join(tempDir, "config.json")
+	cfg := config.Default()
+	cfg.DefaultOutputDir = filepath.Join(tempDir, "configured-out")
+	cfg.OutputTemplate = "configured_{provider}.svg"
+	if _, err := config.Save(cfgPath, cfg); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{
+		"render",
+		"--config", cfgPath,
+		"--input", inputPath,
+	}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run() exit code = %d, stderr = %s", code, stderr.String())
+	}
+	outputPath := strings.TrimSpace(stdout.String())
+	if !strings.HasPrefix(outputPath, cfg.DefaultOutputDir) {
+		t.Fatalf("output path = %q, want prefix %q", outputPath, cfg.DefaultOutputDir)
+	}
+}
+
+func TestRunConfigCommands(t *testing.T) {
+	tempDir := t.TempDir()
+	cfgPath := filepath.Join(tempDir, "config.json")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if code := Run(context.Background(), []string{"config", "init", "--config", cfgPath}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config init exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if _, err := os.Stat(cfgPath); err != nil {
+		t.Fatalf("expected config file at %q: %v", cfgPath, err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run(context.Background(), []string{"config", "set", "--config", cfgPath, "default_provider", "openai"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config set exit code = %d, stderr = %s", code, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run(context.Background(), []string{"config", "get", "--config", cfgPath, "default_provider"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config get exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if strings.TrimSpace(stdout.String()) != "openai" {
+		t.Fatalf("config get default_provider = %q, want openai", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run(context.Background(), []string{"config", "set", "--config", cfgPath, "openai_api_key", "sk-secret-value"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config set api key exit code = %d, stderr = %s", code, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run(context.Background(), []string{"config", "get", "--config", cfgPath, "openai_api_key"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config get api key exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "sk-secret-value") {
+		t.Fatalf("config get leaked raw API key: %q", stdout.String())
 	}
 }
 

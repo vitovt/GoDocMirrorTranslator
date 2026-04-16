@@ -11,6 +11,7 @@ type RenderOptions struct {
 	DefaultFontSize float64
 	TextColor       string
 	Opacity         float64
+	HasOpacity      bool
 	PreserveColumns bool
 }
 
@@ -26,6 +27,7 @@ func DefaultRenderOptions() RenderOptions {
 		DefaultFontSize: 18,
 		TextColor:       "#111111",
 		Opacity:         1,
+		HasOpacity:      true,
 	}
 }
 
@@ -40,8 +42,9 @@ func (o RenderOptions) Normalized() RenderOptions {
 	if o.TextColor == "" {
 		o.TextColor = defaults.TextColor
 	}
-	if o.Opacity == 0 {
+	if !o.HasOpacity {
 		o.Opacity = defaults.Opacity
+		o.HasOpacity = defaults.HasOpacity
 	}
 	return o
 }

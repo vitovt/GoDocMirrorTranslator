@@ -2,13 +2,15 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"strings"
-	"time"
 
 	"godocmirrortranslator/internal/app"
+	"godocmirrortranslator/internal/config"
+	base "godocmirrortranslator/internal/renderer"
 )
 
 const Version = "dev"
@@ -38,8 +40,7 @@ func Run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 		_, _ = fmt.Fprintln(stderr, "gui command is not implemented yet")
 		return 1
 	case "config":
-		_, _ = fmt.Fprintln(stderr, "config commands are not implemented yet")
-		return 1
+		return runConfig(args[1:], stdout, stderr)
 	case "help", "--help", "-h":
 		printHelp(stdout)
 		return 0
@@ -51,25 +52,54 @@ func Run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 }
 
 func runRender(ctx context.Context, application *app.Application, args []string, stdout io.Writer, stderr io.Writer) int {
+	configPath := ""
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--config" {
+			if i+1 < len(args) {
+				configPath = args[i+1]
+			}
+			continue
+		}
+		if strings.HasPrefix(args[i], "--config=") {
+			configPath = strings.TrimPrefix(args[i], "--config=")
+		}
+	}
+
+	cfg, _, err := config.LoadEffective(configPath)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "render: load config: %v\n", err)
+		return 1
+	}
+
+	req := app.RenderRequest{
+		OutputDir:      cfg.DefaultOutputDir,
+		OutputTemplate: cfg.OutputTemplate,
+		ProviderName:   cfg.DefaultProvider,
+		Model:          cfg.DefaultModel,
+		SourceLanguage: cfg.SourceLanguage,
+		TargetLanguage: cfg.TargetLanguage,
+		Timeout:        cfg.Timeout,
+		RenderOptions:  appRenderOptionsFromConfig(cfg),
+	}
+
 	fs := flag.NewFlagSet("render", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 
-	var req app.RenderRequest
-	fs.StringVar(&req.InputPath, "input", "", "Path to the input image")
-	fs.StringVar(&req.OutputDir, "output-dir", "", "Directory for generated files")
-	fs.StringVar(&req.OutputTemplate, "output-template", app.DefaultOutputTemplate, "Filename template for SVG output")
-	fs.StringVar(&req.ProviderName, "provider", "mock", "Provider to use")
-	fs.StringVar(&req.Model, "model", "", "Model to use")
-	fs.StringVar(&req.SourceLanguage, "source-lang", "Ukrainian", "Source language")
-	fs.StringVar(&req.TargetLanguage, "target-lang", "German", "Target language")
-	fs.StringVar(&req.RenderOptions.FontFamily, "font-family", "Noto Sans", "Fallback font family")
-	fs.Float64Var(&req.RenderOptions.DefaultFontSize, "font-size", 18, "Fallback font size")
-	fs.Float64Var(&req.RenderOptions.Opacity, "opacity", 1, "Fallback text opacity")
-	fs.StringVar(&req.RenderOptions.TextColor, "color", "#111111", "Fallback text color")
-	fs.DurationVar(&req.Timeout, "timeout", 30*time.Second, "Provider request timeout")
+	fs.StringVar(&req.InputPath, "input", req.InputPath, "Path to the input image")
+	fs.StringVar(&req.OutputDir, "output-dir", req.OutputDir, "Directory for generated files")
+	fs.StringVar(&req.OutputTemplate, "output-template", req.OutputTemplate, "Filename template for SVG output")
+	fs.StringVar(&req.ProviderName, "provider", req.ProviderName, "Provider to use")
+	fs.StringVar(&req.Model, "model", req.Model, "Model to use")
+	fs.StringVar(&req.SourceLanguage, "source-lang", req.SourceLanguage, "Source language")
+	fs.StringVar(&req.TargetLanguage, "target-lang", req.TargetLanguage, "Target language")
+	fs.StringVar(&req.RenderOptions.FontFamily, "font-family", req.RenderOptions.FontFamily, "Fallback font family")
+	fs.Float64Var(&req.RenderOptions.DefaultFontSize, "font-size", req.RenderOptions.DefaultFontSize, "Fallback font size")
+	fs.Float64Var(&req.RenderOptions.Opacity, "opacity", req.RenderOptions.Opacity, "Fallback text opacity")
+	fs.StringVar(&req.RenderOptions.TextColor, "color", req.RenderOptions.TextColor, "Fallback text color")
+	fs.DurationVar(&req.Timeout, "timeout", req.Timeout, "Provider request timeout")
 	fs.BoolVar(&req.SaveLayoutJSON, "save-layout-json", false, "Write layout JSON next to the SVG output")
 	verbose := fs.Bool("verbose", false, "Print extra result information")
-	_ = fs.String("config", "", "Reserved for future config file support")
+	fs.StringVar(&configPath, "config", configPath, "Optional config file path")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -88,6 +118,162 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 	return 0
 }
 
+func runConfig(args []string, stdout io.Writer, stderr io.Writer) int {
+	if len(args) == 0 {
+		_, _ = fmt.Fprintln(stderr, "config command requires a subcommand: init, get, set")
+		return 2
+	}
+
+	switch args[0] {
+	case "init":
+		return runConfigInit(args[1:], stdout, stderr)
+	case "get":
+		return runConfigGet(args[1:], stdout, stderr)
+	case "set":
+		return runConfigSet(args[1:], stdout, stderr)
+	default:
+		_, _ = fmt.Fprintf(stderr, "unknown config subcommand: %s\n", args[0])
+		return 2
+	}
+}
+
+func runConfigInit(args []string, stdout io.Writer, stderr io.Writer) int {
+	fs := flag.NewFlagSet("config init", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	configPath := ""
+	fs.StringVar(&configPath, "config", "", "Optional config file path")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	cfg, resolvedPath, err := config.Load(configPath)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "config init: %v\n", err)
+		return 1
+	}
+	resolvedPath, err = config.Save(resolvedPath, cfg)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "config init: %v\n", err)
+		return 1
+	}
+	_, _ = fmt.Fprintln(stdout, resolvedPath)
+	return 0
+}
+
+func runConfigGet(args []string, stdout io.Writer, stderr io.Writer) int {
+	fs := flag.NewFlagSet("config get", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	configPath := ""
+	fs.StringVar(&configPath, "config", "", "Optional config file path")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	cfg, _, err := config.LoadEffective(configPath)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "config get: %v\n", err)
+		return 1
+	}
+	cfg = cfg.Masked()
+	remaining := fs.Args()
+	if len(remaining) == 1 {
+		value, err := lookupConfigValue(cfg, remaining[0])
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "config get: %v\n", err)
+			return 1
+		}
+		_, _ = fmt.Fprintln(stdout, value)
+		return 0
+	}
+
+	encoded, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "config get: %v\n", err)
+		return 1
+	}
+	_, _ = fmt.Fprintln(stdout, string(encoded))
+	return 0
+}
+
+func runConfigSet(args []string, stdout io.Writer, stderr io.Writer) int {
+	fs := flag.NewFlagSet("config set", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	configPath := ""
+	fs.StringVar(&configPath, "config", "", "Optional config file path")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	remaining := fs.Args()
+	if len(remaining) != 2 {
+		_, _ = fmt.Fprintln(stderr, "config set requires KEY VALUE")
+		return 2
+	}
+
+	cfg, resolvedPath, err := config.Load(configPath)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "config set: %v\n", err)
+		return 1
+	}
+	if err := cfg.Set(remaining[0], remaining[1]); err != nil {
+		_, _ = fmt.Fprintf(stderr, "config set: %v\n", err)
+		return 1
+	}
+	resolvedPath, err = config.Save(resolvedPath, cfg)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "config set: %v\n", err)
+		return 1
+	}
+	_, _ = fmt.Fprintln(stdout, resolvedPath)
+	return 0
+}
+
+func lookupConfigValue(cfg config.Config, key string) (string, error) {
+	switch strings.ToLower(key) {
+	case "openai_api_key":
+		return cfg.OpenAIAPIKey, nil
+	case "gemini_api_key":
+		return cfg.GeminiAPIKey, nil
+	case "timeout":
+		return cfg.Timeout.String(), nil
+	case "default_provider":
+		return cfg.DefaultProvider, nil
+	case "default_model":
+		return cfg.DefaultModel, nil
+	case "default_output_dir":
+		return cfg.DefaultOutputDir, nil
+	case "default_font_family":
+		return cfg.DefaultFontFamily, nil
+	case "default_font_size":
+		return fmt.Sprintf("%g", cfg.DefaultFontSize), nil
+	case "output_template":
+		return cfg.OutputTemplate, nil
+	case "overlay_color":
+		return cfg.OverlayColor, nil
+	case "overlay_opacity":
+		return fmt.Sprintf("%g", cfg.OverlayOpacity), nil
+	case "preserve_columns":
+		return fmt.Sprintf("%t", cfg.PreserveColumns), nil
+	case "source_language":
+		return cfg.SourceLanguage, nil
+	case "target_language":
+		return cfg.TargetLanguage, nil
+	default:
+		return "", fmt.Errorf("unknown config key %q", key)
+	}
+}
+
+func appRenderOptionsFromConfig(cfg config.Config) base.RenderOptions {
+	return base.RenderOptions{
+		FontFamily:      cfg.DefaultFontFamily,
+		DefaultFontSize: cfg.DefaultFontSize,
+		TextColor:       cfg.OverlayColor,
+		Opacity:         cfg.OverlayOpacity,
+		HasOpacity:      true,
+		PreserveColumns: cfg.PreserveColumns,
+	}
+}
+
 func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Go Document Mirror Translator")
 	_, _ = fmt.Fprintln(w, "")
@@ -103,6 +289,7 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Examples:")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider mock")
+	_, _ = fmt.Fprintln(w, "  app config set default_provider openai")
 	_, _ = fmt.Fprintln(w, "  app providers list")
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Config precedence: built-in defaults, config file, environment, CLI flags")

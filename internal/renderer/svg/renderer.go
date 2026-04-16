@@ -84,7 +84,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 			color = opts.TextColor
 		}
 		opacity := block.Opacity
-		if opacity == 0 {
+		if block.Opacity == 0 && opts.HasOpacity {
 			opacity = opts.Opacity
 		}
 		lineHeight := block.LineHeight
