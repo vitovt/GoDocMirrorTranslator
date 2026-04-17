@@ -306,8 +306,11 @@ android: check prepare
 	fi; \
 	export ANDROID_HOME; \
 	echo "Building Android APK with Fyne..."; \
-	cd $(MAIN_PKG_ABS) && "$(FYNE)" package -os android -appID "$(APP_ID)" -icon "$(abspath $(ANDROID_ICON_PATH))" -name "$(APP_NAME)" $(ANDROID_PACKAGE_ARGS); \
-	test -f "$(MAIN_PKG_ABS)/$(APP_NAME).apk" || (echo "Expected APK was not produced: $(MAIN_PKG_ABS)/$(APP_NAME).apk" && exit 1); \
+	cd $(MAIN_PKG_ABS) && "$(FYNE)" package --target android --app-id "$(APP_ID)" --icon "$(abspath $(ANDROID_ICON_PATH))" --name "$(APP_NAME)" $(ANDROID_PACKAGE_ARGS); \
+	if [ ! -f "$(MAIN_PKG_ABS)/$(APP_NAME).apk" ]; then \
+		echo "Expected APK was not produced: $(MAIN_PKG_ABS)/$(APP_NAME).apk"; \
+		exit 1; \
+	fi; \
 	mv "$(MAIN_PKG_ABS)/$(APP_NAME).apk" "$(CURDIR)/$(ANDROID_APK)"; \
 	echo "Android build completed: $(ANDROID_APK)"
 
