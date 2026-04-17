@@ -80,6 +80,7 @@ The application must generate an **A4 SVG** file that:
 
 ### 4.4 GUI
 The GUI must support:
+- using an adaptive Fyne shell with a top menu toggle, a left menu, one persistent main content pane, and bottom action/status/details regions;
 - selecting an input image;
 - selecting an output directory;
 - editing an output filename template;
@@ -357,6 +358,7 @@ The main window must contain:
 ### 10.4 Adaptive Design
 
 * GUI must be flexible and look confident on different screen sizes and orientations, including Android.
+* GUI must follow the reusable Fyne adaptive shell requirements defined in Appendix A.
 
 ## 11. CLI Requirements
 
@@ -601,3 +603,101 @@ The v1 architecture must allow adding:
 12. GUI tests
 13. Packaging and release preparation
 14. FODG renderer in v2
+
+## Appendix A. Reusable Fyne Adaptive Shell Template
+
+This appendix is intentionally written as a reusable design section for future Fyne applications. It may be copied into another specification and then adapted by replacing the application-specific menu entries, content views, and action labels while keeping the shell behavior intact.
+
+### A.1 Purpose
+
+Use this shell when a Fyne application needs:
+
+* one persistent main workspace;
+* a left navigation or settings menu;
+* bottom actions that stay visible;
+* a visible status and details area;
+* adaptive behavior for desktop, tablet, and mobile layouts.
+
+### A.2 Layout Contract
+
+* The shell is divided into a top bar, a center workspace, a bottom action row, and a bottom status/details region.
+* The center workspace contains exactly two functional panes: a left menu pane and one persistent main content pane.
+* The main content pane is the only place where section content changes.
+* Do not add a permanent third side pane unless the product specification explicitly requires it.
+* The status/details region belongs below the action row, not beside the main content pane.
+
+### A.3 Top Bar Requirements
+
+* The top bar contains a primary menu toggle and any truly global actions.
+* The menu toggle label must reflect the current state, for example `Show Menu` and `Hide Menu`.
+* On application startup the menu is open by default unless the product specification explicitly overrides this.
+* The top bar must remain visible in all supported sizes and orientations.
+
+### A.4 Menu Pane Behavior
+
+* The menu pane contains section navigation only.
+* Selecting a menu item changes the content displayed in the persistent main content pane; it does not create an additional middle or right-side content column.
+* One section is selected by default on startup.
+* Menu items should be vertically stacked and visually highlight the active section.
+* The menu pane should keep a stable minimum width in docked mode.
+* If menu content exceeds available height, the menu area must remain usable through vertical scrolling.
+* On compact layouts, selecting a menu item should immediately close the overlay menu unless the product specification explicitly requires it to stay open.
+
+### A.5 Main Content Pane Behavior
+
+* The shell uses one persistent content container.
+* Only one major section is visible at a time.
+* Each major section should support vertical scrolling.
+* Avoid horizontal scrolling where practical; forms and settings should reflow into a narrow-friendly single-column arrangement when needed.
+* Application-specific inputs, previews, and settings panels are swapped inside this pane instead of being rendered as separate permanent sidebars.
+* The main content pane must remain usable whether the menu is open or closed.
+
+### A.6 Bottom Actions And Status
+
+* Primary actions such as `Save`, `Process`, `Open`, `Run`, `Export`, or equivalents stay in a bottom action row that remains visible while the user navigates between sections.
+* Progress indicators may appear in the action row if they do not hide the main actions.
+* A short status line is displayed below the action row.
+* A details or log area is displayed below the status line.
+* On compact layouts, the details area should be collapsed by default behind a `Show Details` / `Hide Details` control or equivalent.
+* On wide desktop layouts, the details area may be expanded by default.
+* Opening or closing the menu must not move the bottom status/details region into a side column.
+
+### A.7 Adaptive Behavior
+
+* The shell must support both docked and overlay menu behavior.
+* Compact mode is triggered on mobile devices and on narrow desktop or tablet widths defined by a code-level threshold.
+* In compact mode, the menu overlays the main content instead of permanently reducing the content width.
+* In wide mode, the menu may be docked if the product specification prefers it.
+* Orientation changes and live window resizing must recompute the layout immediately.
+* The same shared UI state model must drive both wide and compact modes; do not duplicate business logic per mode.
+* Touch targets, spacing, and scrolling must remain usable in portrait mobile layouts.
+
+### A.8 Fyne Implementation Guidance
+
+* Prefer standard Fyne containers such as `container.NewBorder`, `container.NewStack`, `container.NewVBox`, `container.NewHBox`, and `container.NewVScroll` over custom renderers or custom layout widgets unless the standard containers cannot express the required behavior.
+* Keep GUI code thin: widget callbacks gather input, update UI state, and call shared application services.
+* Long-running work must run asynchronously in goroutines; return UI updates through `fyne.Do` or `fyne.DoAndWait`.
+* Keep menu visibility, selected section, compact-mode state, and details visibility as explicit UI state.
+* Persist only restorable preferences such as last-selected provider, default paths, or shell preferences; do not persist transient processing state.
+* Use native-first file and folder pickers on desktop and a Fyne fallback on mobile or unsupported backends.
+* Keep platform-specific behavior at the edge through small adapters or build-tagged files.
+* Error dialogs may be used for blocking failures, but a visible status area must still reflect the current state.
+
+### A.9 Reuse Checklist
+
+* Replace menu labels with the target application's sections.
+* Replace main-pane forms or views with the target application's content.
+* Replace bottom action labels with the target application's primary operations.
+* Keep the top/menu/center/bottom shell behavior unchanged unless the new application has a documented reason to diverge.
+
+### A.10 Test Checklist
+
+* Default section is selected on startup.
+* Menu starts in the expected visibility state.
+* Menu toggle shows and hides the menu correctly.
+* Selecting a menu section changes the visible content pane.
+* Compact mode closes the overlay menu after selection when configured to do so.
+* Bottom action row remains visible while sections change.
+* Details area collapses and expands as specified.
+* Resize and orientation changes recompute compact versus wide layout.
+* Long-running actions do not block the UI thread.
