@@ -187,6 +187,7 @@ func TestProcessValidationUsesApplicationInputValidation(t *testing.T) {
 func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui, _, cfgPath := newTestUI(t)
 
+	ui.rendererSelect.SetSelected("fodg")
 	ui.providerSelect.SetSelected("openai")
 	ui.openAIKeyEntry.SetText("sk-test-key")
 	ui.templateEntry.SetText("saved_{provider}.svg")
@@ -206,6 +207,9 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	}
 	if loaded.DefaultProvider != "openai" {
 		t.Fatalf("DefaultProvider = %q, want openai", loaded.DefaultProvider)
+	}
+	if loaded.DefaultRenderer != "fodg" {
+		t.Fatalf("DefaultRenderer = %q, want fodg", loaded.DefaultRenderer)
 	}
 	if loaded.OpenAIAPIKey != "sk-test-key" {
 		t.Fatalf("OpenAIAPIKey = %q, want sk-test-key", loaded.OpenAIAPIKey)
@@ -287,6 +291,9 @@ func TestNewUIDefaultsToMainTabWithVisibleDesktopPanel(t *testing.T) {
 	}
 	if !ui.detailsVisible {
 		t.Fatal("desktop UI should start with details visible")
+	}
+	if ui.rendererSelect.Selected != "svg" {
+		t.Fatalf("rendererSelect.Selected = %q, want svg", ui.rendererSelect.Selected)
 	}
 }
 
@@ -489,6 +496,32 @@ func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
 	}
 }
 
+func TestStartProcessingWithFODGRenderer(t *testing.T) {
+	ui, tempDir, _ := newTestUI(t)
+
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 128, 128)
+
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
+	ui.rendererSelect.SetSelected("fodg")
+	ui.saveLayoutJSON.SetChecked(false)
+	ui.refreshValidation()
+	ui.startProcessing()
+
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+
+	outputPath := strings.TrimSpace(ui.detailsEntry.Text)
+	if filepath.Ext(outputPath) != ".fodg" {
+		t.Fatalf("details = %q, want fodg output path", ui.detailsEntry.Text)
+	}
+	if _, err := os.Stat(outputPath); err != nil {
+		t.Fatalf("expected output %q to exist: %v", outputPath, err)
+	}
+}
+
 func TestStartProcessingUsesInputFolderWhenOutputDirEmpty(t *testing.T) {
 	ui, tempDir, _ := newTestUI(t)
 
@@ -557,6 +590,7 @@ func TestProcessingDisablesInteractiveControls(t *testing.T) {
 		{"input browse", ui.inputBrowseButton.Disabled()},
 		{"output entry", ui.outputDirEntry.Disabled()},
 		{"output browse", ui.outputBrowseButton.Disabled()},
+		{"renderer select", ui.rendererSelect.Disabled()},
 		{"provider select", ui.providerSelect.Disabled()},
 		{"save settings", ui.saveButton.Disabled()},
 		{"process", ui.processButton.Disabled()},
@@ -582,6 +616,9 @@ func TestProcessingDisablesInteractiveControls(t *testing.T) {
 	}
 	if ui.outputBrowseButton.Disabled() {
 		t.Fatal("output browse should be re-enabled after processing")
+	}
+	if ui.rendererSelect.Disabled() {
+		t.Fatal("renderer select should be re-enabled after processing")
 	}
 	if ui.providerSelect.Disabled() {
 		t.Fatal("provider select should be re-enabled after processing")

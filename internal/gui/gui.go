@@ -65,6 +65,7 @@ type UI struct {
 	inputEntry         *widget.Entry
 	outputDirEntry     *widget.Entry
 	templateEntry      *widget.Entry
+	rendererSelect     *widget.Select
 	providerSelect     *widget.Select
 	modelSelect        *widget.Select
 	sourceLangEntry    *widget.Entry
@@ -147,6 +148,9 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 		ui.pickOutputDir()
 	})
 	ui.templateEntry = widget.NewEntry()
+	ui.rendererSelect = widget.NewSelect(application.RendererNames(), func(string) {
+		ui.refreshValidation()
+	})
 	ui.providerSelect = widget.NewSelect(application.ProviderNames(), func(string) {
 		ui.syncModelOptions()
 		ui.syncAdvancedOptions()
@@ -236,6 +240,7 @@ func (u *UI) content() fyne.CanvasObject {
 		widget.NewFormItem("Input Image", inputRow),
 		widget.NewFormItem("Output Folder", outputRow),
 		widget.NewFormItem("Filename Template", u.templateEntry),
+		widget.NewFormItem("Output Format", u.rendererSelect),
 		widget.NewFormItem("Source Language", u.sourceLangEntry),
 		widget.NewFormItem("Target Language", u.targetLangEntry),
 		widget.NewFormItem("Preserve Columns", u.preserveColumns),
@@ -344,6 +349,7 @@ func (u *UI) applyConfig(cfg config.Config) {
 	u.inputEntry.SetText("")
 	u.outputDirEntry.SetText(cfg.DefaultOutputDir)
 	u.templateEntry.SetText(cfg.OutputTemplate)
+	u.rendererSelect.SetSelected(defaultRendererName(cfg.DefaultRenderer))
 	u.sourceLangEntry.SetText(cfg.SourceLanguage)
 	u.targetLangEntry.SetText(cfg.TargetLanguage)
 	u.timeoutEntry.SetText(cfg.Timeout.String())
@@ -461,6 +467,12 @@ func (u *UI) settingsValidationError() error {
 	if strings.TrimSpace(cfg.DefaultProvider) == "" {
 		return fmt.Errorf("provider is required")
 	}
+	if strings.TrimSpace(cfg.DefaultRenderer) == "" {
+		return fmt.Errorf("output format is required")
+	}
+	if !containsString(u.application.RendererNames(), cfg.DefaultRenderer) {
+		return fmt.Errorf("unknown output format %q", cfg.DefaultRenderer)
+	}
 	if strings.TrimSpace(cfg.DefaultModel) == "" {
 		return fmt.Errorf("model is required")
 	}
@@ -520,6 +532,7 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 
 	cfg.DefaultOutputDir = strings.TrimSpace(u.outputDirEntry.Text)
 	cfg.OutputTemplate = strings.TrimSpace(u.templateEntry.Text)
+	cfg.DefaultRenderer = strings.TrimSpace(u.rendererSelect.Selected)
 	cfg.DefaultProvider = strings.TrimSpace(u.providerSelect.Selected)
 	cfg.DefaultModel = strings.TrimSpace(u.modelSelect.Selected)
 	cfg.SourceLanguage = strings.TrimSpace(u.sourceLangEntry.Text)
@@ -549,6 +562,7 @@ func (u *UI) buildRenderRequest(cfg config.Config) appcore.RenderRequest {
 		InputPath:      strings.TrimSpace(u.inputEntry.Text),
 		OutputDir:      strings.TrimSpace(u.outputDirEntry.Text),
 		OutputTemplate: cfg.OutputTemplate,
+		RendererName:   cfg.DefaultRenderer,
 		ProviderName:   cfg.DefaultProvider,
 		ProviderConfig: cfg.ProviderConfig(cfg.DefaultProvider, cfg.DefaultModel),
 		Model:          cfg.DefaultModel,
@@ -702,6 +716,23 @@ func configValue(values map[string]map[string]string, providerName, key, fallbac
 		return fallback
 	}
 	return value
+}
+
+func defaultRendererName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "svg"
+	}
+	return name
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func isMobileDevice(device fyne.Device) bool {
@@ -876,6 +907,7 @@ func (u *UI) interactiveControls() []disableable {
 		u.inputEntry,
 		u.outputDirEntry,
 		u.templateEntry,
+		u.rendererSelect,
 		u.providerSelect,
 		u.modelSelect,
 		u.sourceLangEntry,
