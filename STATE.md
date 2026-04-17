@@ -27,6 +27,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Initial Fyne desktop GUI shell with validation, async processing, config persistence, and picker adapters
 - GUI-controlled optional layout JSON export persisted through GUI preferences
 - GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
+- Desktop GUI builds now use OS-native file and folder pickers via `github.com/sqweek/dialog`, with Fyne dialog fallback kept for Android and unsupported desktop backends
 - README, example config, sample input/output assets, and an Android app icon are now checked into the repo as v1 deliverables
 - `make android` has been validated locally with the available Fyne + Android SDK toolchain and now emits `build/android/godocmirrortranslator.apk`
 
@@ -40,7 +41,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - OpenAI and Gemini adapters also share structured-output text parsing/normalization inside `internal/provider` so transport-specific code does not duplicate JSON cleanup or parse behavior.
 - No business logic inside GUI widgets.
 - The GUI defaults to the shared application core and only orchestrates config, validation, picker input, and async render invocation.
-- GUI platform differences are handled at the edge: desktop window sizing/folder opening stays in the GUI layer, while mobile uses file-oriented output actions without changing application-core render behavior.
+- GUI platform differences are handled at the edge: desktop window sizing, native OS picker integration, and folder opening stay in the GUI layer, while mobile uses file-oriented output actions and Fyne picker fallback without changing application-core render behavior.
 
 ## Repository conventions
 - `cmd/app` is the application entrypoint and now also contains the Android app icon used by `make android`.
@@ -81,7 +82,6 @@ Milestone 1 is effectively complete in the current repo: repo skeleton, domain m
 4. Add packaging and release documentation around the validated desktop/Android build flow.
 
 ## Open decisions
-- Exact native picker package choice
 - Final SVG text wrapping strategy
 - Exact FODG writer implementation strategy
 

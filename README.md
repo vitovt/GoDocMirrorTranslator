@@ -10,6 +10,7 @@ Handwritten Overlay Translator is a Go application with a shared CLI and Fyne GU
 - Editable SVG output with optional normalized layout JSON export
 - Local config storage for provider credentials, rendering defaults, and GUI preferences
 - Desktop GUI plus Android packaging support through Fyne
+- Native OS file and folder pickers on desktop, with Fyne fallback on Android
 
 ## Repository Layout
 
@@ -25,7 +26,7 @@ Handwritten Overlay Translator is a Go application with a shared CLI and Fyne GU
 ## Requirements
 
 - Go 1.25+
-- For desktop builds on Linux: CGO plus the native dependencies Fyne expects, such as `gcc`, `pkg-config`, `libgl1-mesa-dev`, and `xorg-dev`
+- For desktop builds on Linux: CGO plus the native dependencies Fyne and the desktop native picker expect, such as `gcc`, `pkg-config`, `libgl1-mesa-dev`, `xorg-dev`, and `libgtk-3-dev`
 - For Android packaging: `fyne` CLI, Android SDK/NDK, and the Java toolchain Fyne expects
 - `golangci-lint` if you want `make lint` to run instead of skipping
 
@@ -109,6 +110,7 @@ Examples:
 Running `go run ./cmd/app` with no arguments opens the Fyne GUI. The GUI supports:
 
 - native-first input and output pickers
+- desktop native OS picker integration with Fyne fallback on Android or unsupported desktop backends
 - provider and model selection
 - masked API key inputs
 - provider-specific advanced options currently exposed by the repo

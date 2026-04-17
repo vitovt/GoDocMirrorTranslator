@@ -24,7 +24,7 @@ ARTIFACT_TARGETS ?= linux windows android
 ARCHIVE_DESKTOP_ARTIFACTS ?= 0
 
 PROJECT_TUNE_HINT ?= APP_NAME is derived from the basename of the module path in go.mod; MAIN_PKG defaults to ./cmd/app for this repo.
-LINUX_HOST_DEPS_HINT ?= Fyne desktop builds on Linux usually need CGO plus native OpenGL/X11 headers such as gcc, pkg-config, libgl1-mesa-dev, and xorg-dev.
+LINUX_HOST_DEPS_HINT ?= Fyne desktop builds on Linux usually need CGO plus native OpenGL/X11 headers and GTK3 dialog headers such as gcc, pkg-config, libgl1-mesa-dev, xorg-dev, and libgtk-3-dev.
 WINDOWS_HOST_DEPS_HINT ?= Fyne Windows builds usually need CGO enabled and, on Linux hosts, a MinGW-w64 cross toolchain.
 ANDROID_HOST_DEPS_HINT ?= Android packaging uses the fyne CLI plus the Android SDK/NDK and Java toolchain expected by Fyne.
 PROJECTNAME_REGEX := ^[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)*$$
