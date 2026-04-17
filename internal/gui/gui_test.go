@@ -270,17 +270,20 @@ func TestNewUIDisablesLayoutJSONByDefault(t *testing.T) {
 func TestNewUIDefaultsToMainTabWithVisibleDesktopPanel(t *testing.T) {
 	ui, _, _ := newTestUI(t)
 
-	if ui.settingsTabs == nil {
-		t.Fatal("settingsTabs = nil, want settings tab container")
+	if ui.currentSection != sectionMain {
+		t.Fatalf("currentSection = %q, want %q", ui.currentSection, sectionMain)
 	}
-	if ui.settingsTabs.SelectedIndex() != 0 {
-		t.Fatalf("SelectedIndex() = %d, want main tab at index 0", ui.settingsTabs.SelectedIndex())
+	if !ui.menuVisible {
+		t.Fatal("menu should start visible on desktop width")
 	}
-	if !ui.sidePanelVisible {
-		t.Fatal("side panel should start enabled on desktop width")
+	if ui.menuToggle.Text != "Hide Menu" {
+		t.Fatalf("menuToggle.Text = %q, want Hide Menu", ui.menuToggle.Text)
 	}
-	if ui.sidePanelToggle.Text != "Hide Panel" {
-		t.Fatalf("sidePanelToggle.Text = %q, want Hide Panel", ui.sidePanelToggle.Text)
+	if ui.compactLayout {
+		t.Fatal("desktop UI should not start in compact layout")
+	}
+	if !ui.detailsVisible {
+		t.Fatal("desktop UI should start with details visible")
 	}
 }
 
@@ -289,48 +292,95 @@ func TestNewUIUsesMobileOutputActionLabel(t *testing.T) {
 	if ui.openOutputButton.Text != "Open Output File" {
 		t.Fatalf("openOutputButton.Text = %q, want mobile file label", ui.openOutputButton.Text)
 	}
-	if ui.sidePanelVisible {
-		t.Fatal("side panel should start hidden on mobile")
+	if !ui.menuVisible {
+		t.Fatal("menu should start visible on mobile")
 	}
-	if ui.sidePanelToggle.Text != "Show Panel" {
-		t.Fatalf("sidePanelToggle.Text = %q, want Show Panel", ui.sidePanelToggle.Text)
+	if ui.menuToggle.Text != "Hide Menu" {
+		t.Fatalf("menuToggle.Text = %q, want Hide Menu", ui.menuToggle.Text)
+	}
+	if !ui.compactLayout {
+		t.Fatal("mobile UI should start in compact layout")
+	}
+	if ui.detailsVisible {
+		t.Fatal("mobile UI should start with details collapsed")
 	}
 }
 
-func TestToggleSidePanelShowsAndHidesSettings(t *testing.T) {
+func TestToggleMenuShowsAndHidesSettings(t *testing.T) {
 	ui, _, _ := newTestUI(t)
 
-	ui.toggleSidePanel()
-	if ui.sidePanelVisible {
-		t.Fatal("side panel should hide after toggle")
+	ui.toggleMenu()
+	if ui.menuVisible {
+		t.Fatal("menu should hide after toggle")
 	}
-	if ui.sidePanelToggle.Text != "Show Panel" {
-		t.Fatalf("sidePanelToggle.Text = %q, want Show Panel", ui.sidePanelToggle.Text)
+	if ui.menuToggle.Text != "Show Menu" {
+		t.Fatalf("menuToggle.Text = %q, want Show Menu", ui.menuToggle.Text)
 	}
 
-	ui.toggleSidePanel()
-	if !ui.sidePanelVisible {
-		t.Fatal("side panel should show after second toggle")
+	ui.toggleMenu()
+	if !ui.menuVisible {
+		t.Fatal("menu should show after second toggle")
 	}
-	if ui.sidePanelToggle.Text != "Hide Panel" {
-		t.Fatalf("sidePanelToggle.Text = %q, want Hide Panel", ui.sidePanelToggle.Text)
+	if ui.menuToggle.Text != "Hide Menu" {
+		t.Fatalf("menuToggle.Text = %q, want Hide Menu", ui.menuToggle.Text)
 	}
 }
 
-func TestResponsiveLayoutAutoHidesSidePanelWhenNarrow(t *testing.T) {
+func TestResponsiveLayoutUsesCompactOverlayWithoutAutoHidingMenu(t *testing.T) {
 	ui, _, _ := newTestUI(t)
 
 	ui.handleResponsiveLayout(fyne.NewSize(1200, 760))
-	if !ui.sidePanelVisible {
-		t.Fatal("side panel should remain visible on wide layout")
+	if ui.compactLayout {
+		t.Fatal("wide layout should remain non-compact")
+	}
+	if !ui.menuVisible {
+		t.Fatal("menu should remain visible on wide layout")
 	}
 
 	ui.handleResponsiveLayout(fyne.NewSize(640, 760))
-	if ui.sidePanelVisible {
-		t.Fatal("side panel should auto-hide on narrow layout")
+	if !ui.compactLayout {
+		t.Fatal("narrow layout should switch to compact mode")
 	}
-	if ui.sidePanelToggle.Text != "Show Panel" {
-		t.Fatalf("sidePanelToggle.Text = %q, want Show Panel after auto-hide", ui.sidePanelToggle.Text)
+	if !ui.menuVisible {
+		t.Fatal("menu should stay visible when switching to compact layout")
+	}
+	if ui.detailsVisible {
+		t.Fatal("compact layout should collapse details by default")
+	}
+}
+
+func TestSelectingSectionAutoClosesMenuInCompactLayout(t *testing.T) {
+	ui, _, _ := newTestUIWithDevice(t, fakeDevice{mobile: true})
+
+	ui.selectSection(sectionAI)
+
+	if ui.currentSection != sectionAI {
+		t.Fatalf("currentSection = %q, want %q", ui.currentSection, sectionAI)
+	}
+	if ui.menuVisible {
+		t.Fatal("menu should auto-close after selecting a section in compact layout")
+	}
+	if ui.menuToggle.Text != "Show Menu" {
+		t.Fatalf("menuToggle.Text = %q, want Show Menu after compact selection", ui.menuToggle.Text)
+	}
+}
+
+func TestCompactDetailsToggleShowsAndHidesDetails(t *testing.T) {
+	ui, _, _ := newTestUIWithDevice(t, fakeDevice{mobile: true})
+
+	if ui.detailsVisible {
+		t.Fatal("details should start collapsed on compact layout")
+	}
+	if ui.detailsToggle.Text != "Show Details" {
+		t.Fatalf("detailsToggle.Text = %q, want Show Details", ui.detailsToggle.Text)
+	}
+
+	ui.toggleDetails()
+	if !ui.detailsVisible {
+		t.Fatal("details should show after toggle")
+	}
+	if ui.detailsToggle.Text != "Hide Details" {
+		t.Fatalf("detailsToggle.Text = %q, want Hide Details", ui.detailsToggle.Text)
 	}
 }
 
