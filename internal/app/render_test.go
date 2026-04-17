@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"godocmirrortranslator/internal/provider"
 )
 
 func TestRenderValidatesProviderConfigBeforeAnalyze(t *testing.T) {
@@ -88,6 +91,151 @@ func TestRenderCleansUpSVGWhenLayoutJSONWriteFails(t *testing.T) {
 	jsonPath := filepath.Join(tempDir, "out", "translated.json")
 	if _, statErr := os.Stat(jsonPath); !os.IsNotExist(statErr) {
 		t.Fatalf("expected json output %q to be absent, stat err = %v", jsonPath, statErr)
+	}
+}
+
+func TestRenderWritesVersionedLayoutJSONWithRelativeSameFolderImagePath(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	application := New("test")
+	result, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	data, err := os.ReadFile(result.LayoutJSONPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", result.LayoutJSONPath, err)
+	}
+
+	var layoutFile savedLayoutFile
+	if err := json.Unmarshal(data, &layoutFile); err != nil {
+		t.Fatalf("json.Unmarshal(layout) error = %v", err)
+	}
+	if layoutFile.SchemaVersion != savedLayoutSchemaVersion {
+		t.Fatalf("SchemaVersion = %d, want %d", layoutFile.SchemaVersion, savedLayoutSchemaVersion)
+	}
+	if layoutFile.Page.SourceImagePath != "page.png" {
+		t.Fatalf("SourceImagePath = %q, want relative filename", layoutFile.Page.SourceImagePath)
+	}
+	if len(layoutFile.Page.Blocks) == 0 {
+		t.Fatal("saved layout blocks are empty")
+	}
+}
+
+func TestValidateLayoutJSONRejectsMissingSourceImage(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	application := New("test")
+	result, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	if err := os.Remove(inputPath); err != nil {
+		t.Fatalf("Remove(%q) error = %v", inputPath, err)
+	}
+
+	err = application.ValidateLayoutJSON(result.LayoutJSONPath)
+	if err == nil {
+		t.Fatal("ValidateLayoutJSON() error = nil, want missing source image failure")
+	}
+	if !strings.Contains(err.Error(), "validate saved source image") {
+		t.Fatalf("ValidateLayoutJSON() error = %v, want saved source image failure", err)
+	}
+}
+
+func TestValidateLayoutJSONRejectsMissingLayoutFile(t *testing.T) {
+	application := New("test")
+	err := application.ValidateLayoutJSON("/definitely/missing/layout.json")
+	if err == nil {
+		t.Fatal("ValidateLayoutJSON() error = nil, want missing layout file failure")
+	}
+	if !strings.Contains(err.Error(), "read layout json") {
+		t.Fatalf("ValidateLayoutJSON() error = %v, want missing layout file failure", err)
+	}
+}
+
+func TestRerenderRejectsMismatchedSavedSourceImage(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	application := New("test")
+	result, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	writeTestPNG(t, inputPath, 320, 480)
+
+	_, err = application.Rerender(context.Background(), RerenderRequest{
+		LayoutJSONPath: result.LayoutJSONPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "rerendered.svg",
+	})
+	if err == nil {
+		t.Fatal("Rerender() error = nil, want source image dimension mismatch")
+	}
+	if !strings.Contains(err.Error(), "do not match current source image") {
+		t.Fatalf("Rerender() error = %v, want source image dimension mismatch", err)
+	}
+}
+
+func TestRerenderUsesSavedLayoutWithoutCallingProvider(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	application := New("test")
+	result, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	application.ProviderFactories["mock"] = func(provider.ProviderConfig) provider.Provider {
+		t.Fatalf("mock provider should not be used during rerender")
+		return nil
+	}
+
+	rerenderResult, err := application.Rerender(context.Background(), RerenderRequest{
+		LayoutJSONPath: result.LayoutJSONPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "rerendered.svg",
+	})
+	if err != nil {
+		t.Fatalf("Rerender() error = %v", err)
+	}
+	if rerenderResult.OutputPath != filepath.Join(tempDir, "rerendered.svg") {
+		t.Fatalf("OutputPath = %q, want %q", rerenderResult.OutputPath, filepath.Join(tempDir, "rerendered.svg"))
 	}
 }
 

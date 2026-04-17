@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"godocmirrortranslator/internal/domain"
 	"godocmirrortranslator/internal/provider"
 	base "godocmirrortranslator/internal/renderer"
 )
@@ -24,19 +24,30 @@ var atomicWriteFile = writeAtomically
 var knownRendererExtensions = []string{".svg", ".fodg"}
 
 type RenderRequest struct {
-	InputPath      string
-	OutputDir      string
-	OutputTemplate string
-	ProviderName   string
-	ProviderConfig provider.ProviderConfig
-	RendererName   string
-	Model          string
-	SourceLanguage string
-	TargetLanguage string
-	Timeout        time.Duration
-	SaveLayoutJSON bool
-	RenderOptions  base.RenderOptions
-	Now            func() time.Time
+	InputPath         string
+	OutputDir         string
+	OutputTemplate    string
+	ProviderName      string
+	ProviderConfig    provider.ProviderConfig
+	RendererName      string
+	Model             string
+	SourceLanguage    string
+	TargetLanguage    string
+	Timeout           time.Duration
+	SaveLayoutJSON    bool
+	OverwriteExisting bool
+	RenderOptions     base.RenderOptions
+	Now               func() time.Time
+}
+
+type RerenderRequest struct {
+	LayoutJSONPath    string
+	OutputDir         string
+	OutputTemplate    string
+	RendererName      string
+	OverwriteExisting bool
+	RenderOptions     base.RenderOptions
+	Now               func() time.Time
 }
 
 type RenderResult struct {
@@ -55,6 +66,11 @@ func (a *Application) RunRender(ctx context.Context, stdout io.Writer, req Rende
 
 func (a *Application) ValidateInputImage(path string) error {
 	_, _, err := validateInputImage(path)
+	return err
+}
+
+func (a *Application) ValidateLayoutJSON(path string) error {
+	_, err := loadSavedLayout(path)
 	return err
 }
 
@@ -95,8 +111,7 @@ func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResu
 	if err := providerImpl.ValidateConfig(req.ProviderConfig); err != nil {
 		return RenderResult{}, fmt.Errorf("validate provider config: %w", err)
 	}
-	rendererImpl, ok := a.Renderers[req.RendererName]
-	if !ok {
+	if _, ok := a.Renderers[req.RendererName]; !ok {
 		return RenderResult{}, fmt.Errorf("unknown renderer %q", req.RendererName)
 	}
 
@@ -125,37 +140,54 @@ func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResu
 		return RenderResult{}, fmt.Errorf("validate provider output: %w", err)
 	}
 
-	renderBytes, err := rendererImpl.Render(renderCtx, page, req.RenderOptions)
+	return a.renderPage(renderCtx, page, renderPageRequest{
+		OutputDir:         req.OutputDir,
+		OutputTemplate:    req.OutputTemplate,
+		RendererName:      req.RendererName,
+		InputPath:         req.InputPath,
+		ProviderName:      req.ProviderName,
+		Model:             req.Model,
+		SaveLayoutJSON:    req.SaveLayoutJSON,
+		OverwriteExisting: req.OverwriteExisting,
+		RenderOptions:     req.RenderOptions,
+		Now:               req.Now,
+	})
+}
+
+func (a *Application) Rerender(ctx context.Context, req RerenderRequest) (RenderResult, error) {
+	if strings.TrimSpace(req.LayoutJSONPath) == "" {
+		return RenderResult{}, fmt.Errorf("layout json path is required")
+	}
+	if req.RendererName == "" {
+		req.RendererName = "svg"
+	}
+	if req.OutputTemplate == "" {
+		req.OutputTemplate = DefaultOutputTemplate
+	}
+	if req.Now == nil {
+		req.Now = time.Now
+	}
+	if req.OutputDir == "" {
+		req.OutputDir = filepath.Dir(req.LayoutJSONPath)
+	}
+
+	page, err := loadSavedLayout(req.LayoutJSONPath)
 	if err != nil {
-		return RenderResult{}, fmt.Errorf("render output: %w", err)
+		return RenderResult{}, err
 	}
 
-	outputName := outputFileName(req.OutputTemplate, req.ProviderName, req.Model, req.InputPath, req.Now(), rendererImpl.FileExtension())
-	outputPath, err := availablePath(filepath.Join(req.OutputDir, outputName))
-	if err != nil {
-		return RenderResult{}, fmt.Errorf("choose output path: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-		return RenderResult{}, fmt.Errorf("create output directory: %w", err)
-	}
-	if err := atomicWriteFile(outputPath, renderBytes); err != nil {
-		return RenderResult{}, fmt.Errorf("write rendered output: %w", err)
-	}
-
-	result := RenderResult{OutputPath: outputPath}
-	if req.SaveLayoutJSON {
-		jsonPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".json"
-		jsonBytes, err := json.MarshalIndent(page, "", "  ")
-		if err != nil {
-			return RenderResult{}, cleanupRenderOutputs([]string{outputPath}, fmt.Errorf("marshal layout json: %w", err))
-		}
-		if err := atomicWriteFile(jsonPath, append(jsonBytes, '\n')); err != nil {
-			return RenderResult{}, cleanupRenderOutputs([]string{outputPath, jsonPath}, fmt.Errorf("write layout json: %w", err))
-		}
-		result.LayoutJSONPath = jsonPath
-	}
-
-	return result, nil
+	return a.renderPage(ctx, page, renderPageRequest{
+		OutputDir:         req.OutputDir,
+		OutputTemplate:    req.OutputTemplate,
+		RendererName:      req.RendererName,
+		InputPath:         page.SourceImagePath,
+		ProviderName:      page.Metadata["provider"],
+		Model:             page.Metadata["model"],
+		SaveLayoutJSON:    false,
+		OverwriteExisting: req.OverwriteExisting,
+		RenderOptions:     req.RenderOptions,
+		Now:               req.Now,
+	})
 }
 
 func validateInputImage(path string) (int, int, error) {
@@ -258,6 +290,54 @@ func outputFileName(template, providerName, model, inputPath string, now time.Ti
 	return name + extension
 }
 
+type renderPageRequest struct {
+	OutputDir         string
+	OutputTemplate    string
+	RendererName      string
+	InputPath         string
+	ProviderName      string
+	Model             string
+	SaveLayoutJSON    bool
+	OverwriteExisting bool
+	RenderOptions     base.RenderOptions
+	Now               func() time.Time
+}
+
+func (a *Application) renderPage(ctx context.Context, page *domain.DocumentPage, req renderPageRequest) (RenderResult, error) {
+	rendererImpl, ok := a.Renderers[req.RendererName]
+	if !ok {
+		return RenderResult{}, fmt.Errorf("unknown renderer %q", req.RendererName)
+	}
+
+	renderBytes, err := rendererImpl.Render(ctx, page, req.RenderOptions)
+	if err != nil {
+		return RenderResult{}, fmt.Errorf("render output: %w", err)
+	}
+
+	outputName := outputFileName(req.OutputTemplate, req.ProviderName, req.Model, req.InputPath, req.Now(), rendererImpl.FileExtension())
+	outputPath, err := targetPath(filepath.Join(req.OutputDir, outputName), req.OverwriteExisting)
+	if err != nil {
+		return RenderResult{}, fmt.Errorf("choose output path: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+		return RenderResult{}, fmt.Errorf("create output directory: %w", err)
+	}
+	if err := atomicWriteFile(outputPath, renderBytes); err != nil {
+		return RenderResult{}, fmt.Errorf("write rendered output: %w", err)
+	}
+
+	result := RenderResult{OutputPath: outputPath}
+	if req.SaveLayoutJSON {
+		jsonPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".json"
+		if err := writeSavedLayout(jsonPath, page); err != nil {
+			return RenderResult{}, cleanupRenderOutputs([]string{outputPath, jsonPath}, fmt.Errorf("write layout json: %w", err))
+		}
+		result.LayoutJSONPath = jsonPath
+	}
+
+	return result, nil
+}
+
 func availablePath(path string) (string, error) {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return path, nil
@@ -274,6 +354,13 @@ func availablePath(path string) (string, error) {
 			return "", err
 		}
 	}
+}
+
+func targetPath(path string, overwrite bool) (string, error) {
+	if overwrite {
+		return path, nil
+	}
+	return availablePath(path)
 }
 
 func writeAtomically(path string, data []byte) error {

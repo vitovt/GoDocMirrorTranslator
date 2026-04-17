@@ -45,6 +45,9 @@ func TestRenderFlowWritesSVGAndJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(json): %v", err)
 	}
+	if !strings.Contains(string(jsonBytes), "\"schema_version\": 1") {
+		t.Fatalf("Layout JSON missing schema version: %s", string(jsonBytes))
+	}
 	if !strings.Contains(string(jsonBytes), "mock-body") {
 		t.Fatalf("Layout JSON missing block ID: %s", string(jsonBytes))
 	}
