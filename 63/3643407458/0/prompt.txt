@@ -287,3 +287,42 @@ Write what you would do and don't do before I approve.
 ok. Add error handling (non existing image file, non existing json file, rewrite confirmation, etc )
 If json contains image path - use relative (only filename) if source image is in the same folder
 If everything is clear - start working.
+
+---
+
+FODG format, when I do rerender:
+ - Text background works OK.
+ - Font size - doesn't make impact - it looks allways as 18 in libreoffice
+ - Font allways is Liberation Sans
+ - Font Weight - doesn't work, for example I use Bold, bit it looks without bold. Here is how it looks in libreoffice draw:
+[Image #2]
+ - Outline width - creates N additional textes. For example if outline width = 5, then I totally get 6 (5+1) textes
+ - outline color - doesn't make impact - allways black
+ - overlay color - doesn't work too - letters allways black
+ - shadow color - doesn't work - shadow allways black
+ - shadow - creates duplicate text instead of using inbuild shadow function.
+Here is how built in shadow function looks in libreoffice:
+[Image #1]
+Here is how font settings looks like
+
+Let's fix it
+
+---
+
+FODG format, when I do rerender:
+ - Text background works, but it is separate color bar under the text. It should be from text properties.
+ - Font size - doesn't make impact - it looks allways as 18 in libreoffice
+ - Font allways is Liberation Sans
+ - Font Weight - doesn't work, for example I use Bold, bit it looks without bold. Here is how it looks in libreoffice draw:
+[Image #2]
+ - Outline width - creates N additional textes. For example if outline width = 5, then I totally get 6 (5+1) textes
+ - outline color - doesn't make impact - allways black
+ - overlay color - doesn't work too - letters allways black
+ - shadow color - doesn't work - shadow allways black
+ - shadow - creates duplicate text instead of using inbuild shadow function.
+Here is how built in shadow function looks in libreoffice:
+[Image #1]
+
+ - Additionally: page size IS OK (A4, landscape), but original SVG image didn't fit to the width (in my example it is wider than A4) and scriptures are also out of the page width. It should be resized to the width of the page (or height if height is greater als width)
+
+Let's fix it according to fodg specification.
