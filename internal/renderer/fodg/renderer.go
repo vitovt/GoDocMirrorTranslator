@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"godocmirrortranslator/internal/domain"
@@ -70,6 +71,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString(" office:version=\"1.3\"")
 	b.WriteString(" office:mimetype=\"application/vnd.oasis.opendocument.graphics\">\n")
 
+	writeFontFaceDecls(&b, page, opts)
 	b.WriteString(" <office:automatic-styles>\n")
 	b.WriteString(fmt.Sprintf("  <style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:margin-top=\"0mm\" fo:margin-bottom=\"0mm\" fo:margin-left=\"0mm\" fo:margin-right=\"0mm\" fo:page-width=\"%s\" fo:page-height=\"%s\" style:print-orientation=\"%s\"/></style:page-layout>\n", odfLength(pageWidth), odfLength(pageHeight), page.Orientation))
 	b.WriteString("  <style:style style:name=\"dp1\" style:family=\"drawing-page\"/>\n")
@@ -79,17 +81,19 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 		if strings.TrimSpace(metrics.Text) == "" {
 			continue
 		}
-		b.WriteString(fmt.Sprintf("  <style:style style:name=\"gr%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" draw:auto-grow-width=\"false\" draw:textarea-horizontal-align=\"%s\" draw:textarea-vertical-align=\"top\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\" fo:min-height=\"0mm\" fo:min-width=\"0mm\"/><style:text-properties fo:color=\"%s\" fo:font-size=\"%s\" style:font-name=\"%s\" loext:opacity=\"%s\"%s/></style:style>\n", i+1, metrics.Align, html.EscapeString(metrics.Color), odfPoint(metrics.FontSizeMM), html.EscapeString(metrics.FontFamily), odfPercent(metrics.Opacity), fontWeightAttr(opts.FontWeight)))
+		b.WriteString(fmt.Sprintf("  <style:style style:name=\"gr%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" draw:auto-grow-width=\"false\" draw:textarea-horizontal-align=\"%s\" draw:textarea-vertical-align=\"top\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\" fo:min-height=\"0mm\" fo:min-width=\"0mm\"%s/><style:paragraph-properties style:writing-mode=\"lr-tb\"/></style:style>\n", i+1, metrics.Align, graphicReadabilityAttrs(opts, scale)))
 		b.WriteString(fmt.Sprintf("  <style:style style:name=\"P%d\" style:family=\"paragraph\"><style:paragraph-properties fo:text-align=\"%s\" fo:margin-top=\"0mm\" fo:margin-bottom=\"0mm\" fo:line-height=\"%s\"/></style:style>\n", i+1, metrics.Align, odfPercent(metrics.LineHeight)))
-		if opts.BackgroundEnabled && opts.BackgroundOpacity > 0 {
-			b.WriteString(fmt.Sprintf("  <style:style style:name=\"bg%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"solid\" draw:fill-color=\"%s\" draw:opacity=\"%s\"/></style:style>\n", i+1, html.EscapeString(opts.BackgroundColor), odfPercent(opts.BackgroundOpacity)))
-		}
-		if opts.OutlineWidth > 0 {
-			b.WriteString(fmt.Sprintf("  <style:style style:name=\"grOutline%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" draw:auto-grow-width=\"false\" draw:textarea-horizontal-align=\"%s\" draw:textarea-vertical-align=\"top\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\" fo:min-height=\"0mm\" fo:min-width=\"0mm\"/><style:text-properties fo:color=\"%s\" fo:font-size=\"%s\" style:font-name=\"%s\" loext:opacity=\"100.00%%\"%s/></style:style>\n", i+1, metrics.Align, html.EscapeString(opts.OutlineColor), odfPoint(metrics.FontSizeMM), html.EscapeString(metrics.FontFamily), fontWeightAttr(opts.FontWeight)))
-		}
-		if opts.ShadowEnabled && opts.ShadowOpacity > 0 {
-			b.WriteString(fmt.Sprintf("  <style:style style:name=\"grShadow%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" draw:auto-grow-width=\"false\" draw:textarea-horizontal-align=\"%s\" draw:textarea-vertical-align=\"top\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\" fo:min-height=\"0mm\" fo:min-width=\"0mm\"/><style:text-properties fo:color=\"%s\" fo:font-size=\"%s\" style:font-name=\"%s\" loext:opacity=\"%s\"%s/></style:style>\n", i+1, metrics.Align, html.EscapeString(opts.ShadowColor), odfPoint(metrics.FontSizeMM), html.EscapeString(metrics.FontFamily), odfPercent(opts.ShadowOpacity), fontWeightAttr(opts.FontWeight)))
-		}
+		b.WriteString(fmt.Sprintf("  <style:style style:name=\"T%d\" style:family=\"text\"><style:text-properties fo:color=\"%s\" loext:opacity=\"%s\"%s style:font-name=\"%s\" fo:font-family=\"%s\" fo:font-size=\"%s\"%s%s/></style:style>\n",
+			i+1,
+			html.EscapeString(metrics.Color),
+			odfPercent(metrics.Opacity),
+			textOutlineAttr(opts),
+			html.EscapeString(metrics.FontFamily),
+			html.EscapeString(odfFontFamily(metrics.FontFamily)),
+			odfPoint(metrics.FontSizeMM),
+			fontWeightAttr(opts.FontWeight),
+			textBackgroundAttr(opts),
+		))
 	}
 	b.WriteString(" </office:automatic-styles>\n")
 	b.WriteString(" <office:master-styles><style:master-page style:name=\"Default\" style:page-layout-name=\"pm1\"/></office:master-styles>\n")
@@ -103,47 +107,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 		if strings.TrimSpace(metrics.Text) == "" {
 			continue
 		}
-		hasReadabilityLayers := (opts.BackgroundEnabled && opts.BackgroundOpacity > 0) || opts.OutlineWidth > 0 || (opts.ShadowEnabled && opts.ShadowOpacity > 0)
-		baseZ := i + 1
-		mainZ := baseZ
-		if hasReadabilityLayers {
-			baseZ = (i * 10) + 1
-			mainZ = baseZ + 6
-		}
-
-		if opts.BackgroundEnabled && opts.BackgroundOpacity > 0 {
-			paddingX := opts.BackgroundPaddingX * scale
-			paddingY := opts.BackgroundPaddingY * scale
-			cornerRadius := opts.BackgroundRadius * scale
-			b.WriteString(fmt.Sprintf("  <draw:rect draw:style-name=\"bg%d\" draw:layer=\"layout\" svg:x=\"%s\" svg:y=\"%s\" svg:width=\"%s\" svg:height=\"%s\" draw:z-index=\"%d\"%s%s/>\n",
-				i+1,
-				odfLength(metrics.FrameX-paddingX),
-				odfLength(metrics.FrameY-paddingY),
-				odfLength(metrics.FrameWidth+(paddingX*2)),
-				odfLength(metrics.FrameHeight+(paddingY*2)),
-				baseZ,
-				metrics.TransformAttr,
-				cornerRadiusAttr(cornerRadius),
-			))
-		}
-
-		if opts.OutlineWidth > 0 {
-			outlineOffset := opts.OutlineWidth * scale
-			for idx, offset := range [][2]float64{
-				{-outlineOffset, 0},
-				{outlineOffset, 0},
-				{0, -outlineOffset},
-				{0, outlineOffset},
-			} {
-				writeTextFrame(&b, fmt.Sprintf("grOutline%d", i+1), fmt.Sprintf("P%d", i+1), metrics, metrics.FrameX+offset[0], metrics.FrameY+offset[1], baseZ+idx+1)
-			}
-		}
-
-		if opts.ShadowEnabled && opts.ShadowOpacity > 0 {
-			writeTextFrame(&b, fmt.Sprintf("grShadow%d", i+1), fmt.Sprintf("P%d", i+1), metrics, metrics.FrameX+(opts.ShadowOffsetX*scale), metrics.FrameY+(opts.ShadowOffsetY*scale), baseZ+5)
-		}
-
-		writeTextFrame(&b, fmt.Sprintf("gr%d", i+1), fmt.Sprintf("P%d", i+1), metrics, metrics.FrameX, metrics.FrameY, mainZ)
+		writeTextFrame(&b, fmt.Sprintf("gr%d", i+1), fmt.Sprintf("P%d", i+1), fmt.Sprintf("T%d", i+1), metrics, metrics.FrameX, metrics.FrameY, i+1)
 	}
 
 	b.WriteString(" </draw:page></office:drawing></office:body>\n")
@@ -211,7 +175,9 @@ func fodgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale,
 		fontSizeMM = 0.9
 	}
 	color := block.Color
-	if color == "" {
+	if opts.OutlineWidth > 0 && opts.OutlineColor != "" {
+		color = opts.OutlineColor
+	} else if color == "" {
 		color = opts.TextColor
 	}
 	opacity := block.Opacity
@@ -273,14 +239,65 @@ func fontWeightAttr(weight string) string {
 	return ""
 }
 
-func cornerRadiusAttr(radius float64) string {
-	if radius <= 0 {
-		return ""
+func writeFontFaceDecls(b *strings.Builder, page *domain.DocumentPage, opts base.RenderOptions) {
+	fonts := []string{opts.FontFamily}
+	for _, block := range page.Blocks {
+		if block.FontFamily != "" {
+			fonts = append(fonts, block.FontFamily)
+		}
 	}
-	return fmt.Sprintf(" draw:corner-radius=\"%s\"", odfLength(radius))
+	slices.Sort(fonts)
+	fonts = slices.Compact(fonts)
+
+	b.WriteString(" <office:font-face-decls>\n")
+	for _, font := range fonts {
+		if strings.TrimSpace(font) == "" {
+			continue
+		}
+		b.WriteString(fmt.Sprintf("  <style:font-face style:name=\"%s\" svg:font-family=\"%s\" style:font-family-generic=\"roman\" style:font-pitch=\"variable\"/>\n",
+			html.EscapeString(font),
+			html.EscapeString(odfFontFamily(font)),
+		))
+	}
+	b.WriteString(" </office:font-face-decls>\n")
 }
 
-func writeTextFrame(b *strings.Builder, graphicStyleName, paragraphStyleName string, metrics fodgTextMetrics, frameX, frameY float64, zIndex int) {
+func graphicReadabilityAttrs(opts base.RenderOptions, scale float64) string {
+	if !opts.ShadowEnabled || opts.ShadowOpacity <= 0 {
+		return ""
+	}
+
+	attrs := fmt.Sprintf(" draw:shadow=\"visible\" draw:shadow-offset-x=\"%s\" draw:shadow-offset-y=\"%s\" draw:shadow-color=\"%s\" draw:shadow-opacity=\"%s\"",
+		odfLength(opts.ShadowOffsetX*scale),
+		odfLength(opts.ShadowOffsetY*scale),
+		html.EscapeString(opts.ShadowColor),
+		odfPercent(opts.ShadowOpacity),
+	)
+	if opts.ShadowBlur > 0 {
+		attrs += fmt.Sprintf(" loext:shadow-blur=\"%s\"", odfLength(opts.ShadowBlur*scale))
+	}
+	return attrs
+}
+
+func textBackgroundAttr(opts base.RenderOptions) string {
+	if !opts.BackgroundEnabled {
+		return ""
+	}
+	return fmt.Sprintf(" fo:background-color=\"%s\"", html.EscapeString(opts.BackgroundColor))
+}
+
+func textOutlineAttr(opts base.RenderOptions) string {
+	if opts.OutlineWidth > 0 {
+		return " style:text-outline=\"true\""
+	}
+	return ""
+}
+
+func odfFontFamily(name string) string {
+	return fmt.Sprintf("'%s'", name)
+}
+
+func writeTextFrame(b *strings.Builder, graphicStyleName, paragraphStyleName, textStyleName string, metrics fodgTextMetrics, frameX, frameY float64, zIndex int) {
 	b.WriteString(fmt.Sprintf("  <draw:frame draw:style-name=\"%s\" draw:text-style-name=\"%s\" draw:layer=\"layout\" svg:x=\"%s\" svg:y=\"%s\" svg:width=\"%s\" svg:height=\"%s\" draw:z-index=\"%d\"%s>\n",
 		graphicStyleName,
 		paragraphStyleName,
@@ -293,7 +310,11 @@ func writeTextFrame(b *strings.Builder, graphicStyleName, paragraphStyleName str
 	))
 	b.WriteString("   <draw:text-box>\n")
 	for _, line := range metrics.Lines {
-		b.WriteString(fmt.Sprintf("    <text:p text:style-name=\"%s\">%s</text:p>\n", paragraphStyleName, html.EscapeString(line)))
+		if line == "" {
+			b.WriteString("    <text:p/>\n")
+			continue
+		}
+		b.WriteString(fmt.Sprintf("    <text:p><text:span text:style-name=\"%s\">%s</text:span></text:p>\n", textStyleName, html.EscapeString(line)))
 	}
 	b.WriteString("   </draw:text-box>\n")
 	b.WriteString("  </draw:frame>\n")
