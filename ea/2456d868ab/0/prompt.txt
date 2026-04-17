@@ -335,3 +335,7 @@ Let's fix it according to fodg specification.
   - When I set Outline color = #ff0000 and Outline width > 0, I see red border (it's ok) but letters become white. Why ? Explain.
   - font size for different text areas are different (13,9; 7,9; 9,9;) - explain
   - what does overlay opacity means ? I set 1, I set 0.1 - and don't see difference. And better if it will be in %
+
+---
+
+do what you've proposed
