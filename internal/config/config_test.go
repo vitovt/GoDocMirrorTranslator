@@ -54,6 +54,9 @@ func TestLoadReturnsDefaultsWhenConfigMissing(t *testing.T) {
 	if cfg.DefaultProvider != defaults.DefaultProvider {
 		t.Fatalf("DefaultProvider = %q, want %q", cfg.DefaultProvider, defaults.DefaultProvider)
 	}
+	if cfg.DefaultRenderer != defaults.DefaultRenderer {
+		t.Fatalf("DefaultRenderer = %q, want %q", cfg.DefaultRenderer, defaults.DefaultRenderer)
+	}
 	if cfg.Timeout != defaults.Timeout {
 		t.Fatalf("Timeout = %v, want %v", cfg.Timeout, defaults.Timeout)
 	}
@@ -146,6 +149,7 @@ func TestLoadEffectiveAppliesEnvOverrides(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	cfg := Default()
 	cfg.DefaultProvider = "openai"
+	cfg.DefaultRenderer = "fodg"
 	cfg.DefaultModel = "from-config"
 	cfg.OutputTemplate = "from-config.svg"
 	if _, err := Save(path, cfg); err != nil {
@@ -153,6 +157,7 @@ func TestLoadEffectiveAppliesEnvOverrides(t *testing.T) {
 	}
 
 	t.Setenv(EnvPrefix+"DEFAULT_PROVIDER", "gemini")
+	t.Setenv(EnvPrefix+"DEFAULT_RENDERER", "svg")
 	t.Setenv(EnvPrefix+"DEFAULT_MODEL", "from-env")
 	t.Setenv(EnvPrefix+"OUTPUT_TEMPLATE", "from-env.svg")
 
@@ -163,7 +168,7 @@ func TestLoadEffectiveAppliesEnvOverrides(t *testing.T) {
 	if resolvedPath != path {
 		t.Fatalf("resolvedPath = %q, want %q", resolvedPath, path)
 	}
-	if loaded.DefaultProvider != "gemini" || loaded.DefaultModel != "from-env" || loaded.OutputTemplate != "from-env.svg" {
+	if loaded.DefaultProvider != "gemini" || loaded.DefaultRenderer != "svg" || loaded.DefaultModel != "from-env" || loaded.OutputTemplate != "from-env.svg" {
 		t.Fatalf("LoadEffective() = %#v, want env overrides applied", loaded)
 	}
 }
@@ -172,6 +177,7 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 	cfg := Default()
 	env := map[string]string{
 		EnvPrefix + "DEFAULT_PROVIDER":  "gemini",
+		EnvPrefix + "DEFAULT_RENDERER":  "fodg",
 		EnvPrefix + "DEFAULT_FONT_SIZE": "22.5",
 		EnvPrefix + "OVERLAY_OPACITY":   "0.7",
 		EnvPrefix + "PRESERVE_COLUMNS":  "true",
@@ -190,6 +196,9 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 	}
 	if cfg.DefaultProvider != "gemini" {
 		t.Fatalf("DefaultProvider = %q, want gemini", cfg.DefaultProvider)
+	}
+	if cfg.DefaultRenderer != "fodg" {
+		t.Fatalf("DefaultRenderer = %q, want fodg", cfg.DefaultRenderer)
 	}
 	if cfg.DefaultFontSize != 22.5 {
 		t.Fatalf("DefaultFontSize = %v, want 22.5", cfg.DefaultFontSize)
@@ -297,6 +306,16 @@ func TestSetSupportsKnownKeysAndRejectsUnknownKeys(t *testing.T) {
 				t.Helper()
 				if cfg.DefaultProvider != "gemini" {
 					t.Fatalf("DefaultProvider = %q, want gemini", cfg.DefaultProvider)
+				}
+			},
+		},
+		{
+			key:   "default_renderer",
+			value: "fodg",
+			check: func(t *testing.T, cfg Config) {
+				t.Helper()
+				if cfg.DefaultRenderer != "fodg" {
+					t.Fatalf("DefaultRenderer = %q, want fodg", cfg.DefaultRenderer)
 				}
 			},
 		},
@@ -523,7 +542,7 @@ func TestNormalizeAndPreferenceHelpersOnZeroConfig(t *testing.T) {
 	cfg.normalize()
 
 	defaults := Default()
-	if cfg.Timeout != defaults.Timeout || cfg.DefaultProvider != defaults.DefaultProvider || cfg.DefaultFontFamily != defaults.DefaultFontFamily || cfg.DefaultFontSize != defaults.DefaultFontSize {
+	if cfg.Timeout != defaults.Timeout || cfg.DefaultProvider != defaults.DefaultProvider || cfg.DefaultRenderer != defaults.DefaultRenderer || cfg.DefaultFontFamily != defaults.DefaultFontFamily || cfg.DefaultFontSize != defaults.DefaultFontSize {
 		t.Fatalf("normalize() did not apply defaults: %#v", cfg)
 	}
 	if cfg.OutputTemplate != defaults.OutputTemplate || cfg.OverlayColor != defaults.OverlayColor {

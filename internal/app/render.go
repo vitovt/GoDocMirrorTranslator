@@ -21,6 +21,7 @@ import (
 const DefaultOutputTemplate = "{input_basename}_{provider}_{timestamp}.svg"
 
 var atomicWriteFile = writeAtomically
+var knownRendererExtensions = []string{".svg", ".fodg"}
 
 type RenderRequest struct {
 	InputPath      string
@@ -138,7 +139,7 @@ func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResu
 		return RenderResult{}, fmt.Errorf("create output directory: %w", err)
 	}
 	if err := atomicWriteFile(outputPath, renderBytes); err != nil {
-		return RenderResult{}, fmt.Errorf("write svg: %w", err)
+		return RenderResult{}, fmt.Errorf("write rendered output: %w", err)
 	}
 
 	result := RenderResult{OutputPath: outputPath}
@@ -244,10 +245,17 @@ func outputFileName(template, providerName, model, inputPath string, now time.Ti
 	for key, value := range replacements {
 		name = strings.ReplaceAll(name, key, value)
 	}
-	if !strings.HasSuffix(strings.ToLower(name), strings.ToLower(extension)) {
-		name += extension
+	lowerName := strings.ToLower(name)
+	lowerExtension := strings.ToLower(extension)
+	if strings.HasSuffix(lowerName, lowerExtension) {
+		return name
 	}
-	return name
+	for _, known := range knownRendererExtensions {
+		if strings.HasSuffix(lowerName, known) {
+			return name[:len(name)-len(known)] + extension
+		}
+	}
+	return name + extension
 }
 
 func availablePath(path string) (string, error) {

@@ -38,7 +38,9 @@ func TestRunHelpIncludesRenderFlagsAndProviderOptionExample(t *testing.T) {
 	output := stdout.String()
 	for _, want := range []string{
 		"--output-template TEMPLATE",
+		"--renderer NAME",
 		"--save-layout-json",
+		"default_renderer",
 		"provider_options.openai.image_detail",
 		"Config precedence: built-in defaults, config file, environment, CLI flags",
 	} {
@@ -88,6 +90,7 @@ func TestRenderHelpIncludesExamplesAndPrecedence(t *testing.T) {
 	output := stdout.String() + stderr.String()
 	for _, want := range []string{
 		"Examples:",
+		"--renderer",
 		"--save-layout-json",
 		"Config precedence: built-in defaults, config file, environment, CLI flags",
 	} {
@@ -121,6 +124,36 @@ func TestRunRender(t *testing.T) {
 	jsonPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".json"
 	if _, err := os.Stat(jsonPath); err != nil {
 		t.Fatalf("expected layout json at %q: %v", jsonPath, err)
+	}
+}
+
+func TestRunRenderWithFODGRenderer(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{
+		"render",
+		"--input", inputPath,
+		"--output-dir", tempDir,
+		"--provider", "mock",
+		"--renderer", "fodg",
+	}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run() exit code = %d, stderr = %s", code, stderr.String())
+	}
+	outputPath := strings.TrimSpace(stdout.String())
+	if filepath.Ext(outputPath) != ".fodg" {
+		t.Fatalf("output path = %q, want .fodg extension", outputPath)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", outputPath, err)
+	}
+	if !strings.Contains(string(content), "<office:document") {
+		t.Fatalf("FODG output missing office document root: %s", string(content))
 	}
 }
 
@@ -188,12 +221,14 @@ func TestRunRenderAppliesEnvOverridesBeforeConfigDefaults(t *testing.T) {
 	cfgPath := filepath.Join(tempDir, "config.json")
 	cfg := config.Default()
 	cfg.DefaultProvider = "openai"
+	cfg.DefaultRenderer = "fodg"
 	cfg.OutputTemplate = "from_config.svg"
 	if _, err := config.Save(cfgPath, cfg); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 
 	t.Setenv(config.EnvPrefix+"DEFAULT_PROVIDER", "mock")
+	t.Setenv(config.EnvPrefix+"DEFAULT_RENDERER", "svg")
 	t.Setenv(config.EnvPrefix+"OUTPUT_TEMPLATE", "from_env_{provider}.svg")
 
 	var stdout bytes.Buffer
@@ -239,6 +274,21 @@ func TestRunConfigCommands(t *testing.T) {
 	}
 	if strings.TrimSpace(stdout.String()) != "openai" {
 		t.Fatalf("config get default_provider = %q, want openai", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run(context.Background(), []string{"config", "set", "--config", cfgPath, "default_renderer", "fodg"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config set renderer exit code = %d, stderr = %s", code, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if code := Run(context.Background(), []string{"config", "get", "--config", cfgPath, "default_renderer"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("config get renderer exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if strings.TrimSpace(stdout.String()) != "fodg" {
+		t.Fatalf("config get default_renderer = %q, want fodg", stdout.String())
 	}
 
 	stdout.Reset()

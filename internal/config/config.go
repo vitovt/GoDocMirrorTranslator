@@ -25,6 +25,7 @@ type Config struct {
 	GeminiAPIKey      string                       `json:"gemini_api_key,omitempty"`
 	Timeout           time.Duration                `json:"timeout"`
 	DefaultProvider   string                       `json:"default_provider"`
+	DefaultRenderer   string                       `json:"default_renderer"`
 	DefaultModel      string                       `json:"default_model,omitempty"`
 	DefaultOutputDir  string                       `json:"default_output_dir,omitempty"`
 	DefaultFontFamily string                       `json:"default_font_family"`
@@ -43,6 +44,7 @@ func Default() Config {
 	return Config{
 		Timeout:           30 * time.Second,
 		DefaultProvider:   "mock",
+		DefaultRenderer:   "svg",
 		DefaultFontFamily: "Noto Sans",
 		DefaultFontSize:   18,
 		OutputTemplate:    "{input_basename}_{provider}_{timestamp}.svg",
@@ -138,6 +140,9 @@ func (c *Config) normalize() {
 	if c.DefaultProvider == "" {
 		c.DefaultProvider = defaults.DefaultProvider
 	}
+	if c.DefaultRenderer == "" {
+		c.DefaultRenderer = defaults.DefaultRenderer
+	}
 	if c.DefaultFontFamily == "" {
 		c.DefaultFontFamily = defaults.DefaultFontFamily
 	}
@@ -172,6 +177,7 @@ func (c *Config) ApplyEnv(lookup func(string) (string, bool)) error {
 		EnvPrefix + "OPENAI_API_KEY":      &c.OpenAIAPIKey,
 		EnvPrefix + "GEMINI_API_KEY":      &c.GeminiAPIKey,
 		EnvPrefix + "DEFAULT_PROVIDER":    &c.DefaultProvider,
+		EnvPrefix + "DEFAULT_RENDERER":    &c.DefaultRenderer,
 		EnvPrefix + "DEFAULT_MODEL":       &c.DefaultModel,
 		EnvPrefix + "DEFAULT_OUTPUT_DIR":  &c.DefaultOutputDir,
 		EnvPrefix + "DEFAULT_FONT_FAMILY": &c.DefaultFontFamily,
@@ -236,6 +242,8 @@ func (c *Config) Set(key, value string) error {
 		c.Timeout = duration
 	case "default_provider":
 		c.DefaultProvider = value
+	case "default_renderer":
+		c.DefaultRenderer = value
 	case "default_model":
 		c.DefaultModel = value
 	case "default_output_dir":

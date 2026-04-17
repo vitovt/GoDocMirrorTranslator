@@ -101,6 +101,7 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 		OutputDir:      cfg.DefaultOutputDir,
 		OutputTemplate: cfg.OutputTemplate,
 		ProviderName:   cfg.DefaultProvider,
+		RendererName:   cfg.DefaultRenderer,
 		Model:          cfg.DefaultModel,
 		SourceLanguage: cfg.SourceLanguage,
 		TargetLanguage: cfg.TargetLanguage,
@@ -116,8 +117,9 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 
 	fs.StringVar(&req.InputPath, "input", req.InputPath, "Path to the input image")
 	fs.StringVar(&req.OutputDir, "output-dir", req.OutputDir, "Directory for generated files")
-	fs.StringVar(&req.OutputTemplate, "output-template", req.OutputTemplate, "Filename template for SVG output")
+	fs.StringVar(&req.OutputTemplate, "output-template", req.OutputTemplate, "Filename template for rendered output")
 	fs.StringVar(&req.ProviderName, "provider", req.ProviderName, "Provider to use")
+	fs.StringVar(&req.RendererName, "renderer", req.RendererName, "Renderer to use")
 	fs.StringVar(&req.Model, "model", req.Model, "Model to use")
 	fs.StringVar(&req.SourceLanguage, "source-lang", req.SourceLanguage, "Source language")
 	fs.StringVar(&req.TargetLanguage, "target-lang", req.TargetLanguage, "Target language")
@@ -126,7 +128,7 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 	fs.Float64Var(&req.RenderOptions.Opacity, "opacity", req.RenderOptions.Opacity, "Fallback text opacity")
 	fs.StringVar(&req.RenderOptions.TextColor, "color", req.RenderOptions.TextColor, "Fallback text color")
 	fs.DurationVar(&req.Timeout, "timeout", req.Timeout, "Provider request timeout")
-	fs.BoolVar(&req.SaveLayoutJSON, "save-layout-json", false, "Write layout JSON next to the SVG output")
+	fs.BoolVar(&req.SaveLayoutJSON, "save-layout-json", false, "Write layout JSON next to the rendered output")
 	verbose := fs.Bool("verbose", false, "Print extra result information")
 	fs.StringVar(&configPath, "config", configPath, "Optional config file path")
 
@@ -302,6 +304,8 @@ func lookupConfigValue(cfg config.Config, key string) (string, error) {
 		return cfg.Timeout.String(), nil
 	case "default_provider":
 		return cfg.DefaultProvider, nil
+	case "default_renderer":
+		return cfg.DefaultRenderer, nil
 	case "default_model":
 		return cfg.DefaultModel, nil
 	case "default_output_dir":
@@ -330,7 +334,7 @@ func lookupConfigValue(cfg config.Config, key string) (string, error) {
 func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Go Document Mirror Translator")
 	_, _ = fmt.Fprintln(w, "")
-	_, _ = fmt.Fprintln(w, "Translate one supported image into an editable A4 SVG overlay.")
+	_, _ = fmt.Fprintln(w, "Translate one supported image into an editable A4 SVG or FODG overlay.")
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Commands:")
 	_, _ = fmt.Fprintln(w, "  render")
@@ -347,6 +351,7 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  --output-dir DIR")
 	_, _ = fmt.Fprintln(w, "  --output-template TEMPLATE")
 	_, _ = fmt.Fprintln(w, "  --provider NAME")
+	_, _ = fmt.Fprintln(w, "  --renderer NAME")
 	_, _ = fmt.Fprintln(w, "  --model NAME")
 	_, _ = fmt.Fprintln(w, "  --source-lang LANG")
 	_, _ = fmt.Fprintln(w, "  --target-lang LANG")
@@ -361,7 +366,9 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Examples:")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider mock")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider openai --model gpt-4.1-mini --save-layout-json")
+	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --renderer fodg")
 	_, _ = fmt.Fprintln(w, "  app config set default_provider openai")
+	_, _ = fmt.Fprintln(w, "  app config set default_renderer fodg")
 	_, _ = fmt.Fprintln(w, "  app config set provider_options.openai.image_detail high")
 	_, _ = fmt.Fprintln(w, "  app providers list")
 	_, _ = fmt.Fprintln(w, "")
@@ -371,7 +378,7 @@ func printHelp(w io.Writer) {
 func printRenderUsage(w io.Writer, fs *flag.FlagSet) {
 	_, _ = fmt.Fprintln(w, "Usage: app render [flags]")
 	_, _ = fmt.Fprintln(w, "")
-	_, _ = fmt.Fprintln(w, "Render one input image to an editable A4 SVG overlay.")
+	_, _ = fmt.Fprintln(w, "Render one input image to an editable A4 SVG or FODG overlay.")
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Flags:")
 	fs.PrintDefaults()
@@ -379,6 +386,7 @@ func printRenderUsage(w io.Writer, fs *flag.FlagSet) {
 	_, _ = fmt.Fprintln(w, "Examples:")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider mock")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider openai --model gpt-4.1-mini --save-layout-json")
+	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --renderer fodg")
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Config precedence: built-in defaults, config file, environment, CLI flags")
 }

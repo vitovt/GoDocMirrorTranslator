@@ -50,6 +50,39 @@ func TestRenderFlowWritesSVGAndJSON(t *testing.T) {
 	}
 }
 
+func TestRenderFlowWritesFODG(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 900, 1200)
+
+	application := app.New("test")
+	result, err := application.Render(context.Background(), app.RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      filepath.Join(tempDir, "out"),
+		OutputTemplate: "translated_{provider}_{timestamp}.svg",
+		ProviderName:   "mock",
+		RendererName:   "fodg",
+		Now: func() time.Time {
+			return time.Date(2026, 4, 16, 12, 30, 45, 0, time.UTC)
+		},
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	if filepath.Ext(result.OutputPath) != ".fodg" {
+		t.Fatalf("OutputPath = %q, want .fodg extension", result.OutputPath)
+	}
+
+	fodgBytes, err := os.ReadFile(result.OutputPath)
+	if err != nil {
+		t.Fatalf("ReadFile(fodg): %v", err)
+	}
+	if !strings.Contains(string(fodgBytes), "<office:document") || !strings.Contains(string(fodgBytes), "Dies ist ein Beispieltextblock.") {
+		t.Fatalf("FODG output missing expected content: %s", string(fodgBytes))
+	}
+}
+
 func writeTestPNG(t *testing.T, path string, width, height int) {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, width, height))

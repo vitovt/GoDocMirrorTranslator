@@ -9,6 +9,7 @@ import (
 	"godocmirrortranslator/internal/provider/mock"
 	"godocmirrortranslator/internal/provider/openai"
 	base "godocmirrortranslator/internal/renderer"
+	fodgrenderer "godocmirrortranslator/internal/renderer/fodg"
 	svgrenderer "godocmirrortranslator/internal/renderer/svg"
 )
 
@@ -34,7 +35,7 @@ func New(version string) *Application {
 	}
 
 	renderers := map[string]base.Renderer{}
-	for _, current := range []base.Renderer{svgrenderer.New()} {
+	for _, current := range []base.Renderer{svgrenderer.New(), fodgrenderer.New()} {
 		renderers[current.Name()] = current
 	}
 
@@ -62,6 +63,15 @@ func (a *Application) SupportedModels(providerName string, cfg provider.Provider
 	models := append([]string(nil), factory(cfg).SupportedModels()...)
 	sort.Strings(models)
 	return models
+}
+
+func (a *Application) RendererNames() []string {
+	names := make([]string, 0, len(a.Renderers))
+	for name := range a.Renderers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func (a *Application) ValidateProviderConfig(providerName string, cfg provider.ProviderConfig) error {

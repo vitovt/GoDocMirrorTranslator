@@ -161,6 +161,34 @@ func TestRenderUsesInputDirFallbackAndCollisionSuffix(t *testing.T) {
 	}
 }
 
+func TestRenderWritesFODGOutput(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	application := New("test")
+	result, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		RendererName:   "fodg",
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if filepath.Ext(result.OutputPath) != ".fodg" {
+		t.Fatalf("OutputPath = %q, want .fodg extension", result.OutputPath)
+	}
+	content, err := os.ReadFile(result.OutputPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", result.OutputPath, err)
+	}
+	if !strings.Contains(string(content), "<office:document") {
+		t.Fatalf("FODG output missing office document root: %s", string(content))
+	}
+}
+
 func TestRenderRejectsUnknownRenderer(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")
@@ -264,6 +292,10 @@ func TestOutputFileNameAndCleanupHelpers(t *testing.T) {
 	withExt := outputFileName("custom-name", "mock", "mock-v1", "/tmp/page.png", now, ".svg")
 	if withExt != "custom-name.svg" {
 		t.Fatalf("outputFileName() = %q, want custom-name.svg", withExt)
+	}
+	replacedExt := outputFileName(DefaultOutputTemplate, "mock", "mock-v1", "/tmp/page.png", now, ".fodg")
+	if !strings.HasSuffix(replacedExt, ".fodg") || strings.HasSuffix(replacedExt, ".svg.fodg") {
+		t.Fatalf("outputFileName() = %q, want renderer-specific extension replacement", replacedExt)
 	}
 
 	tempDir := t.TempDir()
