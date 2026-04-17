@@ -215,3 +215,13 @@ Yes, I accept this.
 > - make the bottom details area collapsed by default on mobile, showing only status plus a small Details expander
 Yes, I accpet this too.
 Start implementint all this.
+
+---
+
+Now it is broken.
+Menu is allways visible. Show/Hide does nothing.
+Central area, where should be main content,is empty
+Additional unclicable "Menu" word right of the button Show/Hide menu
+Selection a menu section changes nothing
+
+Status arrea is in right place and OK
