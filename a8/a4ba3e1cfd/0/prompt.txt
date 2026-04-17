@@ -1,0 +1,420 @@
+review AGENTS.md and STATE.md, make them more project-independent in order to use in other golang projects with another SPEC.md
+
+---
+
+no, don't update AGENTS.md and STATE.md. I've just looked at. They are suitable for current project.
+NOW:
+Analyze helper Makefile. Adapt it to go+fyne instead go+gogio, change AGENTS.md to use primary this make commands instead of raw go commands to format, build, test and so on.
+
+---
+
+try again to read those files.
+
+---
+
+Make corresponding commits.
+Read SPEC.md, AGENTS.md, and STATE.md. Audit the specification for ambiguity, missing constraints, risky assumptions, inconsistent terminology, and implementation gaps. Produce a prioritized review with exact proposed edits to SPEC.md, but do not edit files yet.
+
+---
+
+1. Propose accepted
+2. I want json in v1
+3. Propose accepted
+4. Propose accepted
+5. fully promote Android into v1 deliverables and acceptance
+6. Propose accepted
+7. in v1. provider options should be configured only in gui/saved config. Cli override over default/config settings are not necessary on this stage.
+8. Propose accepted
+9. Propose accepted
+10. Propose accepted
+
+---
+
+Commit changes.
+Then Read again SPEC.md, AGENTS.md, and STATE.md. Create a concrete implementation plan for milestone 1, then start implementing the repository skeleton, domain model, renderer interface, SVG renderer, CLI wiring, and tests in small reviewable commits.
+
+---
+
+continue
+
+---
+
+continue now
+
+---
+
+I've run `codex --profile project-autonomous`, in .codex/config.toml I see:
+```
+[profiles]
+
+[profiles.project-autonomous]
+model = "gpt-5.4"
+model_provider = "openai"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+web_search = "live"
+tools_view_image = true
+```
+
+But there are still problems with permissions. Check environment and say what to fix.
+
+---
+
+$ cat  ~/.codex/config.toml 
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+personality = "pragmatic"
+approvals_reviewer = "user"
+
+[projects."/home/vitovt/Desktop/Недороблені-недопушені_проги"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Dev"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Antigravity"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/var/diaries/generalmd/01_Projects/YouTube/Deutschland-investigation"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/var/diaries/generalmd/.obsidian/plugins/csv-codeblock"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/Documents/Projects/Horoshop/yml_catalog"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Downloads/del/Horoshop/dev.zolotoy-standart.com.ua-BITRIX"]
+trust_level = "trusted"
+
+[notice]
+"hide_gpt-5.1-codex-max_migration_prompt" = true
+
+[notice.model_migrations]
+"gpt-5.1-codex-max" = "gpt-5.2-codex"
+"gpt-5.3-codex" = "gpt-5.4"
+"gpt-5.2" = "gpt-5.4"
+
+#[mcp_servers.playwright]
+#command = "npx"
+#args = ["@playwright/mcp@latest"]
+
+[tui]
+status_line = ["model-name", "model-with-reasoning", "current-dir", "project-root", "context-remaining", "context-used", "five-hour-limit", "weekly-limit", "context-window-size", "used-tokens", "session-id"]
+
+[profiles.spec-review]
+approvals_reviewer = "user"
+[projects."/home/vitovt/Desktop/Dev/GoDocMirrorTranslator"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Dev/WeatherChecker3"]
+trust_level = "trusted"
+
+---
+
+I've changed bwrap apparmor rules. Try access again
+
+---
+
+Now make commits and continue developing.
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue until SPEC will be fullfilled
+
+---
+
+commit now. I've fixed permissions
+
+---
+
+commit now. I've fixed permissions
+
+---
+
+continue
+
+---
+
+replace default filepicker by OS native. Here is an example how it was done in another project:
+https://github.com/vitovt/OCImageDownloader/commit/e29738f76eb01eceb6d04a4f330863cf052d984d
+
+---
+
+I've specified OpenAI API key and tried to process an image. I see an error:
+[Image #1]
+
+---
+
+Can we use official go api library ? Or it will be overhead ?
+https://github.com/openai/openai-go
+
+---
+
+Fix the schema. Don't migrate to the OpenAI adapter at all.
+
+---
+
+Now develop side menu. Put on top accordeon button. When I press it - side panel shows/hides. When screen is narrow (resized window or mobile device) - auto hide this panel. 
+In this side panel should be tabs:
+- ai settins: all keys, details, timeouts, etc ...
+- design settings: fonts, colors, size
+- main tab (default on app open - top one): here should stay: Input image, Output Folder, Filename Tamplate, Source language, target language, Preserver columns
+Bottom panel with save/process/open should allways stay visible
+
+---
+
+Ok. But you din't understand.
+Ther shoulnd't be 3 panels.
+Only 2. Left - menu, which shows and hides exactly as I want. But when I press button on this left menu panel - content should change in main panel. Not in the middle.
+You can leave implementation allmost as it is. But make 2nd panel persistent, and move 3d right panel to the bottom, as it was before.
+Don't start implementing now - write how did you understand me.
+
+---
+
+Yes, you understand me right.
+Additionally:
+- rename Show/Hide Panel to Show/Hide Menu
+- When app starts - allways show left panel opened
+- On small windows (mobile, another orientation) left panel with buttons don't move main content, but overlaps: the goal - to have enought place on small screens.
+- Bottom: status/details arrea goes below save/process/open buttons.
+How did you understand ? Maybe you have something else to offer for better usability for mobile devices in vertical orientation ?
+
+---
+
+>   - when the user taps a menu item on a narrow/mobile layout, auto-close the overlay menu immediately
+Yes, I accept this.
+> - make the bottom details area collapsed by default on mobile, showing only status plus a small Details expander
+Yes, I accpet this too.
+Start implementint all this.
+
+---
+
+Now it is broken.
+Menu is allways visible. Show/Hide does nothing.
+Central area, where should be main content,is empty
+Additional unclicable "Menu" word right of the button Show/Hide menu
+Selection a menu section changes nothing
+
+Status arrea is in right place and OK
+
+---
+
+Menu is OK. But content in central area or absent or invisible.
+
+---
+
+Now it is visible. The only thing: menu bar SHOULD overlap main content. Now it moves main content area aside makes it smaller.
+
+---
+
+Sorry, I didn't check it carefully.
+It already overlaps on small screens. It moves aside only on large screens. This behaviour is acceptible. So you don't need to make those additional changes.
+
+---
+
+I vant to make more application with this design in the future.
+fyne + side panel + status panel. Adaptive to mobile and small/vertical screens. And so on.
+UPDATE SPEC.md - add special Fyne adaptive design section in that way, that it could be copy-pasted to another spec of another application.
+Describe all details of behaviour and implementation there in order to simplify development of another application later.
+
+---
+
+Now Implement Libre Office format support (FODG)
+
+---
+
+continue
+
+---
+
+It works. Everything is correct.
+Now I need following functions. Analyse and offer your view how to implement them:
+- Overlay text readability. Now text is fast undistinguishable on bright colorfull images. And changing color helps only on some part of image.
+  - Ability to change font color
+  - Additional font decorations
+  - Ability to add text background
+    - Rectangular background
+    - The best will be not square background, but shadow.
+- Ability to reuse again existing json for different formatting without submiting to AI the same image again.
+
+---
+
+Everything what you've offered:
+1. Formatting - everything is ok, implement
+2. JSON: everything is ok. More details:
+- in GUI: 
+  - add in Main:
+      - Layout JSON
+         - by default is empty
+         - after every success Process (of image) fills with current path
+         - when pressed Process again - process image again and change Layout JSON field to actual value
+      - button between process and Open Output Folder - to regenerate image with existing json but current formattings set
+      rename Process and this new button to short clear and easy distinguishable names
+- don't need to keep backward format compatibility
+Write what you would do and don't do before I approve.
+
+---
+
+ok. Add error handling (non existing image file, non existing json file, rewrite confirmation, etc )
+If json contains image path - use relative (only filename) if source image is in the same folder
+If everything is clear - start working.
+
+---
+
+FODG format, when I do rerender:
+ - Text background works OK.
+ - Font size - doesn't make impact - it looks allways as 18 in libreoffice
+ - Font allways is Liberation Sans
+ - Font Weight - doesn't work, for example I use Bold, bit it looks without bold. Here is how it looks in libreoffice draw:
+[Image #2]
+ - Outline width - creates N additional textes. For example if outline width = 5, then I totally get 6 (5+1) textes
+ - outline color - doesn't make impact - allways black
+ - overlay color - doesn't work too - letters allways black
+ - shadow color - doesn't work - shadow allways black
+ - shadow - creates duplicate text instead of using inbuild shadow function.
+Here is how built in shadow function looks in libreoffice:
+[Image #1]
+Here is how font settings looks like
+
+Let's fix it
+
+---
+
+FODG format, when I do rerender:
+ - Text background works, but it is separate color bar under the text. It should be from text properties.
+ - Font size - doesn't make impact - it looks allways as 18 in libreoffice
+ - Font allways is Liberation Sans
+ - Font Weight - doesn't work, for example I use Bold, bit it looks without bold. Here is how it looks in libreoffice draw:
+[Image #2]
+ - Outline width - creates N additional textes. For example if outline width = 5, then I totally get 6 (5+1) textes
+ - outline color - doesn't make impact - allways black
+ - overlay color - doesn't work too - letters allways black
+ - shadow color - doesn't work - shadow allways black
+ - shadow - creates duplicate text instead of using inbuild shadow function.
+Here is how built in shadow function looks in libreoffice:
+[Image #1]
+
+ - Additionally: page size IS OK (A4, landscape), but original SVG image didn't fit to the width (in my example it is wider than A4) and scriptures are also out of the page width. It should be resized to the width of the page (or height if height is greater als width)
+
+Let's fix it according to fodg specification.
+
+---
+
+- Is "Overlay Color" color of the text ? If yes - it should be renamed.
+- in ofdg mode:
+  - I use "Overlay color" = #00FF00 - I see green letters.
+  - When I set Outline color = #ff0000 and Outline width > 0, I see red border (it's ok) but letters become white. Why ? Explain.
+  - font size for different text areas are different (13,9; 7,9; 9,9;) - explain
+  - what does overlay opacity means ? I set 1, I set 0.1 - and don't see difference. And better if it will be in %
+
+---
+
+do what you've proposed
+
+---
+
+>   - Why you get red border but white letters in FODG: LibreOffice Draw does not treat this like SVG fill + stroke. In FODG we enable contoured text with style:text-outline="true" when width is greater than zero   at internal/renderer/fodg/renderer.go:289, and when outline is enabled we currently switch the text color to the outline color at internal/renderer/fodg/renderer.go:177. LibreOffice then renders contoured    text as hollow text: colored outline, no separate inner fill. So the inside looks white because it is just the background showing through. Also, in FODG the current Outline Width is effectively only an on/off trigger, not a true adjustable stroke width.
+
+Ok. Can I in this case achieve red border with green letters inside ? Or with black ? Is it achiavable ?
+I mean: now if I enable outline width > 0 — I see white letters and outline color border.
+can I see: text color letters + outline color border ? Or it will be allways white ? Is it possible somehow change for fodg ?
+
+---
+
+Ok. Skip it for now.
+
+1. In the gui tab "design settings" - make reorders:
+- move background settings block bottom, below text shadow block
+- move Render Formattings notes at the very bottom of this area, after baground bottom settings
+
+2. Windows build under linux fails. Fix it:
+
+$ make snapshot
+Downloading Go modules...
+all modules verified
+Formatting check passed.
+golangci-lint is not installed, skipping lint.
+Running Go tests...
+?       godocmirrortranslator/cmd/app   [no test files]
+ok      godocmirrortranslator/internal/app      (cached)
+ok      godocmirrortranslator/internal/cli      (cached)
+ok      godocmirrortranslator/internal/config   (cached)
+ok      godocmirrortranslator/internal/domain   (cached)
+?       godocmirrortranslator/internal/prompts  [no test files]
+ok      godocmirrortranslator/internal/gui      (cached)
+?       godocmirrortranslator/internal/provider/mock    [no test files]
+ok      godocmirrortranslator/internal/provider (cached)
+ok      godocmirrortranslator/internal/provider/gemini  (cached)
+ok      godocmirrortranslator/internal/provider/openai  (cached)
+ok      godocmirrortranslator/internal/renderer (cached)
+ok      godocmirrortranslator/internal/renderer/fodg    (cached)
+ok      godocmirrortranslator/internal/renderer/svg     (cached)
+ok      godocmirrortranslator/tests/integration (cached)
+Checks completed.
+Building Linux binary...
+Linux build completed: build/linux/godocmirrortranslator
+Packaging Linux artifact: dist/0.0.0-76e5034-dev-dirty/godocmirrortranslator_0.0.0-76e5034-dev-dirty_linux_amd64
+Building Windows binary...
+# runtime/cgo
+gcc: error: unrecognized command-line option ‘-mthreads’; did you mean ‘-pthread’?
+make: *** [Makefile:281: windows] Error 1
+```
+or
+```
+$ make windows
+Downloading Go modules...
+all modules verified
+Formatting check passed.
+golangci-lint is not installed, skipping lint.
+Running Go tests...
+?       godocmirrortranslator/cmd/app   [no test files]
+ok      godocmirrortranslator/internal/app      (cached)
+ok      godocmirrortranslator/internal/cli      (cached)
+ok      godocmirrortranslator/internal/config   (cached)
+ok      godocmirrortranslator/internal/domain   (cached)
+?       godocmirrortranslator/internal/prompts  [no test files]
+ok      godocmirrortranslator/internal/gui      (cached)
+ok      godocmirrortranslator/internal/provider (cached)
+?       godocmirrortranslator/internal/provider/mock    [no test files]
+ok      godocmirrortranslator/internal/provider/gemini  (cached)
+ok      godocmirrortranslator/internal/provider/openai  (cached)
+ok      godocmirrortranslator/internal/renderer (cached)
+ok      godocmirrortranslator/internal/renderer/fodg    (cached)
+ok      godocmirrortranslator/internal/renderer/svg     (cached)
+ok      godocmirrortranslator/tests/integration (cached)
+Checks completed.
+Building Windows binary...
+# runtime/cgo
+gcc: error: unrecognized command-line option ‘-mthreads’; did you mean ‘-pthread’?
+make: *** [Makefile:281: windows] Error 1
+
+3. add to the .gitignore all release paths
