@@ -195,7 +195,7 @@ func validateInputImage(path string) (int, int, error) {
 }
 
 func decodeWebPDimensions(data []byte) (int, int, error) {
-	if len(data) < 30 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WEBP" {
+	if len(data) < 16 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WEBP" {
 		return 0, 0, fmt.Errorf("invalid webp header")
 	}
 	chunk := string(data[12:16])
@@ -244,7 +244,7 @@ func outputFileName(template, providerName, model, inputPath string, now time.Ti
 	for key, value := range replacements {
 		name = strings.ReplaceAll(name, key, value)
 	}
-	if filepath.Ext(name) == "" {
+	if !strings.HasSuffix(strings.ToLower(name), strings.ToLower(extension)) {
 		name += extension
 	}
 	return name
