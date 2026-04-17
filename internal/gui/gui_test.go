@@ -202,6 +202,20 @@ func TestDesignValidationRejectsInvalidBackgroundOpacity(t *testing.T) {
 	}
 }
 
+func TestDesignValidationRejectsOutOfRangeTextOpacityPercent(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	ui.opacityEntry.SetText("101")
+	ui.refreshValidation()
+
+	if !ui.saveButton.Disabled() {
+		t.Fatal("save button should be disabled for out-of-range text opacity")
+	}
+	if !strings.Contains(ui.validationLabel.Text, "text opacity must be between 0 and 100") {
+		t.Fatalf("validationLabel = %q, want text opacity percent range error", ui.validationLabel.Text)
+	}
+}
+
 func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui, _, cfgPath := newTestUI(t)
 
@@ -211,18 +225,19 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui.templateEntry.SetText("saved_{provider}.svg")
 	ui.sourceLangEntry.SetText("Polish")
 	ui.targetLangEntry.SetText("German")
+	ui.opacityEntry.SetText("25")
 	ui.fontWeightSelect.SetSelected("bold")
 	ui.outlineColorEntry.SetText("#ffffff")
 	ui.outlineWidthEntry.SetText("2")
 	ui.backgroundEnabled.SetChecked(true)
 	ui.backgroundColorEntry.SetText("#101010")
-	ui.backgroundOpacityEntry.SetText("0.75")
+	ui.backgroundOpacityEntry.SetText("75")
 	ui.backgroundPaddingXEntry.SetText("6")
 	ui.backgroundPaddingYEntry.SetText("3")
 	ui.backgroundRadiusEntry.SetText("8")
 	ui.shadowEnabled.SetChecked(true)
 	ui.shadowColorEntry.SetText("#000000")
-	ui.shadowOpacityEntry.SetText("0.5")
+	ui.shadowOpacityEntry.SetText("50")
 	ui.shadowBlurEntry.SetText("4")
 	ui.shadowOffsetXEntry.SetText("1.5")
 	ui.shadowOffsetYEntry.SetText("2.5")
@@ -248,6 +263,9 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	}
 	if loaded.OutputTemplate != "saved_{provider}.svg" {
 		t.Fatalf("OutputTemplate = %q, want saved_{provider}.svg", loaded.OutputTemplate)
+	}
+	if loaded.OverlayOpacity != 0.25 {
+		t.Fatalf("OverlayOpacity = %v, want 0.25", loaded.OverlayOpacity)
 	}
 	if loaded.DefaultFontWeight != "bold" {
 		t.Fatalf("DefaultFontWeight = %q, want bold", loaded.DefaultFontWeight)
@@ -278,6 +296,20 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	}
 	if loaded.TextShadowOffsetX != 1.5 || loaded.TextShadowOffsetY != 2.5 {
 		t.Fatalf("shadow offsets = (%v,%v), want (1.5,2.5)", loaded.TextShadowOffsetX, loaded.TextShadowOffsetY)
+	}
+}
+
+func TestApplyConfigDisplaysOpacityAsPercent(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	if ui.opacityEntry.Text != "100" {
+		t.Fatalf("opacityEntry.Text = %q, want 100", ui.opacityEntry.Text)
+	}
+	if ui.backgroundOpacityEntry.Text != "85" {
+		t.Fatalf("backgroundOpacityEntry.Text = %q, want 85", ui.backgroundOpacityEntry.Text)
+	}
+	if ui.shadowOpacityEntry.Text != "60" {
+		t.Fatalf("shadowOpacityEntry.Text = %q, want 60", ui.shadowOpacityEntry.Text)
 	}
 }
 
@@ -355,6 +387,22 @@ func TestNewUIDefaultsToMainTabWithVisibleDesktopPanel(t *testing.T) {
 	}
 	if ui.rendererSelect.Selected != "svg" {
 		t.Fatalf("rendererSelect.Selected = %q, want svg", ui.rendererSelect.Selected)
+	}
+	if !strings.Contains(ui.rendererCapabilityLabel.Text, "SVG / Inkscape:") {
+		t.Fatalf("rendererCapabilityLabel.Text = %q, want SVG guidance", ui.rendererCapabilityLabel.Text)
+	}
+}
+
+func TestRendererGuidanceUpdatesForFODG(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	ui.rendererSelect.SetSelected("fodg")
+
+	if !strings.Contains(ui.rendererCapabilityLabel.Text, "FODG / LibreOffice Draw:") {
+		t.Fatalf("rendererCapabilityLabel.Text = %q, want FODG guidance", ui.rendererCapabilityLabel.Text)
+	}
+	if !strings.Contains(ui.rendererCapabilityLabel.Text, "Text opacity is currently ignored by LibreOffice on import.") {
+		t.Fatalf("rendererCapabilityLabel.Text = %q, want FODG opacity limitation", ui.rendererCapabilityLabel.Text)
 	}
 }
 

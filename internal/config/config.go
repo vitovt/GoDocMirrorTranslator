@@ -161,6 +161,31 @@ func (c Config) Masked() Config {
 	return c
 }
 
+func (c Config) Clone() Config {
+	cloned := c
+	if c.ProviderOptions != nil {
+		cloned.ProviderOptions = make(map[string]map[string]string, len(c.ProviderOptions))
+		for providerName, options := range c.ProviderOptions {
+			if options == nil {
+				cloned.ProviderOptions[providerName] = nil
+				continue
+			}
+			copiedOptions := make(map[string]string, len(options))
+			for key, value := range options {
+				copiedOptions[key] = value
+			}
+			cloned.ProviderOptions[providerName] = copiedOptions
+		}
+	}
+	if c.GUIPreferences != nil {
+		cloned.GUIPreferences = make(map[string]string, len(c.GUIPreferences))
+		for key, value := range c.GUIPreferences {
+			cloned.GUIPreferences[key] = value
+		}
+	}
+	return cloned
+}
+
 func (c *Config) normalize() {
 	defaults := Default()
 	if c.Timeout <= 0 {

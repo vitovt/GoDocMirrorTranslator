@@ -80,6 +80,7 @@ type UI struct {
 	fontWeightSelect        *widget.Select
 	colorEntry              *widget.Entry
 	opacityEntry            *widget.Entry
+	rendererCapabilityLabel *widget.Label
 	outlineColorEntry       *widget.Entry
 	outlineWidthEntry       *widget.Entry
 	backgroundEnabled       *widget.Check
@@ -176,6 +177,7 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	})
 	ui.templateEntry = widget.NewEntry()
 	ui.rendererSelect = widget.NewSelect(application.RendererNames(), func(string) {
+		ui.refreshRendererGuidance()
 		ui.refreshValidation()
 	})
 	ui.providerSelect = widget.NewSelect(application.ProviderNames(), func(string) {
@@ -196,6 +198,8 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	})
 	ui.colorEntry = widget.NewEntry()
 	ui.opacityEntry = widget.NewEntry()
+	ui.rendererCapabilityLabel = widget.NewLabel("")
+	ui.rendererCapabilityLabel.Wrapping = fyne.TextWrapWord
 	ui.outlineColorEntry = widget.NewEntry()
 	ui.outlineWidthEntry = widget.NewEntry()
 	ui.backgroundEnabled = widget.NewCheck("", func(bool) {
@@ -273,6 +277,7 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.layoutRoot = newResponsiveRoot(ui.content(), ui.handleResponsiveLayout)
 	window.SetContent(ui.layoutRoot)
 	ui.applyConfig(cfg)
+	ui.refreshRendererGuidance()
 	ui.syncModelOptions()
 	ui.syncAdvancedOptions()
 	ui.applyShellState()
@@ -310,26 +315,32 @@ func (u *UI) content() fyne.CanvasObject {
 		widget.NewFormItem("Font Family", u.fontFamilyEntry),
 		widget.NewFormItem("Font Size", u.fontSizeEntry),
 		widget.NewFormItem("Font Weight", u.fontWeightSelect),
-		widget.NewFormItem("Overlay Color", u.colorEntry),
-		widget.NewFormItem("Overlay Opacity", u.opacityEntry),
+		widget.NewFormItem("Text Color", u.colorEntry),
+		widget.NewFormItem("Text Opacity (%)", u.opacityEntry),
 		widget.NewFormItem("Outline Color", u.outlineColorEntry),
 		widget.NewFormItem("Outline Width", u.outlineWidthEntry),
 		widget.NewFormItem("Text Background", u.backgroundEnabled),
 		widget.NewFormItem("Background Color", u.backgroundColorEntry),
-		widget.NewFormItem("Background Opacity", u.backgroundOpacityEntry),
+		widget.NewFormItem("Background Opacity (%)", u.backgroundOpacityEntry),
 		widget.NewFormItem("Background Padding X", u.backgroundPaddingXEntry),
 		widget.NewFormItem("Background Padding Y", u.backgroundPaddingYEntry),
 		widget.NewFormItem("Background Radius", u.backgroundRadiusEntry),
 		widget.NewFormItem("Text Shadow", u.shadowEnabled),
 		widget.NewFormItem("Shadow Color", u.shadowColorEntry),
-		widget.NewFormItem("Shadow Opacity", u.shadowOpacityEntry),
+		widget.NewFormItem("Shadow Opacity (%)", u.shadowOpacityEntry),
 		widget.NewFormItem("Shadow Blur", u.shadowBlurEntry),
 		widget.NewFormItem("Shadow Offset X", u.shadowOffsetXEntry),
 		widget.NewFormItem("Shadow Offset Y", u.shadowOffsetYEntry),
 	)
+	designSection := container.NewVBox(
+		widget.NewLabel("Renderer Formatting Notes"),
+		u.rendererCapabilityLabel,
+		widget.NewSeparator(),
+		designForm,
+	)
 	u.mainContentView = container.NewPadded(container.NewVScroll(mainForm))
 	u.aiContentView = container.NewPadded(container.NewVScroll(aiForm))
-	u.designContentView = container.NewPadded(container.NewVScroll(designForm))
+	u.designContentView = container.NewPadded(container.NewVScroll(designSection))
 	u.contentPanel = container.NewStack(
 		u.mainContentView,
 		u.aiContentView,
@@ -437,18 +448,18 @@ func (u *UI) applyConfig(cfg config.Config) {
 	u.fontSizeEntry.SetText(fmt.Sprintf("%g", cfg.DefaultFontSize))
 	u.fontWeightSelect.SetSelected(cfg.DefaultFontWeight)
 	u.colorEntry.SetText(cfg.OverlayColor)
-	u.opacityEntry.SetText(fmt.Sprintf("%g", cfg.OverlayOpacity))
+	u.opacityEntry.SetText(formatPercent(cfg.OverlayOpacity))
 	u.outlineColorEntry.SetText(cfg.TextOutlineColor)
 	u.outlineWidthEntry.SetText(fmt.Sprintf("%g", cfg.TextOutlineWidth))
 	u.backgroundEnabled.SetChecked(cfg.TextBackgroundEnabled)
 	u.backgroundColorEntry.SetText(cfg.TextBackgroundColor)
-	u.backgroundOpacityEntry.SetText(fmt.Sprintf("%g", cfg.TextBackgroundOpacity))
+	u.backgroundOpacityEntry.SetText(formatPercent(cfg.TextBackgroundOpacity))
 	u.backgroundPaddingXEntry.SetText(fmt.Sprintf("%g", cfg.TextBackgroundPaddingX))
 	u.backgroundPaddingYEntry.SetText(fmt.Sprintf("%g", cfg.TextBackgroundPaddingY))
 	u.backgroundRadiusEntry.SetText(fmt.Sprintf("%g", cfg.TextBackgroundRadius))
 	u.shadowEnabled.SetChecked(cfg.TextShadowEnabled)
 	u.shadowColorEntry.SetText(cfg.TextShadowColor)
-	u.shadowOpacityEntry.SetText(fmt.Sprintf("%g", cfg.TextShadowOpacity))
+	u.shadowOpacityEntry.SetText(formatPercent(cfg.TextShadowOpacity))
 	u.shadowBlurEntry.SetText(fmt.Sprintf("%g", cfg.TextShadowBlur))
 	u.shadowOffsetXEntry.SetText(fmt.Sprintf("%g", cfg.TextShadowOffsetX))
 	u.shadowOffsetYEntry.SetText(fmt.Sprintf("%g", cfg.TextShadowOffsetY))
@@ -586,7 +597,7 @@ func (u *UI) settingsValidationError() error {
 		return fmt.Errorf("font size must be positive")
 	}
 	if cfg.OverlayOpacity < 0 || cfg.OverlayOpacity > 1 {
-		return fmt.Errorf("overlay opacity must be between 0 and 1")
+		return fmt.Errorf("text opacity must be between 0%% and 100%%")
 	}
 	if strings.TrimSpace(cfg.DefaultFontWeight) == "" {
 		return fmt.Errorf("font weight is required")
@@ -595,7 +606,7 @@ func (u *UI) settingsValidationError() error {
 		return fmt.Errorf("outline width must be non-negative")
 	}
 	if cfg.TextBackgroundOpacity < 0 || cfg.TextBackgroundOpacity > 1 {
-		return fmt.Errorf("background opacity must be between 0 and 1")
+		return fmt.Errorf("background opacity must be between 0%% and 100%%")
 	}
 	if cfg.TextBackgroundPaddingX < 0 || cfg.TextBackgroundPaddingY < 0 {
 		return fmt.Errorf("background padding must be non-negative")
@@ -604,7 +615,7 @@ func (u *UI) settingsValidationError() error {
 		return fmt.Errorf("background radius must be non-negative")
 	}
 	if cfg.TextShadowOpacity < 0 || cfg.TextShadowOpacity > 1 {
-		return fmt.Errorf("shadow opacity must be between 0 and 1")
+		return fmt.Errorf("shadow opacity must be between 0%% and 100%%")
 	}
 	if cfg.TextShadowBlur < 0 {
 		return fmt.Errorf("shadow blur must be non-negative")
@@ -657,7 +668,7 @@ func (u *UI) rerenderValidationError() error {
 }
 
 func (u *UI) configFromWidgets() (config.Config, error) {
-	cfg := u.cfg
+	cfg := u.cfg.Clone()
 
 	timeout, err := time.ParseDuration(strings.TrimSpace(u.timeoutEntry.Text))
 	if err != nil {
@@ -667,7 +678,7 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	if err != nil {
 		return config.Config{}, err
 	}
-	opacity, err := parseFloatEntry(u.opacityEntry.Text, "overlay opacity")
+	opacity, err := parsePercentEntry(u.opacityEntry.Text, "text opacity")
 	if err != nil {
 		return config.Config{}, err
 	}
@@ -675,7 +686,7 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	if err != nil {
 		return config.Config{}, err
 	}
-	backgroundOpacity, err := parseFloatEntry(u.backgroundOpacityEntry.Text, "background opacity")
+	backgroundOpacity, err := parsePercentEntry(u.backgroundOpacityEntry.Text, "background opacity")
 	if err != nil {
 		return config.Config{}, err
 	}
@@ -691,7 +702,7 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	if err != nil {
 		return config.Config{}, err
 	}
-	shadowOpacity, err := parseFloatEntry(u.shadowOpacityEntry.Text, "shadow opacity")
+	shadowOpacity, err := parsePercentEntry(u.shadowOpacityEntry.Text, "shadow opacity")
 	if err != nil {
 		return config.Config{}, err
 	}
@@ -1019,12 +1030,59 @@ func defaultRendererName(name string) string {
 	return name
 }
 
+func rendererGuidanceText(renderer string) string {
+	switch defaultRendererName(renderer) {
+	case "fodg":
+		return strings.Join([]string{
+			"FODG / LibreOffice Draw:",
+			"Text color, font family, font size, and font weight are applied.",
+			"Text opacity is currently ignored by LibreOffice on import.",
+			"Outline width works as contour on/off only; it is not a true adjustable stroke width.",
+			"Outline color controls the contour color, and contoured text is hollow in LibreOffice.",
+			"Background uses character background color only; background opacity, padding, and radius are not supported by the imported text object.",
+			"Shadow uses Draw shadow settings; color, opacity, blur, and offsets are applied.",
+		}, "\n")
+	default:
+		return strings.Join([]string{
+			"SVG / Inkscape:",
+			"Text color and text opacity are applied directly.",
+			"Outline color and outline width are applied directly.",
+			"Background color, opacity, padding, and radius are applied directly.",
+			"Shadow color, opacity, blur, and offsets are applied directly.",
+		}, "\n")
+	}
+}
+
+func (u *UI) refreshRendererGuidance() {
+	if u.rendererCapabilityLabel == nil {
+		return
+	}
+	u.rendererCapabilityLabel.SetText(rendererGuidanceText(u.rendererSelect.Selected))
+}
+
 func parseFloatEntry(value string, name string) (float64, error) {
 	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 	if err != nil {
 		return 0, fmt.Errorf("%s must be numeric", name)
 	}
 	return parsed, nil
+}
+
+func parsePercentEntry(value string, name string) (float64, error) {
+	trimmed := strings.TrimSpace(value)
+	trimmed = strings.TrimSuffix(trimmed, "%")
+	parsed, err := strconv.ParseFloat(strings.TrimSpace(trimmed), 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be numeric", name)
+	}
+	if parsed < 0 || parsed > 100 {
+		return 0, fmt.Errorf("%s must be between 0 and 100", name)
+	}
+	return parsed / 100, nil
+}
+
+func formatPercent(value float64) string {
+	return strconv.FormatFloat(value*100, 'f', -1, 64)
 }
 
 func containsString(values []string, want string) bool {

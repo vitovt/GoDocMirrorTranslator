@@ -517,6 +517,23 @@ func TestSetProviderOptionCreatesNestedMap(t *testing.T) {
 	}
 }
 
+func TestCloneDeepCopiesNestedMaps(t *testing.T) {
+	cfg := Default()
+	cfg.ProviderOptions["openai"] = map[string]string{"image_detail": "high"}
+	cfg.GUIPreferences["menu"] = "visible"
+
+	cloned := cfg.Clone()
+	cloned.ProviderOptions["openai"]["image_detail"] = "low"
+	cloned.GUIPreferences["menu"] = "hidden"
+
+	if cfg.ProviderOptions["openai"]["image_detail"] != "high" {
+		t.Fatalf("original ProviderOptions changed to %#v, want preserved value", cfg.ProviderOptions)
+	}
+	if cfg.GUIPreferences["menu"] != "visible" {
+		t.Fatalf("original GUIPreferences changed to %#v, want preserved value", cfg.GUIPreferences)
+	}
+}
+
 func TestSetProviderOptionRejectsInvalidKey(t *testing.T) {
 	cfg := Default()
 	if err := cfg.Set("provider_options.openai", "high"); err == nil {
