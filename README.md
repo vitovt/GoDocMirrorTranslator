@@ -137,10 +137,20 @@ Running `go run ./cmd/app` with no arguments opens the Fyne GUI. The GUI support
 - output format selection
 - layout JSON browsing for rerender workflows
 - readability controls including color, weight, outline, background, and shadow
+- opacity controls shown as percentages in the GUI
 - masked API key inputs
 - provider-specific advanced options currently exposed by the repo
 - persisted render defaults
 - async processing with visible status and details output
+
+## Renderer Formatting Notes
+
+- `SVG` supports text color, text opacity, outline color/width, background color/opacity/padding/radius, and shadow color/opacity/blur/offsets directly.
+- `FODG` supports text color, font family, font size, font weight, character background color, and Draw shadow settings.
+- In `FODG`, LibreOffice Draw currently ignores imported text opacity.
+- In `FODG`, outline width behaves as contour on/off only; it is not a true adjustable stroke width.
+- In `FODG`, outline color controls the contour color, and contoured text is hollow in LibreOffice.
+- In `FODG`, background opacity, padding, and radius do not map to imported text objects the way they do in SVG.
 
 ## Sample Assets
 

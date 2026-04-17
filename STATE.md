@@ -27,6 +27,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Versioned saved-layout JSON export and import are now part of the shared app core, including rerendering without provider calls and relative same-folder source-image paths inside saved layout files
 - Initial Fyne desktop GUI shell with validation, async processing, config persistence, picker adapters, layout-JSON rerender flow, and overwrite confirmation
 - GUI design settings now expose readability controls for font weight, outline, background, and shadow, all mapped to shared renderer options
+- GUI now presents text/background/shadow opacity as percentages and shows renderer-specific formatting guidance so SVG-vs-FODG differences are visible in-app
 - GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
 - Desktop GUI builds now use OS-native file and folder pickers via `github.com/sqweek/dialog`, with Fyne dialog fallback kept for Android and unsupported desktop backends
 - README, example config, sample input/output assets, and an Android app icon are now checked into the repo as v1 deliverables
@@ -46,6 +47,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Saved layout JSON is a versioned app-owned artifact, not a provider response dump, and it is the only rerender input format supported going forward.
 - GUI platform differences are handled at the edge: desktop window sizing, native OS picker integration, and folder opening stay in the GUI layer, while mobile uses file-oriented output actions and Fyne picker fallback without changing application-core render behavior.
 - The preferred Fyne shell pattern is now explicit in `SPEC.md`: top menu toggle, left menu, one persistent main content pane, bottom actions, and bottom status/details, with compact overlay behavior documented as the reusable baseline for future apps.
+- FODG formatting fidelity now follows LibreOffice Draw’s actual imported text-shape model: font/color/weight/background/shadow work through Draw properties, text opacity is ignored on import, and outline behaves as contour on/off rather than a true adjustable stroke.
 
 ## Repository conventions
 - `cmd/app` is the application entrypoint and now also contains the Android app icon used by `make android`.
