@@ -3,6 +3,7 @@ APP_NAME ?= $(notdir $(MODULE_PATH))
 APP_ID ?= $(if $(APP_NAME),com.vitovt.$(APP_NAME),)
 MAIN_PKG ?= ./cmd/app
 MAIN_PKG_REL := $(patsubst ./%,%,$(MAIN_PKG))
+GOHOSTOS := $(shell go env GOHOSTOS 2>/dev/null)
 
 BUILD_DIR ?= build
 DIST_DIR ?= dist
@@ -19,6 +20,7 @@ MAC_GOARCH ?= amd64
 LINUX_CGO_ENABLED ?= 1
 WINDOWS_CGO_ENABLED ?= 1
 MAC_CGO_ENABLED ?= 1
+WINDOWS_CC ?= $(if $(filter linux,$(GOHOSTOS)),x86_64-w64-mingw32-gcc,)
 
 ARTIFACT_TARGETS ?= linux windows android
 ARCHIVE_DESKTOP_ARTIFACTS ?= 0
@@ -35,6 +37,7 @@ APP_ID_DISPLAY := $(if $(APP_ID),$(APP_ID),<derived after go.mod/module init>)
 MAIN_PKG_DISPLAY := $(if $(MAIN_PKG),$(MAIN_PKG),<derived after go.mod/module init>)
 ANDROID_ICON_PATH_DISPLAY := $(if $(ANDROID_ICON_PATH),$(ANDROID_ICON_PATH),<derived after go.mod/module init>)
 MODULE_PATH_DISPLAY := $(if $(MODULE_PATH),$(MODULE_PATH),<missing>)
+WINDOWS_CC_DISPLAY := $(if $(WINDOWS_CC),$(WINDOWS_CC),<host default>)
 
 EXACT_TAG := $(shell git describe --tags --exact-match 2>/dev/null || true)
 MAIN_PKG_ABS := $(abspath $(MAIN_PKG))
@@ -115,6 +118,7 @@ help:
 	@echo "  3. Override MAIN_PKG only if your main package is not ./cmd/app."
 	@echo "  4. Set ARTIFACT_TARGETS to the platforms this repo actually releases."
 	@echo "  5. Review Linux/Windows/macOS CGO flags and platform commands for the current UI/toolchain."
+	@echo "     On Linux hosts, the windows target defaults to WINDOWS_CC=$(WINDOWS_CC_DISPLAY)."
 	@echo "  6. If Android exists, review ANDROID_ICON_PATH, ANDROID_PACKAGE_ARGS, and the required Fyne/Android toolchain."
 	@echo "  7. Replace the host dependency hints below with project-specific package/toolchain notes."
 	@echo ""
@@ -164,6 +168,7 @@ help:
 	@echo "  ARCHIVE_DESKTOP_ARTIFACTS: $(ARCHIVE_DESKTOP_ARTIFACTS)"
 	@echo "  BUILD_DIR:        $(BUILD_DIR)"
 	@echo "  DIST_DIR:         $(DIST_DIR)"
+	@echo "  WINDOWS_CC:       $(WINDOWS_CC_DISPLAY)"
 	@echo "  ANDROID_ICON_PATH: $(ANDROID_ICON_PATH_DISPLAY)"
 	@echo "  FYNE:             $(FYNE)"
 
@@ -278,7 +283,21 @@ linux: check prepare
 
 windows: check prepare
 	@echo "Building Windows binary..."
-	@GOOS=windows GOARCH=$(WINDOWS_GOARCH) CGO_ENABLED=$(WINDOWS_CGO_ENABLED) go build -o $(WINDOWS_BIN) $(MAIN_PKG)
+	@build_env="GOOS=windows GOARCH=$(WINDOWS_GOARCH) CGO_ENABLED=$(WINDOWS_CGO_ENABLED)"; \
+	if [ "$(WINDOWS_CGO_ENABLED)" != "0" ] && [ "$(GOHOSTOS)" = "linux" ]; then \
+		if [ -z "$(WINDOWS_CC)" ]; then \
+			echo "Windows builds on Linux require WINDOWS_CC to point to a MinGW-w64 cross compiler."; \
+			echo "Example: make windows WINDOWS_CC=x86_64-w64-mingw32-gcc"; \
+			exit 1; \
+		fi; \
+		if ! command -v "$(WINDOWS_CC)" >/dev/null 2>&1; then \
+			echo "Missing Windows cross-compiler: $(WINDOWS_CC)"; \
+			echo "Install MinGW-w64 or override WINDOWS_CC to a working compiler."; \
+			exit 1; \
+		fi; \
+		build_env="$$build_env CC=$(WINDOWS_CC)"; \
+	fi; \
+	eval "$$build_env go build -o $(WINDOWS_BIN) $(MAIN_PKG)"
 	@echo "Windows build completed: $(WINDOWS_BIN)"
 
 mac: check prepare
