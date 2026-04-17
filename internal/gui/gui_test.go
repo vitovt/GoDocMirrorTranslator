@@ -188,6 +188,20 @@ func TestProcessValidationUsesApplicationInputValidation(t *testing.T) {
 	}
 }
 
+func TestDesignValidationRejectsInvalidBackgroundOpacity(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	ui.backgroundOpacityEntry.SetText("not-a-number")
+	ui.refreshValidation()
+
+	if !ui.saveButton.Disabled() {
+		t.Fatal("save button should be disabled for invalid background opacity")
+	}
+	if !strings.Contains(ui.validationLabel.Text, "background opacity must be numeric") {
+		t.Fatalf("validationLabel = %q, want background opacity parse error", ui.validationLabel.Text)
+	}
+}
+
 func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui, _, cfgPath := newTestUI(t)
 
@@ -197,6 +211,21 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui.templateEntry.SetText("saved_{provider}.svg")
 	ui.sourceLangEntry.SetText("Polish")
 	ui.targetLangEntry.SetText("German")
+	ui.fontWeightSelect.SetSelected("bold")
+	ui.outlineColorEntry.SetText("#ffffff")
+	ui.outlineWidthEntry.SetText("2")
+	ui.backgroundEnabled.SetChecked(true)
+	ui.backgroundColorEntry.SetText("#101010")
+	ui.backgroundOpacityEntry.SetText("0.75")
+	ui.backgroundPaddingXEntry.SetText("6")
+	ui.backgroundPaddingYEntry.SetText("3")
+	ui.backgroundRadiusEntry.SetText("8")
+	ui.shadowEnabled.SetChecked(true)
+	ui.shadowColorEntry.SetText("#000000")
+	ui.shadowOpacityEntry.SetText("0.5")
+	ui.shadowBlurEntry.SetText("4")
+	ui.shadowOffsetXEntry.SetText("1.5")
+	ui.shadowOffsetYEntry.SetText("2.5")
 	ui.syncModelOptions()
 	ui.modelSelect.SetSelected("gpt-4.1-mini")
 
@@ -219,6 +248,36 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	}
 	if loaded.OutputTemplate != "saved_{provider}.svg" {
 		t.Fatalf("OutputTemplate = %q, want saved_{provider}.svg", loaded.OutputTemplate)
+	}
+	if loaded.DefaultFontWeight != "bold" {
+		t.Fatalf("DefaultFontWeight = %q, want bold", loaded.DefaultFontWeight)
+	}
+	if loaded.TextOutlineWidth != 2 {
+		t.Fatalf("TextOutlineWidth = %v, want 2", loaded.TextOutlineWidth)
+	}
+	if !loaded.TextBackgroundEnabled {
+		t.Fatal("TextBackgroundEnabled = false, want true")
+	}
+	if loaded.TextBackgroundColor != "#101010" {
+		t.Fatalf("TextBackgroundColor = %q, want #101010", loaded.TextBackgroundColor)
+	}
+	if loaded.TextBackgroundOpacity != 0.75 {
+		t.Fatalf("TextBackgroundOpacity = %v, want 0.75", loaded.TextBackgroundOpacity)
+	}
+	if loaded.TextBackgroundPaddingX != 6 || loaded.TextBackgroundPaddingY != 3 {
+		t.Fatalf("background padding = (%v,%v), want (6,3)", loaded.TextBackgroundPaddingX, loaded.TextBackgroundPaddingY)
+	}
+	if loaded.TextBackgroundRadius != 8 {
+		t.Fatalf("TextBackgroundRadius = %v, want 8", loaded.TextBackgroundRadius)
+	}
+	if !loaded.TextShadowEnabled {
+		t.Fatal("TextShadowEnabled = false, want true")
+	}
+	if loaded.TextShadowOpacity != 0.5 || loaded.TextShadowBlur != 4 {
+		t.Fatalf("shadow opacity/blur = (%v,%v), want (0.5,4)", loaded.TextShadowOpacity, loaded.TextShadowBlur)
+	}
+	if loaded.TextShadowOffsetX != 1.5 || loaded.TextShadowOffsetY != 2.5 {
+		t.Fatalf("shadow offsets = (%v,%v), want (1.5,2.5)", loaded.TextShadowOffsetX, loaded.TextShadowOffsetY)
 	}
 }
 

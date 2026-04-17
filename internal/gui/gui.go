@@ -62,38 +62,53 @@ type UI struct {
 	compactLayout     bool
 	detailsVisible    bool
 
-	inputBrowseButton      *widget.Button
-	layoutJSONBrowseButton *widget.Button
-	outputBrowseButton     *widget.Button
-	inputEntry             *widget.Entry
-	layoutJSONEntry        *widget.Entry
-	outputDirEntry         *widget.Entry
-	templateEntry          *widget.Entry
-	rendererSelect         *widget.Select
-	providerSelect         *widget.Select
-	modelSelect            *widget.Select
-	sourceLangEntry        *widget.Entry
-	targetLangEntry        *widget.Entry
-	timeoutEntry           *widget.Entry
-	fontFamilyEntry        *widget.Entry
-	fontSizeEntry          *widget.Entry
-	colorEntry             *widget.Entry
-	opacityEntry           *widget.Entry
-	preserveColumns        *widget.Check
-	openAIKeyEntry         *widget.Entry
-	geminiKeyEntry         *widget.Entry
-	openAIImageDetail      *widget.Select
-	saveButton             *widget.Button
-	processButton          *widget.Button
-	rerenderButton         *widget.Button
-	openOutputButton       *widget.Button
-	progress               *widget.ProgressBarInfinite
-	statusLabel            *widget.Label
-	validationLabel        *widget.Label
-	detailsEntry           *widget.Entry
-	lastOutputDir          string
-	lastOutputPath         string
-	running                bool
+	inputBrowseButton       *widget.Button
+	layoutJSONBrowseButton  *widget.Button
+	outputBrowseButton      *widget.Button
+	inputEntry              *widget.Entry
+	layoutJSONEntry         *widget.Entry
+	outputDirEntry          *widget.Entry
+	templateEntry           *widget.Entry
+	rendererSelect          *widget.Select
+	providerSelect          *widget.Select
+	modelSelect             *widget.Select
+	sourceLangEntry         *widget.Entry
+	targetLangEntry         *widget.Entry
+	timeoutEntry            *widget.Entry
+	fontFamilyEntry         *widget.Entry
+	fontSizeEntry           *widget.Entry
+	fontWeightSelect        *widget.Select
+	colorEntry              *widget.Entry
+	opacityEntry            *widget.Entry
+	outlineColorEntry       *widget.Entry
+	outlineWidthEntry       *widget.Entry
+	backgroundEnabled       *widget.Check
+	backgroundColorEntry    *widget.Entry
+	backgroundOpacityEntry  *widget.Entry
+	backgroundPaddingXEntry *widget.Entry
+	backgroundPaddingYEntry *widget.Entry
+	backgroundRadiusEntry   *widget.Entry
+	shadowEnabled           *widget.Check
+	shadowColorEntry        *widget.Entry
+	shadowOpacityEntry      *widget.Entry
+	shadowBlurEntry         *widget.Entry
+	shadowOffsetXEntry      *widget.Entry
+	shadowOffsetYEntry      *widget.Entry
+	preserveColumns         *widget.Check
+	openAIKeyEntry          *widget.Entry
+	geminiKeyEntry          *widget.Entry
+	openAIImageDetail       *widget.Select
+	saveButton              *widget.Button
+	processButton           *widget.Button
+	rerenderButton          *widget.Button
+	openOutputButton        *widget.Button
+	progress                *widget.ProgressBarInfinite
+	statusLabel             *widget.Label
+	validationLabel         *widget.Label
+	detailsEntry            *widget.Entry
+	lastOutputDir           string
+	lastOutputPath          string
+	running                 bool
 }
 
 func Run(ctx context.Context, application *appcore.Application, version string, configPath string) error {
@@ -176,8 +191,29 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.timeoutEntry = widget.NewEntry()
 	ui.fontFamilyEntry = widget.NewEntry()
 	ui.fontSizeEntry = widget.NewEntry()
+	ui.fontWeightSelect = widget.NewSelect([]string{"normal", "bold"}, func(string) {
+		ui.refreshValidation()
+	})
 	ui.colorEntry = widget.NewEntry()
 	ui.opacityEntry = widget.NewEntry()
+	ui.outlineColorEntry = widget.NewEntry()
+	ui.outlineWidthEntry = widget.NewEntry()
+	ui.backgroundEnabled = widget.NewCheck("", func(bool) {
+		ui.refreshValidation()
+	})
+	ui.backgroundColorEntry = widget.NewEntry()
+	ui.backgroundOpacityEntry = widget.NewEntry()
+	ui.backgroundPaddingXEntry = widget.NewEntry()
+	ui.backgroundPaddingYEntry = widget.NewEntry()
+	ui.backgroundRadiusEntry = widget.NewEntry()
+	ui.shadowEnabled = widget.NewCheck("", func(bool) {
+		ui.refreshValidation()
+	})
+	ui.shadowColorEntry = widget.NewEntry()
+	ui.shadowOpacityEntry = widget.NewEntry()
+	ui.shadowBlurEntry = widget.NewEntry()
+	ui.shadowOffsetXEntry = widget.NewEntry()
+	ui.shadowOffsetYEntry = widget.NewEntry()
 	ui.preserveColumns = widget.NewCheck("", func(bool) {
 		ui.refreshValidation()
 	})
@@ -273,8 +309,23 @@ func (u *UI) content() fyne.CanvasObject {
 	designForm := widget.NewForm(
 		widget.NewFormItem("Font Family", u.fontFamilyEntry),
 		widget.NewFormItem("Font Size", u.fontSizeEntry),
+		widget.NewFormItem("Font Weight", u.fontWeightSelect),
 		widget.NewFormItem("Overlay Color", u.colorEntry),
 		widget.NewFormItem("Overlay Opacity", u.opacityEntry),
+		widget.NewFormItem("Outline Color", u.outlineColorEntry),
+		widget.NewFormItem("Outline Width", u.outlineWidthEntry),
+		widget.NewFormItem("Text Background", u.backgroundEnabled),
+		widget.NewFormItem("Background Color", u.backgroundColorEntry),
+		widget.NewFormItem("Background Opacity", u.backgroundOpacityEntry),
+		widget.NewFormItem("Background Padding X", u.backgroundPaddingXEntry),
+		widget.NewFormItem("Background Padding Y", u.backgroundPaddingYEntry),
+		widget.NewFormItem("Background Radius", u.backgroundRadiusEntry),
+		widget.NewFormItem("Text Shadow", u.shadowEnabled),
+		widget.NewFormItem("Shadow Color", u.shadowColorEntry),
+		widget.NewFormItem("Shadow Opacity", u.shadowOpacityEntry),
+		widget.NewFormItem("Shadow Blur", u.shadowBlurEntry),
+		widget.NewFormItem("Shadow Offset X", u.shadowOffsetXEntry),
+		widget.NewFormItem("Shadow Offset Y", u.shadowOffsetYEntry),
 	)
 	u.mainContentView = container.NewPadded(container.NewVScroll(mainForm))
 	u.aiContentView = container.NewPadded(container.NewVScroll(aiForm))
@@ -350,6 +401,18 @@ func (u *UI) installChangeHandlers() {
 		{u.fontSizeEntry},
 		{u.colorEntry},
 		{u.opacityEntry},
+		{u.outlineColorEntry},
+		{u.outlineWidthEntry},
+		{u.backgroundColorEntry},
+		{u.backgroundOpacityEntry},
+		{u.backgroundPaddingXEntry},
+		{u.backgroundPaddingYEntry},
+		{u.backgroundRadiusEntry},
+		{u.shadowColorEntry},
+		{u.shadowOpacityEntry},
+		{u.shadowBlurEntry},
+		{u.shadowOffsetXEntry},
+		{u.shadowOffsetYEntry},
 		{u.openAIKeyEntry},
 		{u.geminiKeyEntry},
 	}
@@ -372,8 +435,23 @@ func (u *UI) applyConfig(cfg config.Config) {
 	u.timeoutEntry.SetText(cfg.Timeout.String())
 	u.fontFamilyEntry.SetText(cfg.DefaultFontFamily)
 	u.fontSizeEntry.SetText(fmt.Sprintf("%g", cfg.DefaultFontSize))
+	u.fontWeightSelect.SetSelected(cfg.DefaultFontWeight)
 	u.colorEntry.SetText(cfg.OverlayColor)
 	u.opacityEntry.SetText(fmt.Sprintf("%g", cfg.OverlayOpacity))
+	u.outlineColorEntry.SetText(cfg.TextOutlineColor)
+	u.outlineWidthEntry.SetText(fmt.Sprintf("%g", cfg.TextOutlineWidth))
+	u.backgroundEnabled.SetChecked(cfg.TextBackgroundEnabled)
+	u.backgroundColorEntry.SetText(cfg.TextBackgroundColor)
+	u.backgroundOpacityEntry.SetText(fmt.Sprintf("%g", cfg.TextBackgroundOpacity))
+	u.backgroundPaddingXEntry.SetText(fmt.Sprintf("%g", cfg.TextBackgroundPaddingX))
+	u.backgroundPaddingYEntry.SetText(fmt.Sprintf("%g", cfg.TextBackgroundPaddingY))
+	u.backgroundRadiusEntry.SetText(fmt.Sprintf("%g", cfg.TextBackgroundRadius))
+	u.shadowEnabled.SetChecked(cfg.TextShadowEnabled)
+	u.shadowColorEntry.SetText(cfg.TextShadowColor)
+	u.shadowOpacityEntry.SetText(fmt.Sprintf("%g", cfg.TextShadowOpacity))
+	u.shadowBlurEntry.SetText(fmt.Sprintf("%g", cfg.TextShadowBlur))
+	u.shadowOffsetXEntry.SetText(fmt.Sprintf("%g", cfg.TextShadowOffsetX))
+	u.shadowOffsetYEntry.SetText(fmt.Sprintf("%g", cfg.TextShadowOffsetY))
 	u.preserveColumns.SetChecked(cfg.PreserveColumns)
 	u.openAIKeyEntry.SetText(cfg.OpenAIAPIKey)
 	u.geminiKeyEntry.SetText(cfg.GeminiAPIKey)
@@ -510,6 +588,27 @@ func (u *UI) settingsValidationError() error {
 	if cfg.OverlayOpacity < 0 || cfg.OverlayOpacity > 1 {
 		return fmt.Errorf("overlay opacity must be between 0 and 1")
 	}
+	if strings.TrimSpace(cfg.DefaultFontWeight) == "" {
+		return fmt.Errorf("font weight is required")
+	}
+	if cfg.TextOutlineWidth < 0 {
+		return fmt.Errorf("outline width must be non-negative")
+	}
+	if cfg.TextBackgroundOpacity < 0 || cfg.TextBackgroundOpacity > 1 {
+		return fmt.Errorf("background opacity must be between 0 and 1")
+	}
+	if cfg.TextBackgroundPaddingX < 0 || cfg.TextBackgroundPaddingY < 0 {
+		return fmt.Errorf("background padding must be non-negative")
+	}
+	if cfg.TextBackgroundRadius < 0 {
+		return fmt.Errorf("background radius must be non-negative")
+	}
+	if cfg.TextShadowOpacity < 0 || cfg.TextShadowOpacity > 1 {
+		return fmt.Errorf("shadow opacity must be between 0 and 1")
+	}
+	if cfg.TextShadowBlur < 0 {
+		return fmt.Errorf("shadow blur must be non-negative")
+	}
 	if cfg.Timeout <= 0 {
 		return fmt.Errorf("timeout must be positive")
 	}
@@ -564,13 +663,49 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	if err != nil {
 		return config.Config{}, fmt.Errorf("timeout must be a valid duration")
 	}
-	fontSize, err := strconv.ParseFloat(strings.TrimSpace(u.fontSizeEntry.Text), 64)
+	fontSize, err := parseFloatEntry(u.fontSizeEntry.Text, "font size")
 	if err != nil {
-		return config.Config{}, fmt.Errorf("font size must be numeric")
+		return config.Config{}, err
 	}
-	opacity, err := strconv.ParseFloat(strings.TrimSpace(u.opacityEntry.Text), 64)
+	opacity, err := parseFloatEntry(u.opacityEntry.Text, "overlay opacity")
 	if err != nil {
-		return config.Config{}, fmt.Errorf("overlay opacity must be numeric")
+		return config.Config{}, err
+	}
+	outlineWidth, err := parseFloatEntry(u.outlineWidthEntry.Text, "outline width")
+	if err != nil {
+		return config.Config{}, err
+	}
+	backgroundOpacity, err := parseFloatEntry(u.backgroundOpacityEntry.Text, "background opacity")
+	if err != nil {
+		return config.Config{}, err
+	}
+	backgroundPaddingX, err := parseFloatEntry(u.backgroundPaddingXEntry.Text, "background padding x")
+	if err != nil {
+		return config.Config{}, err
+	}
+	backgroundPaddingY, err := parseFloatEntry(u.backgroundPaddingYEntry.Text, "background padding y")
+	if err != nil {
+		return config.Config{}, err
+	}
+	backgroundRadius, err := parseFloatEntry(u.backgroundRadiusEntry.Text, "background radius")
+	if err != nil {
+		return config.Config{}, err
+	}
+	shadowOpacity, err := parseFloatEntry(u.shadowOpacityEntry.Text, "shadow opacity")
+	if err != nil {
+		return config.Config{}, err
+	}
+	shadowBlur, err := parseFloatEntry(u.shadowBlurEntry.Text, "shadow blur")
+	if err != nil {
+		return config.Config{}, err
+	}
+	shadowOffsetX, err := parseFloatEntry(u.shadowOffsetXEntry.Text, "shadow offset x")
+	if err != nil {
+		return config.Config{}, err
+	}
+	shadowOffsetY, err := parseFloatEntry(u.shadowOffsetYEntry.Text, "shadow offset y")
+	if err != nil {
+		return config.Config{}, err
 	}
 
 	cfg.DefaultOutputDir = strings.TrimSpace(u.outputDirEntry.Text)
@@ -583,8 +718,23 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	cfg.Timeout = timeout
 	cfg.DefaultFontFamily = strings.TrimSpace(u.fontFamilyEntry.Text)
 	cfg.DefaultFontSize = fontSize
+	cfg.DefaultFontWeight = strings.TrimSpace(u.fontWeightSelect.Selected)
 	cfg.OverlayColor = strings.TrimSpace(u.colorEntry.Text)
 	cfg.OverlayOpacity = opacity
+	cfg.TextOutlineColor = strings.TrimSpace(u.outlineColorEntry.Text)
+	cfg.TextOutlineWidth = outlineWidth
+	cfg.TextBackgroundEnabled = u.backgroundEnabled.Checked
+	cfg.TextBackgroundColor = strings.TrimSpace(u.backgroundColorEntry.Text)
+	cfg.TextBackgroundOpacity = backgroundOpacity
+	cfg.TextBackgroundPaddingX = backgroundPaddingX
+	cfg.TextBackgroundPaddingY = backgroundPaddingY
+	cfg.TextBackgroundRadius = backgroundRadius
+	cfg.TextShadowEnabled = u.shadowEnabled.Checked
+	cfg.TextShadowColor = strings.TrimSpace(u.shadowColorEntry.Text)
+	cfg.TextShadowOpacity = shadowOpacity
+	cfg.TextShadowBlur = shadowBlur
+	cfg.TextShadowOffsetX = shadowOffsetX
+	cfg.TextShadowOffsetY = shadowOffsetY
 	cfg.PreserveColumns = u.preserveColumns.Checked
 	cfg.OpenAIAPIKey = strings.TrimSpace(u.openAIKeyEntry.Text)
 	cfg.GeminiAPIKey = strings.TrimSpace(u.geminiKeyEntry.Text)
@@ -869,6 +1019,14 @@ func defaultRendererName(name string) string {
 	return name
 }
 
+func parseFloatEntry(value string, name string) (float64, error) {
+	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be numeric", name)
+	}
+	return parsed, nil
+}
+
 func containsString(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
@@ -1099,8 +1257,23 @@ func (u *UI) interactiveControls() []disableable {
 		u.timeoutEntry,
 		u.fontFamilyEntry,
 		u.fontSizeEntry,
+		u.fontWeightSelect,
 		u.colorEntry,
 		u.opacityEntry,
+		u.outlineColorEntry,
+		u.outlineWidthEntry,
+		u.backgroundEnabled,
+		u.backgroundColorEntry,
+		u.backgroundOpacityEntry,
+		u.backgroundPaddingXEntry,
+		u.backgroundPaddingYEntry,
+		u.backgroundRadiusEntry,
+		u.shadowEnabled,
+		u.shadowColorEntry,
+		u.shadowOpacityEntry,
+		u.shadowBlurEntry,
+		u.shadowOffsetXEntry,
+		u.shadowOffsetYEntry,
 		u.preserveColumns,
 		u.layoutJSONBrowseButton,
 		u.layoutJSONEntry,
