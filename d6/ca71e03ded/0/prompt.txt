@@ -161,3 +161,8 @@ commit now. I've fixed permissions
 ---
 
 continue
+
+---
+
+replace default filepicker by OS native. Here is an example how it was done in another project:
+https://github.com/vitovt/OCImageDownloader/commit/e29738f76eb01eceb6d04a4f330863cf052d984d
