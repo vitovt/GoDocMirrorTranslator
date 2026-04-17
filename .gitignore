@@ -1,3 +1,7 @@
 # Codex local runtime state
 .codex/local/*
 !.codex/local/.gitkeep
+
+# Local build and release artifacts
+/build/
+/dist/
