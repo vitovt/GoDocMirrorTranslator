@@ -1,0 +1,24 @@
+{
+  "openai_api_key": "sk-your-openai-key",
+  "gemini_api_key": "your-gemini-key",
+  "timeout": 30000000000,
+  "default_provider": "openai",
+  "default_model": "gpt-4.1-mini",
+  "default_output_dir": "./out",
+  "default_font_family": "Noto Sans",
+  "default_font_size": 18,
+  "output_template": "{input_basename}_{provider}_{timestamp}.svg",
+  "overlay_color": "#111111",
+  "overlay_opacity": 1,
+  "preserve_columns": true,
+  "source_language": "Ukrainian",
+  "target_language": "German",
+  "provider_options": {
+    "openai": {
+      "image_detail": "auto"
+    }
+  },
+  "gui_preferences": {
+    "save_layout_json": "false"
+  }
+}

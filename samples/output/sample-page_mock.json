@@ -1,0 +1,43 @@
+{
+  "source_image_path": "samples/input/sample-page.png",
+  "source_image_width": 1200,
+  "source_image_height": 1600,
+  "page_format": "A4",
+  "orientation": "portrait",
+  "blocks": [
+    {
+      "id": "mock-title",
+      "source_text": "[Ukrainian sample]",
+      "translated_text": "[German translation]",
+      "x": 180,
+      "y": 320,
+      "width": 840,
+      "height": 192,
+      "font_size": 32,
+      "font_family": "Noto Sans",
+      "align": "start",
+      "color": "#111111",
+      "opacity": 1,
+      "line_height": 1.2
+    },
+    {
+      "id": "mock-body",
+      "source_text": "Це приклад текстового блоку.",
+      "translated_text": "Dies ist ein Beispieltextblock.",
+      "x": 216,
+      "y": 672,
+      "width": 768,
+      "height": 256,
+      "font_size": 24,
+      "font_family": "Noto Sans",
+      "align": "start",
+      "color": "#202020",
+      "opacity": 1,
+      "line_height": 1.25
+    }
+  ],
+  "metadata": {
+    "model": "",
+    "provider": "mock"
+  }
+}
