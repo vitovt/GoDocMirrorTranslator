@@ -225,3 +225,7 @@ Additional unclicable "Menu" word right of the button Show/Hide menu
 Selection a menu section changes nothing
 
 Status arrea is in right place and OK
+
+---
+
+Menu is OK. But content in central area or absent or invisible.
