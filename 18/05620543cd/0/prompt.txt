@@ -281,3 +281,9 @@ Everything what you've offered:
       rename Process and this new button to short clear and easy distinguishable names
 - don't need to keep backward format compatibility
 Write what you would do and don't do before I approve.
+
+---
+
+ok. Add error handling (non existing image file, non existing json file, rewrite confirmation, etc )
+If json contains image path - use relative (only filename) if source image is in the same folder
+If everything is clear - start working.
