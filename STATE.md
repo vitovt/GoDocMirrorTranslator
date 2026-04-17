@@ -24,8 +24,9 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Live OpenAI and Gemini HTTP adapters using one shared structured-output schema and prompt contract
 - Live provider adapters now also share structured-output text normalization/parsing so fenced JSON and common empty-output failures are handled consistently
 - FODG rendering is now implemented through `internal/renderer/fodg`, wired through app, CLI, config defaults, integration tests, and the GUI output-format selector
-- Initial Fyne desktop GUI shell with validation, async processing, config persistence, and picker adapters
-- GUI-controlled optional layout JSON export persisted through GUI preferences
+- Versioned saved-layout JSON export and import are now part of the shared app core, including rerendering without provider calls and relative same-folder source-image paths inside saved layout files
+- Initial Fyne desktop GUI shell with validation, async processing, config persistence, picker adapters, layout-JSON rerender flow, and overwrite confirmation
+- GUI design settings now expose readability controls for font weight, outline, background, and shadow, all mapped to shared renderer options
 - GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
 - Desktop GUI builds now use OS-native file and folder pickers via `github.com/sqweek/dialog`, with Fyne dialog fallback kept for Android and unsupported desktop backends
 - README, example config, sample input/output assets, and an Android app icon are now checked into the repo as v1 deliverables
@@ -42,15 +43,15 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - OpenAI and Gemini adapters also share structured-output text parsing/normalization inside `internal/provider` so transport-specific code does not duplicate JSON cleanup or parse behavior.
 - No business logic inside GUI widgets.
 - The GUI defaults to the shared application core and only orchestrates config, validation, picker input, and async render invocation.
+- Saved layout JSON is a versioned app-owned artifact, not a provider response dump, and it is the only rerender input format supported going forward.
 - GUI platform differences are handled at the edge: desktop window sizing, native OS picker integration, and folder opening stay in the GUI layer, while mobile uses file-oriented output actions and Fyne picker fallback without changing application-core render behavior.
 - The preferred Fyne shell pattern is now explicit in `SPEC.md`: top menu toggle, left menu, one persistent main content pane, bottom actions, and bottom status/details, with compact overlay behavior documented as the reusable baseline for future apps.
 
 ## Repository conventions
 - `cmd/app` is the application entrypoint and now also contains the Android app icon used by `make android`.
 - `internal/domain` holds core models and validation/defaulting logic.
-- `internal/app` holds use cases, render orchestration, file output, and filename templating.
-- `internal/config` holds local config defaults, path resolution, environment overlays, masking, and persistence.
-- `internal/config` also stores GUI preferences such as whether layout JSON export is enabled by default in the GUI.
+- `internal/app` holds use cases, render orchestration, versioned saved-layout JSON handling, output-target planning, file output, and filename templating.
+- `internal/config` holds local config defaults, path resolution, environment overlays, masking, persistence, and readability defaults shared by CLI and GUI.
 - `internal/prompts` holds shared provider prompt builders.
 - `internal/provider` holds the shared structured response contract, structured-output parsing helpers, and image-loading helpers used by provider adapters.
 - `internal/provider/mock` is the development/test provider.
@@ -61,7 +62,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - `internal/renderer/fodg` contains the flat LibreOffice Draw renderer and golden fixture coverage, plus a LibreOffice round-trip smoke test when `soffice` is available.
 - `internal/renderer/svg/testdata` holds stable SVG golden fixtures for renderer snapshots.
 - `internal/cli` contains CLI wiring only.
-- `internal/gui` contains the Fyne shell, validation logic, picker adapter, and GUI tests.
+- `internal/gui` contains the Fyne shell, validation logic, analyze/rerender orchestration, picker adapter, overwrite confirmation hook, and GUI tests.
 - `tests/integration` contains render-flow integration tests.
 - `examples/` contains checked-in example configuration files.
 - `samples/input` and `samples/output` contain checked-in sample assets for manual verification and packaging smoke checks.
@@ -79,8 +80,8 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 Milestone 1 is effectively complete in the current repo: repo skeleton, domain model, renderer interface, SVG and FODG renderers, mock provider, live OpenAI and Gemini adapters, CLI wiring, desktop/mobile-aware GUI shell, local config persistence, provider runtime-config injection, coverage targets for core/config/renderer/provider packages, README, example config, sample assets, Android app icon, validated Android APK packaging, baseline tests, renderer golden files, and GUI output-format selection.
 
 ## Next implementation targets
-1. Polish the GUI shell further for Android/desktop differences and additional provider-specific settings as real usage drives them.
-2. Expand golden files and broader renderer/provider edge-case tests, especially around FODG fidelity and renderer parity.
+1. Expand golden files and broader renderer/provider edge-case tests, especially around readability decorations and FODG fidelity.
+2. Polish the GUI shell further for Android/desktop differences and additional provider-specific settings as real usage drives them.
 3. Add packaging and release documentation around the validated desktop/Android build flow.
 4. Decide whether future office-format work should target ODG export or deeper FODG fidelity improvements.
 

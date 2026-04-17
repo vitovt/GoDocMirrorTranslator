@@ -7,8 +7,8 @@ Handwritten Overlay Translator is a Go application with a shared CLI and Fyne GU
 - Single-image processing for `.jpg`, `.jpeg`, `.png`, and `.webp`
 - Shared application core used by both CLI and GUI
 - OpenAI and Gemini provider adapters plus a mock provider for local tests and sample generation
-- Editable SVG and FODG output with optional normalized layout JSON export
-- Local config storage for provider credentials, rendering defaults, and GUI preferences
+- Editable SVG and FODG output with reusable normalized layout JSON export and rerendering
+- Local config storage for provider credentials and rendering/readability defaults
 - Desktop GUI plus Android packaging support through Fyne
 - Native OS file and folder pickers on desktop, with Fyne fallback on Android
 
@@ -80,6 +80,15 @@ go run ./cmd/app render \
   --save-layout-json
 ```
 
+Re-render from an existing saved layout JSON without calling the AI provider again:
+
+```bash
+go run ./cmd/app rerender \
+  --layout-json samples/output/sample-page_mock.json \
+  --output-dir /tmp/out \
+  --renderer fodg
+```
+
 List providers:
 
 ```bash
@@ -122,11 +131,15 @@ Running `go run ./cmd/app` with no arguments opens the Fyne GUI. The GUI support
 
 - native-first input and output pickers
 - desktop native OS picker integration with Fyne fallback on Android or unsupported desktop backends
+- `Analyze` from an input image and `Re-render` from an existing layout JSON
+- automatic layout JSON capture after every successful GUI analyze run
 - provider and model selection
 - output format selection
+- layout JSON browsing for rerender workflows
+- readability controls including color, weight, outline, background, and shadow
 - masked API key inputs
 - provider-specific advanced options currently exposed by the repo
-- persisted render defaults and GUI preferences
+- persisted render defaults
 - async processing with visible status and details output
 
 ## Sample Assets

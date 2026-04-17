@@ -26,7 +26,7 @@ Build a cross-platform GUI and CLI application in **Go** that:
 ### In Scope (v1)
 - Single-image processing
 - Input formats: JPG, JPEG, PNG, WEBP (20 MiB or smaller)
-- Output formats: SVG, FODG, and optional layout JSON export
+- Output formats: SVG, FODG, and reusable layout JSON export/import for rerendering
 - OpenAI provider
 - Gemini provider
 - Fyne GUI for Linux, Windows, macOS, and Android
@@ -40,7 +40,6 @@ Build a cross-platform GUI and CLI application in **Go** that:
 - PDF output
 - ODG output
 - Batch processing
-- Layout JSON import
 - In-app visual layout editor
 - OCR-only mode without LLM
 - Cloud sync
@@ -75,26 +74,31 @@ The application must generate an **A4 SVG or FODG** file that:
 - uses UTF-8 encoding;
 - opens correctly in the target editor for the selected output format;
 - is valid XML for the selected output format;
-- optionally writes a layout JSON file, when requested, that serializes the normalized internal page model used for rendering.
+- can write a layout JSON file that serializes the normalized internal page model used for rendering;
+- can render a new SVG or FODG from an existing layout JSON file without calling the AI provider again.
 
 ### 4.4 GUI
 The GUI must support:
 - using an adaptive Fyne shell with a top menu toggle, a left menu, one persistent main content pane, and bottom action/status/details regions;
 - selecting an input image;
+- selecting an existing layout JSON file for rerendering;
 - selecting an output directory;
 - editing an output filename template;
 - selecting an output format;
 - selecting provider, model, and provider-specific advanced options;
 - network/AI timeout;
 - entering and saving API keys locally;
-- configuring rendering options;
-- starting processing;
+- configuring rendering options, including readability controls such as color, font weight, outline, background, and shadow;
+- starting analysis from an image;
+- starting rerendering from a saved layout JSON;
 - showing progress and status;
+- confirming overwrites before replacing existing GUI output targets;
 - opening the output directory after success.
 
 ### 4.5 CLI
 The CLI must support:
 - processing one image;
+- rerendering from one saved layout JSON file;
 - launching GUI;
 - listing providers;
 - showing version;
@@ -211,7 +215,7 @@ type Renderer interface {
 ```
 
 ### 6.4.1 RenderOptions
-`RenderOptions` must include font family, default font size, text color, opacity, preserve-columns behavior, and any renderer-specific defaults explicitly allowed in v1.
+`RenderOptions` must include font family, default font size, font weight, text color, opacity, preserve-columns behavior, text outline settings, text background settings, text shadow settings, and any renderer-specific defaults explicitly allowed in v1.
 
 ## 7. Repository Structure
 
@@ -292,6 +296,10 @@ Each text block must be rendered as an editable SVG text element with:
 * font size
 * fill color
 * opacity
+* optional font weight
+* optional outline/halo
+* optional text background box
+* optional text shadow
 * optional rotation
 * text alignment
 
@@ -307,7 +315,8 @@ Each text block must be rendered into a flat LibreOffice Draw (`.fodg`) document
 * block coordinates scaled from the shared internal page model;
 * optional rotation;
 * text alignment;
-* font family, font size, color, and opacity where supported by the format.
+* font family, font size, font weight, color, and opacity where supported by the format;
+* readability decorations such as outline, background, and shadow where supported by the format.
 
 Generated FODG output must open correctly in LibreOffice Draw and keep translated text editable as text.
 
@@ -334,7 +343,7 @@ Variable formats:
 * `{time}` => `HH-MM-SS`
 * `{timestamp}` => `YYYYMMDD-HHMMSS` in local time
 
-Collision handling: if the target rendered-output path already exists, append `-1`, `-2`, and so on before the extension instead of overwriting. When layout JSON export is enabled, write the JSON file next to the selected renderer output using the same basename and a `.json` extension.
+Collision handling: CLI and non-overwrite flows append `-1`, `-2`, and so on before the extension instead of overwriting. GUI flows may prompt the user to overwrite the exact target path and, when confirmed, replace the existing rendered output and matching layout JSON sidecar. When layout JSON export is enabled, write the JSON file next to the selected renderer output using the same basename and a `.json` extension.
 
 ## 10. GUI Requirements
 
@@ -344,6 +353,8 @@ The main window must contain:
 
 * input file field
 * input browse button
+* layout JSON field
+* layout JSON browse button
 * output directory field
 * output directory browse button
 * output filename template field
@@ -355,18 +366,23 @@ The main window must contain:
 * target language selector
 * rendering settings
 * API key settings
-* process button
+* analyze button
+* rerender button
 * progress indicator
 * status line
 * log/details area
 
 ### 10.2 Behavior
 
-* `Process` must be disabled until required fields are valid.
+* `Analyze` must be disabled until image-analysis fields are valid.
+* `Re-render` must be disabled until layout-JSON rerender fields are valid.
 * Validation errors must be visible in the UI.
 * Long-running tasks must run asynchronously.
 * Previous settings must be restored on next launch.
 * Provider-specific advanced options are edited in the GUI and persisted to local config.
+* Successful GUI `Analyze` runs must update the `Layout JSON` field with the newly written layout JSON path.
+* GUI `Re-render` must use the selected `Layout JSON` and current formatting settings without calling the AI provider.
+* When the GUI would replace an existing rendered output or layout JSON sidecar, it must prompt for confirmation before overwriting.
 
 ### 10.3 File Pickers
 
@@ -385,6 +401,7 @@ The CLI must provide:
 
 ```text
 render
+rerender
 gui
 config set
 config get
@@ -412,6 +429,7 @@ The `render` command must support:
 --opacity
 --color
 --config
+--overwrite
 --save-layout-json
 --timeout
 --verbose
@@ -419,7 +437,25 @@ The `render` command must support:
 
 `--save-layout-json` writes the normalized internal page model next to the selected renderer output using the same basename and a `.json` extension.
 
-### 11.3 Help Output
+### 11.3 Rerender Command Flags
+
+The `rerender` command must support:
+
+```text
+--layout-json
+--output-dir
+--output-template
+--renderer
+--font-family
+--font-size
+--opacity
+--color
+--config
+--overwrite
+--verbose
+```
+
+### 11.4 Help Output
 
 `--help` must include:
 
@@ -444,9 +480,13 @@ The application must store:
 * default output directory
 * default font family
 * default font size
+* default font weight
 * output filename template
 * overlay color
 * overlay opacity
+* text outline defaults
+* text background defaults
+* text shadow defaults
 * preserve-columns setting
 * provider-specific advanced options supported by the GUI
 * GUI preferences
@@ -484,6 +524,7 @@ If the config file contains API keys, create it with user-only permissions on Un
 The application must provide clear user-facing errors for:
 
 * invalid input file
+* invalid or missing layout JSON file
 * unsupported image format
 * missing API key
 * invalid config
@@ -570,6 +611,7 @@ Cover:
 * SVG renderer
 * FODG renderer
 * optional layout JSON export
+* reusable layout JSON rerender workflow
 * local config support
 * automated tests
 * README
@@ -582,7 +624,6 @@ The v1 architecture must allow adding:
 
 * additional providers
 * batch mode
-* layout JSON import
 
 ## 17. Acceptance Criteria
 
@@ -592,6 +633,7 @@ The v1 architecture must allow adding:
 * User can select an image in the Android GUI and generate SVG or FODG successfully.
 * User can process the same image from CLI.
 * When requested, the CLI writes a JSON export of the normalized layout next to the selected renderer output.
+* User can rerender from an existing layout JSON in both GUI and CLI without calling the AI provider again.
 * Generated SVG opens in Inkscape.
 * Generated FODG opens in LibreOffice Draw.
 * Overlay text remains editable as text.
