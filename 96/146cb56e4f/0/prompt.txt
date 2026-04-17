@@ -180,3 +180,12 @@ https://github.com/openai/openai-go
 ---
 
 Fix the schema. Don't migrate to the OpenAI adapter at all.
+
+---
+
+Now develop side menu. Put on top accordeon button. When I press it - side panel shows/hides. When screen is narrow (resized window or mobile device) - auto hide this panel. 
+In this side panel should be tabs:
+- ai settins: all keys, details, timeouts, etc ...
+- design settings: fonts, colors, size
+- main tab (default on app open - top one): here should stay: Input image, Output Folder, Filename Tamplate, Source language, target language, Preserver columns
+Bottom panel with save/process/open should allways stay visible
