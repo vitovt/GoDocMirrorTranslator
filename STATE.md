@@ -30,6 +30,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - GUI now presents text/background/shadow opacity as percentages and shows renderer-specific formatting guidance so SVG-vs-FODG differences are visible in-app
 - GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
 - Desktop GUI builds now use OS-native file and folder pickers via `github.com/sqweek/dialog`, with Fyne dialog fallback kept for Android and unsupported desktop backends
+- Linux-host Windows builds now default to the MinGW-w64 cross-compiler path in `make windows` / `make snapshot` via `WINDOWS_CC`, instead of relying on the host `gcc`
 - README, example config, sample input/output assets, and an Android app icon are now checked into the repo as v1 deliverables
 - `make android` has been validated locally with the available Fyne + Android SDK toolchain and now emits `build/android/godocmirrortranslator.apk`
 - `SPEC.md` now includes a reusable appendix for the Fyne adaptive shell pattern so the same menu/content/status layout rules can be copied into future Go + Fyne application specifications
@@ -77,6 +78,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Run `make lint` when available.
 - Use `make check` for the standard validation bundle.
 - In this environment, set `GOCACHE=/tmp/go-build` when the default Go cache is not writable.
+- In this environment, GUI test and packaging runs are most stable with `LANG=C.UTF-8 LC_ALL=C.UTF-8 PATH=/tmp/bin:$PATH GOCACHE=/tmp/go-build GOLANGCI_LINT_CACHE=/tmp/golangci-cache XDG_CACHE_HOME=/tmp`.
 
 ## Current milestone
 Milestone 1 is effectively complete in the current repo: repo skeleton, domain model, renderer interface, SVG and FODG renderers, mock provider, live OpenAI and Gemini adapters, CLI wiring, desktop/mobile-aware GUI shell, local config persistence, provider runtime-config injection, coverage targets for core/config/renderer/provider packages, README, example config, sample assets, Android app icon, validated Android APK packaging, baseline tests, renderer golden files, and GUI output-format selection.
