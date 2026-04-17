@@ -149,3 +149,15 @@ continue
 ---
 
 continue until SPEC will be fullfilled
+
+---
+
+commit now. I've fixed permissions
+
+---
+
+commit now. I've fixed permissions
+
+---
+
+continue
