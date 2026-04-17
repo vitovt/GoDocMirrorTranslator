@@ -87,7 +87,7 @@ func Run(ctx context.Context, application *appcore.Application, version string, 
 		window.Resize(fyne.NewSize(960, 760))
 	}
 
-	ui := newUI(ctx, guiApp, device, window, application, resolvedPath, cfg, dialogPicker{})
+	ui := newUI(ctx, guiApp, device, window, application, resolvedPath, cfg, newDefaultPicker())
 	window.SetCloseIntercept(func() {
 		if _, err := ui.saveSettings(); err != nil {
 			dialog.ShowError(err, window)
