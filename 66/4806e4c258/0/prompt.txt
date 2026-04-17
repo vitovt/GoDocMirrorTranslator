@@ -207,3 +207,11 @@ Additionally:
 - On small windows (mobile, another orientation) left panel with buttons don't move main content, but overlaps: the goal - to have enought place on small screens.
 - Bottom: status/details arrea goes below save/process/open buttons.
 How did you understand ? Maybe you have something else to offer for better usability for mobile devices in vertical orientation ?
+
+---
+
+>   - when the user taps a menu item on a narrow/mobile layout, auto-close the overlay menu immediately
+Yes, I accept this.
+> - make the bottom details area collapsed by default on mobile, showing only status plus a small Details expander
+Yes, I accpet this too.
+Start implementint all this.
