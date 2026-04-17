@@ -176,3 +176,7 @@ I've specified OpenAI API key and tried to process an image. I see an error:
 
 Can we use official go api library ? Or it will be overhead ?
 https://github.com/openai/openai-go
+
+---
+
+Fix the schema. Don't migrate to the OpenAI adapter at all.
