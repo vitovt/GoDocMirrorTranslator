@@ -319,24 +319,24 @@ func (u *UI) content() fyne.CanvasObject {
 		widget.NewFormItem("Text Opacity (%)", u.opacityEntry),
 		widget.NewFormItem("Outline Color", u.outlineColorEntry),
 		widget.NewFormItem("Outline Width", u.outlineWidthEntry),
-		widget.NewFormItem("Text Background", u.backgroundEnabled),
-		widget.NewFormItem("Background Color", u.backgroundColorEntry),
-		widget.NewFormItem("Background Opacity (%)", u.backgroundOpacityEntry),
-		widget.NewFormItem("Background Padding X", u.backgroundPaddingXEntry),
-		widget.NewFormItem("Background Padding Y", u.backgroundPaddingYEntry),
-		widget.NewFormItem("Background Radius", u.backgroundRadiusEntry),
 		widget.NewFormItem("Text Shadow", u.shadowEnabled),
 		widget.NewFormItem("Shadow Color", u.shadowColorEntry),
 		widget.NewFormItem("Shadow Opacity (%)", u.shadowOpacityEntry),
 		widget.NewFormItem("Shadow Blur", u.shadowBlurEntry),
 		widget.NewFormItem("Shadow Offset X", u.shadowOffsetXEntry),
 		widget.NewFormItem("Shadow Offset Y", u.shadowOffsetYEntry),
+		widget.NewFormItem("Text Background", u.backgroundEnabled),
+		widget.NewFormItem("Background Color", u.backgroundColorEntry),
+		widget.NewFormItem("Background Opacity (%)", u.backgroundOpacityEntry),
+		widget.NewFormItem("Background Padding X", u.backgroundPaddingXEntry),
+		widget.NewFormItem("Background Padding Y", u.backgroundPaddingYEntry),
+		widget.NewFormItem("Background Radius", u.backgroundRadiusEntry),
 	)
 	designSection := container.NewVBox(
+		designForm,
+		widget.NewSeparator(),
 		widget.NewLabel("Renderer Formatting Notes"),
 		u.rendererCapabilityLabel,
-		widget.NewSeparator(),
-		designForm,
 	)
 	u.mainContentView = container.NewPadded(container.NewVScroll(mainForm))
 	u.aiContentView = container.NewPadded(container.NewVScroll(aiForm))
