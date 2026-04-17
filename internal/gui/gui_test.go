@@ -378,10 +378,10 @@ func TestSelectingSectionAutoClosesMenuInCompactLayout(t *testing.T) {
 	if ui.menuPanel.Visible() {
 		t.Fatal("menu panel should be hidden after compact selection")
 	}
-	if !sectionObject(t, ui, sectionAI).Visible() {
+	if !ui.aiContentView.Visible() {
 		t.Fatal("AI section should be visible after selection")
 	}
-	if sectionObject(t, ui, sectionMain).Visible() {
+	if ui.mainContentView.Visible() {
 		t.Fatal("Main section should be hidden after AI selection")
 	}
 }
@@ -411,20 +411,38 @@ func TestCompactDetailsToggleShowsAndHidesDetails(t *testing.T) {
 func TestSelectingSectionSwitchesVisibleContent(t *testing.T) {
 	ui, _, _ := newTestUI(t)
 
-	if !sectionObject(t, ui, sectionMain).Visible() {
+	if !ui.mainContentView.Visible() {
 		t.Fatal("main section should start visible")
 	}
-	if sectionObject(t, ui, sectionAI).Visible() {
+	if ui.aiContentView.Visible() {
 		t.Fatal("AI section should start hidden")
 	}
 
 	ui.selectSection(sectionDesign)
 
-	if !sectionObject(t, ui, sectionDesign).Visible() {
+	if !ui.designContentView.Visible() {
 		t.Fatal("design section should be visible after selection")
 	}
-	if sectionObject(t, ui, sectionMain).Visible() {
+	if ui.mainContentView.Visible() {
 		t.Fatal("main section should be hidden after design selection")
+	}
+}
+
+func TestWideLayoutGivesActiveContentVisibleSize(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+	renderer := test.WidgetRenderer(ui.layoutRoot)
+
+	renderer.Layout(fyne.NewSize(960, 760))
+	renderer.Refresh()
+	if ui.mainContentView.Size().Width <= 0 || ui.mainContentView.Size().Height <= 0 {
+		t.Fatalf("main content size = %v, want non-zero visible area", ui.mainContentView.Size())
+	}
+
+	ui.toggleMenu()
+	renderer.Layout(fyne.NewSize(960, 760))
+	renderer.Refresh()
+	if ui.mainContentView.Size().Width <= 0 || ui.mainContentView.Size().Height <= 0 {
+		t.Fatalf("main content size with hidden menu = %v, want non-zero visible area", ui.mainContentView.Size())
 	}
 }
 
@@ -800,19 +818,4 @@ func contains(values []string, want string) bool {
 		}
 	}
 	return false
-}
-
-func sectionObject(t *testing.T, ui *UI, section settingsSection) fyne.CanvasObject {
-	t.Helper()
-	for _, child := range ui.contentPanel.Objects {
-		tag, ok := child.(sectionedObject)
-		if !ok {
-			continue
-		}
-		if tag.Section() == section {
-			return child
-		}
-	}
-	t.Fatalf("section %q not found", section)
-	return nil
 }

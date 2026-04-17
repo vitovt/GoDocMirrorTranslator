@@ -11,6 +11,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	fyneapp "fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -41,20 +42,23 @@ type UI struct {
 	configPath string
 	cfg        config.Config
 
-	menuToggle       *widget.Button
-	menuPanel        *fyne.Container
-	mainMenuButton   *widget.Button
-	aiMenuButton     *widget.Button
-	designMenuButton *widget.Button
-	contentPanel     *fyne.Container
-	centerPanel      *menuContentPanel
-	layoutRoot       *responsiveRoot
-	detailsToggle    *widget.Button
-	detailsPanel     *fyne.Container
-	currentSection   settingsSection
-	menuVisible      bool
-	compactLayout    bool
-	detailsVisible   bool
+	menuToggle        *widget.Button
+	menuPanel         *fyne.Container
+	mainMenuButton    *widget.Button
+	aiMenuButton      *widget.Button
+	designMenuButton  *widget.Button
+	mainContentView   *fyne.Container
+	aiContentView     *fyne.Container
+	designContentView *fyne.Container
+	contentPanel      *fyne.Container
+	centerPanel       *fyne.Container
+	layoutRoot        *responsiveRoot
+	detailsToggle     *widget.Button
+	detailsPanel      *fyne.Container
+	currentSection    settingsSection
+	menuVisible       bool
+	compactLayout     bool
+	detailsVisible    bool
 
 	inputBrowseButton  *widget.Button
 	outputBrowseButton *widget.Button
@@ -253,19 +257,26 @@ func (u *UI) content() fyne.CanvasObject {
 		widget.NewFormItem("Overlay Color", u.colorEntry),
 		widget.NewFormItem("Overlay Opacity", u.opacityEntry),
 	)
+	u.mainContentView = container.NewPadded(container.NewVScroll(mainForm))
+	u.aiContentView = container.NewPadded(container.NewVScroll(aiForm))
+	u.designContentView = container.NewPadded(container.NewVScroll(designForm))
 	u.contentPanel = container.NewStack(
-		u.sectionView(sectionMain, mainForm),
-		u.sectionView(sectionAI, aiForm),
-		u.sectionView(sectionDesign, designForm),
+		u.mainContentView,
+		u.aiContentView,
+		u.designContentView,
 	)
-	u.menuPanel = container.NewPadded(container.NewVBox(
-		widget.NewLabel("Menu"),
-		u.mainMenuButton,
-		u.aiMenuButton,
-		u.designMenuButton,
-		layout.NewSpacer(),
-	))
-	u.centerPanel = newMenuContentPanel(u.menuPanel, u.contentPanel)
+	menuBackground := canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground))
+	menuBackground.SetMinSize(fyne.NewSize(minMenuWidth, 0))
+	u.menuPanel = container.NewStack(
+		menuBackground,
+		container.NewPadded(container.NewVBox(
+			u.mainMenuButton,
+			u.aiMenuButton,
+			u.designMenuButton,
+			layout.NewSpacer(),
+		)),
+	)
+	u.centerPanel = container.NewStack(u.contentPanel)
 
 	actions := container.NewHBox(
 		u.saveButton,
@@ -739,7 +750,7 @@ func (u *UI) toggleDetails() {
 
 func (u *UI) applyShellState() {
 	if u.centerPanel != nil {
-		u.centerPanel.SetState(u.menuVisible, u.compactLayout)
+		u.rebuildCenterPanel()
 		u.centerPanel.Refresh()
 	}
 	u.applySectionState()
@@ -760,17 +771,9 @@ func (u *UI) applySectionState() {
 	if u.contentPanel == nil {
 		return
 	}
-	for _, child := range u.contentPanel.Objects {
-		tag, ok := child.(sectionedObject)
-		if !ok {
-			continue
-		}
-		if tag.Section() == u.currentSection {
-			child.Show()
-		} else {
-			child.Hide()
-		}
-	}
+	u.setSectionVisible(u.mainContentView, u.currentSection == sectionMain)
+	u.setSectionVisible(u.aiContentView, u.currentSection == sectionAI)
+	u.setSectionVisible(u.designContentView, u.currentSection == sectionDesign)
 	u.contentPanel.Refresh()
 	u.updateMenuButtonState()
 }
@@ -795,6 +798,31 @@ func (u *UI) applyDetailsState() {
 	u.detailsEntry.Show()
 	u.detailsVisible = true
 	u.detailsPanel.Refresh()
+}
+
+func (u *UI) rebuildCenterPanel() {
+	if u.centerPanel == nil || u.contentPanel == nil || u.menuPanel == nil {
+		return
+	}
+
+	if !u.menuVisible {
+		u.menuPanel.Hide()
+		u.centerPanel.Objects = []fyne.CanvasObject{u.contentPanel}
+		return
+	}
+
+	u.menuPanel.Show()
+	if u.compactLayout {
+		u.centerPanel.Objects = []fyne.CanvasObject{
+			u.contentPanel,
+			container.NewHBox(u.menuPanel, layout.NewSpacer()),
+		}
+		return
+	}
+
+	u.centerPanel.Objects = []fyne.CanvasObject{
+		container.NewBorder(nil, nil, u.menuPanel, nil, u.contentPanel),
+	}
 }
 
 func (u *UI) updateMenuToggle() {
@@ -826,11 +854,15 @@ func (u *UI) setMenuButtonState(button *widget.Button, selected bool) {
 	button.Refresh()
 }
 
-func (u *UI) sectionView(section settingsSection, form *widget.Form) fyne.CanvasObject {
-	return &sectionContainer{
-		CanvasObject: container.NewPadded(container.NewVScroll(form)),
-		section:      section,
+func (u *UI) setSectionVisible(object fyne.CanvasObject, visible bool) {
+	if object == nil {
+		return
 	}
+	if visible {
+		object.Show()
+		return
+	}
+	object.Hide()
 }
 
 func (u *UI) interactiveControls() []disableable {
@@ -919,117 +951,4 @@ func (r *responsiveRootRenderer) Destroy() {}
 
 func (r *responsiveRootRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.root.content}
-}
-
-type menuContentPanel struct {
-	widget.BaseWidget
-	menu        fyne.CanvasObject
-	content     fyne.CanvasObject
-	menuVisible bool
-	compact     bool
-}
-
-func newMenuContentPanel(menu, content fyne.CanvasObject) *menuContentPanel {
-	panel := &menuContentPanel{
-		menu:        menu,
-		content:     content,
-		menuVisible: true,
-	}
-	panel.ExtendBaseWidget(panel)
-	return panel
-}
-
-func (p *menuContentPanel) SetState(menuVisible, compact bool) {
-	p.menuVisible = menuVisible
-	p.compact = compact
-	p.Refresh()
-}
-
-func (p *menuContentPanel) CreateRenderer() fyne.WidgetRenderer {
-	return &menuContentPanelRenderer{panel: p}
-}
-
-type menuContentPanelRenderer struct {
-	panel *menuContentPanel
-}
-
-func (r *menuContentPanelRenderer) Layout(size fyne.Size) {
-	r.panel.content.Move(fyne.NewPos(0, 0))
-	r.panel.content.Resize(size)
-
-	if !r.panel.menuVisible {
-		r.panel.menu.Hide()
-		r.panel.menu.Move(fyne.NewPos(0, 0))
-		r.panel.menu.Resize(fyne.NewSize(0, 0))
-		return
-	}
-
-	menuWidth := r.menuWidth(size.Width)
-	r.panel.menu.Show()
-	r.panel.menu.Move(fyne.NewPos(0, 0))
-	r.panel.menu.Resize(fyne.NewSize(menuWidth, size.Height))
-
-	if r.panel.compact {
-		return
-	}
-
-	r.panel.content.Move(fyne.NewPos(menuWidth, 0))
-	r.panel.content.Resize(fyne.NewSize(maxFloat32(0, size.Width-menuWidth), size.Height))
-}
-
-func (r *menuContentPanelRenderer) MinSize() fyne.Size {
-	menuSize := r.panel.menu.MinSize()
-	contentSize := r.panel.content.MinSize()
-	if r.panel.compact || !r.panel.menuVisible {
-		return contentSize
-	}
-	return fyne.NewSize(menuSize.Width+contentSize.Width, maxFloat32(menuSize.Height, contentSize.Height))
-}
-
-func (r *menuContentPanelRenderer) Refresh() {
-	r.Layout(r.panel.Size())
-	r.panel.menu.Refresh()
-	r.panel.content.Refresh()
-}
-
-func (r *menuContentPanelRenderer) Destroy() {}
-
-func (r *menuContentPanelRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.panel.content, r.panel.menu}
-}
-
-func (r *menuContentPanelRenderer) menuWidth(totalWidth float32) float32 {
-	menuWidth := maxFloat32(minMenuWidth, r.panel.menu.MinSize().Width)
-	if r.panel.compact {
-		return minFloat32(menuWidth, totalWidth*0.82)
-	}
-	return minFloat32(menuWidth, totalWidth*0.4)
-}
-
-type sectionedObject interface {
-	fyne.CanvasObject
-	Section() settingsSection
-}
-
-type sectionContainer struct {
-	fyne.CanvasObject
-	section settingsSection
-}
-
-func (c *sectionContainer) Section() settingsSection {
-	return c.section
-}
-
-func minFloat32(a, b float32) float32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxFloat32(a, b float32) float32 {
-	if a > b {
-		return a
-	}
-	return b
 }
