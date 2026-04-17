@@ -1,13 +1,13 @@
 # Handwritten Overlay Translator
 
-Handwritten Overlay Translator is a Go application with a shared CLI and Fyne GUI that sends one document image to an AI provider and produces an editable A4 SVG overlay. The v1 renderer keeps translated text as SVG text so the result can be opened and edited in Inkscape.
+Handwritten Overlay Translator is a Go application with a shared CLI and Fyne GUI that sends one document image to an AI provider and produces an editable A4 SVG or FODG overlay. SVG output is intended for Inkscape, and FODG output is intended for LibreOffice Draw.
 
 ## Features
 
 - Single-image processing for `.jpg`, `.jpeg`, `.png`, and `.webp`
 - Shared application core used by both CLI and GUI
 - OpenAI and Gemini provider adapters plus a mock provider for local tests and sample generation
-- Editable SVG output with optional normalized layout JSON export
+- Editable SVG and FODG output with optional normalized layout JSON export
 - Local config storage for provider credentials, rendering defaults, and GUI preferences
 - Desktop GUI plus Android packaging support through Fyne
 - Native OS file and folder pickers on desktop, with Fyne fallback on Android
@@ -19,6 +19,7 @@ Handwritten Overlay Translator is a Go application with a shared CLI and Fyne GU
 - `internal/config` contains config loading, persistence, masking, and precedence rules.
 - `internal/provider` contains the shared provider contract and provider adapters.
 - `internal/renderer/svg` contains the SVG renderer and golden fixtures.
+- `internal/renderer/fodg` contains the flat LibreOffice Draw renderer and golden fixtures.
 - `internal/gui` contains the Fyne shell and GUI tests.
 - `examples/config.example.json` shows a usable config file shape.
 - `samples/input` and `samples/output` contain checked-in sample assets.
@@ -56,6 +57,16 @@ go run ./cmd/app render \
   --input samples/input/sample-page.png \
   --output-dir /tmp/out \
   --provider mock
+```
+
+Render a LibreOffice Draw file with the mock provider:
+
+```bash
+go run ./cmd/app render \
+  --input samples/input/sample-page.png \
+  --output-dir /tmp/out \
+  --provider mock \
+  --renderer fodg
 ```
 
 Render with a live provider and write layout JSON too:
@@ -112,6 +123,7 @@ Running `go run ./cmd/app` with no arguments opens the Fyne GUI. The GUI support
 - native-first input and output pickers
 - desktop native OS picker integration with Fyne fallback on Android or unsupported desktop backends
 - provider and model selection
+- output format selection
 - masked API key inputs
 - provider-specific advanced options currently exposed by the repo
 - persisted render defaults and GUI preferences

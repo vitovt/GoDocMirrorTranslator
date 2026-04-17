@@ -5,10 +5,10 @@ Build a cross-platform GUI and CLI application in **Go** that:
 - accepts a single input image (`.jpg`, `.jpeg`, `.png`, `.webp`);
 - sends the image to an AI provider;
 - receives structured page layout + translation data;
-- generates an **A4 SVG** file with:
+- generates an **A4 SVG or FODG** file with:
   - the original image as background;
   - translated text overlaid as editable text elements;
-- supports manual post-editing in **Inkscape**;
+- supports manual post-editing in **Inkscape** or **LibreOffice Draw**;
 - provides a **Fyne GUI** on desktop and Android, and a **CLI** on desktop platforms, using the same core logic.
 
 ## 2. Technology Stack
@@ -17,8 +17,7 @@ Build a cross-platform GUI and CLI application in **Go** that:
 - AI providers:
   - **OpenAI**
   - **Google Gemini**
-- Output format v1: **SVG**
-- Output format v2: **FODG**
+- Output formats v1: **SVG**, **FODG**
 - Testing: Go unit, integration, golden, and GUI tests
 - Linting: `golangci-lint`
 
@@ -27,7 +26,7 @@ Build a cross-platform GUI and CLI application in **Go** that:
 ### In Scope (v1)
 - Single-image processing
 - Input formats: JPG, JPEG, PNG, WEBP (20 MiB or smaller)
-- Output formats: SVG and optional layout JSON export
+- Output formats: SVG, FODG, and optional layout JSON export
 - OpenAI provider
 - Gemini provider
 - Fyne GUI for Linux, Windows, macOS, and Android
@@ -69,13 +68,13 @@ The application must:
 - return confidence values where available.
 
 ### 4.3 Output
-The application must generate an **A4 SVG** file that:
+The application must generate an **A4 SVG or FODG** file that:
 - embeds the source image as the page background;
-- overlays translated text as editable SVG text elements;
+- overlays translated text as editable text elements;
 - preserves editable text, not paths;
 - uses UTF-8 encoding;
-- opens correctly in Inkscape;
-- is valid XML/SVG;
+- opens correctly in the target editor for the selected output format;
+- is valid XML for the selected output format;
 - optionally writes a layout JSON file, when requested, that serializes the normalized internal page model used for rendering.
 
 ### 4.4 GUI
@@ -84,6 +83,7 @@ The GUI must support:
 - selecting an input image;
 - selecting an output directory;
 - editing an output filename template;
+- selecting an output format;
 - selecting provider, model, and provider-specific advanced options;
 - network/AI timeout;
 - entering and saving API keys locally;
@@ -274,7 +274,7 @@ Unreadable text must:
 * not be silently omitted;
 * have reduced confidence.
 
-## 9. SVG Renderer Requirements
+## 9. Renderer Requirements
 
 ### 9.1 Page Format
 
@@ -283,7 +283,7 @@ Unreadable text must:
 * proportional background image placement
 * visible overlay text on top of the image
 
-### 9.2 Text Rendering
+### 9.2 SVG Renderer Requirements
 
 Each text block must be rendered as an editable SVG text element with:
 
@@ -295,7 +295,23 @@ Each text block must be rendered as an editable SVG text element with:
 * optional rotation
 * text alignment
 
-### 9.3 File Naming
+Generated SVG output must open correctly in Inkscape and keep translated text editable as text.
+
+### 9.3 FODG Renderer Requirements
+
+Each text block must be rendered into a flat LibreOffice Draw (`.fodg`) document with:
+
+* the source image embedded in the document;
+* translated text preserved as editable text, not curves;
+* A4 page sizing;
+* block coordinates scaled from the shared internal page model;
+* optional rotation;
+* text alignment;
+* font family, font size, color, and opacity where supported by the format.
+
+Generated FODG output must open correctly in LibreOffice Draw and keep translated text editable as text.
+
+### 9.4 File Naming
 
 Support output filename templates with variables:
 
@@ -318,7 +334,7 @@ Variable formats:
 * `{time}` => `HH-MM-SS`
 * `{timestamp}` => `YYYYMMDD-HHMMSS` in local time
 
-Collision handling: if the target SVG path already exists, append `-1`, `-2`, and so on before the extension instead of overwriting. When layout JSON export is enabled, write the JSON file next to the SVG output using the same basename and a `.json` extension.
+Collision handling: if the target rendered-output path already exists, append `-1`, `-2`, and so on before the extension instead of overwriting. When layout JSON export is enabled, write the JSON file next to the selected renderer output using the same basename and a `.json` extension.
 
 ## 10. GUI Requirements
 
@@ -331,6 +347,7 @@ The main window must contain:
 * output directory field
 * output directory browse button
 * output filename template field
+* output format selector
 * provider selector
 * model selector
 * provider advanced settings
@@ -386,6 +403,7 @@ The `render` command must support:
 --output-dir
 --output-template
 --provider
+--renderer
 --model
 --source-lang
 --target-lang
@@ -399,7 +417,7 @@ The `render` command must support:
 --verbose
 ```
 
-`--save-layout-json` writes the normalized internal page model next to the SVG output using the same basename and a `.json` extension.
+`--save-layout-json` writes the normalized internal page model next to the selected renderer output using the same basename and a `.json` extension.
 
 ### 11.3 Help Output
 
@@ -421,6 +439,7 @@ The application must store:
 * Gemini API key
 * network/AI timeout
 * default provider
+* default renderer
 * default model
 * default output directory
 * default font family
@@ -549,6 +568,7 @@ Cover:
 * OpenAI provider
 * Gemini provider
 * SVG renderer
+* FODG renderer
 * optional layout JSON export
 * local config support
 * automated tests
@@ -560,7 +580,6 @@ Cover:
 
 The v1 architecture must allow adding:
 
-* FODG renderer
 * additional providers
 * batch mode
 * layout JSON import
@@ -569,11 +588,12 @@ The v1 architecture must allow adding:
 
 ### Functional
 
-* User can select an image in GUI and generate an SVG successfully.
-* User can select an image in the Android GUI and generate an SVG successfully.
+* User can select an image in GUI and generate SVG or FODG successfully.
+* User can select an image in the Android GUI and generate SVG or FODG successfully.
 * User can process the same image from CLI.
-* When requested, the CLI writes a JSON export of the normalized layout next to the SVG output.
+* When requested, the CLI writes a JSON export of the normalized layout next to the selected renderer output.
 * Generated SVG opens in Inkscape.
+* Generated FODG opens in LibreOffice Draw.
 * Overlay text remains editable as text.
 * Settings persist locally.
 * Provider selection works for both OpenAI and Gemini.
@@ -582,7 +602,7 @@ The v1 architecture must allow adding:
 
 * Provider layer is isolated from renderer layer.
 * GUI and CLI both use the same core processing flow.
-* SVG renderer is independent from provider implementation.
+* SVG and FODG renderers are independent from provider implementation.
 * Android APK builds successfully.
 * Test suite passes.
 * Lint passes.
@@ -601,8 +621,9 @@ The v1 architecture must allow adding:
 10. Fyne GUI
 11. Native picker adapter
 12. GUI tests
-13. Packaging and release preparation
-14. FODG renderer in v2
+13. FODG renderer
+14. GUI output format selection
+15. Packaging and release preparation
 
 ## Appendix A. Reusable Fyne Adaptive Shell Template
 
