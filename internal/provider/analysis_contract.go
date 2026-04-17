@@ -45,22 +45,41 @@ type InputImage struct {
 
 func AnalysisJSONSchema() map[string]any {
 	blockProperties := map[string]any{
-		"id":              map[string]any{"type": "string", "description": "Optional stable identifier for the block."},
+		"id":              nullableSchema("string", "Optional stable identifier for the block."),
 		"source_text":     map[string]any{"type": "string", "description": "Original text from the image. Use [unreadable] when the text cannot be read."},
 		"translated_text": map[string]any{"type": "string", "description": "Translated text for the block."},
 		"x":               map[string]any{"type": "number", "description": "Top-left X coordinate in original image pixels."},
 		"y":               map[string]any{"type": "number", "description": "Top-left Y coordinate in original image pixels."},
 		"width":           map[string]any{"type": "number", "minimum": 0, "description": "Block width in original image pixels."},
 		"height":          map[string]any{"type": "number", "minimum": 0, "description": "Block height in original image pixels."},
-		"rotation":        map[string]any{"type": "number", "description": "Optional clockwise rotation in degrees."},
-		"font_size":       map[string]any{"type": "number", "minimum": 0, "description": "Optional approximate font size in original image pixels."},
-		"font_family":     map[string]any{"type": "string", "description": "Optional suggested font family."},
-		"align":           map[string]any{"type": "string", "enum": []string{string(domain.TextAlignStart), string(domain.TextAlignCenter), string(domain.TextAlignEnd)}, "description": "Optional text alignment."},
-		"color":           map[string]any{"type": "string", "description": "Optional suggested text color."},
-		"opacity":         map[string]any{"type": "number", "minimum": 0, "maximum": 1, "description": "Optional text opacity in the range [0,1]."},
-		"line_height":     map[string]any{"type": "number", "minimum": 0, "description": "Optional line-height multiplier."},
-		"confidence":      map[string]any{"type": "number", "minimum": 0, "maximum": 1, "description": "Confidence estimate in the range [0,1]."},
-		"notes":           map[string]any{"type": "string", "description": "Optional notes about uncertainty or layout decisions."},
+		"rotation":        nullableNumberSchema("Optional clockwise rotation in degrees."),
+		"font_size":       nullableNumberSchema("Optional approximate font size in original image pixels.", "minimum", 0),
+		"font_family":     nullableSchema("string", "Optional suggested font family."),
+		"align":           nullableEnumSchema([]string{string(domain.TextAlignStart), string(domain.TextAlignCenter), string(domain.TextAlignEnd)}, "Optional text alignment."),
+		"color":           nullableSchema("string", "Optional suggested text color."),
+		"opacity":         nullableNumberSchema("Optional text opacity in the range [0,1].", "minimum", 0, "maximum", 1),
+		"line_height":     nullableNumberSchema("Optional line-height multiplier.", "minimum", 0),
+		"confidence":      nullableNumberSchema("Confidence estimate in the range [0,1].", "minimum", 0, "maximum", 1),
+		"notes":           nullableSchema("string", "Optional notes about uncertainty or layout decisions."),
+	}
+
+	blockRequired := []string{
+		"id",
+		"source_text",
+		"translated_text",
+		"x",
+		"y",
+		"width",
+		"height",
+		"rotation",
+		"font_size",
+		"font_family",
+		"align",
+		"color",
+		"opacity",
+		"line_height",
+		"confidence",
+		"notes",
 	}
 
 	return map[string]any{
@@ -72,7 +91,7 @@ func AnalysisJSONSchema() map[string]any {
 				"items": map[string]any{
 					"type":                 "object",
 					"properties":           blockProperties,
-					"required":             []string{"source_text", "translated_text", "x", "y", "width", "height"},
+					"required":             blockRequired,
 					"additionalProperties": false,
 				},
 			},
@@ -80,6 +99,36 @@ func AnalysisJSONSchema() map[string]any {
 		"required":             []string{"blocks"},
 		"additionalProperties": false,
 	}
+}
+
+func nullableSchema(valueType, description string) map[string]any {
+	return map[string]any{
+		"type":        []string{valueType, "null"},
+		"description": description,
+	}
+}
+
+func nullableNumberSchema(description string, constraints ...any) map[string]any {
+	schema := nullableSchema("number", description)
+	for i := 0; i+1 < len(constraints); i += 2 {
+		key, ok := constraints[i].(string)
+		if !ok {
+			continue
+		}
+		schema[key] = constraints[i+1]
+	}
+	return schema
+}
+
+func nullableEnumSchema(values []string, description string) map[string]any {
+	enumValues := make([]any, 0, len(values)+1)
+	for _, value := range values {
+		enumValues = append(enumValues, value)
+	}
+	enumValues = append(enumValues, nil)
+	schema := nullableSchema("string", description)
+	schema["enum"] = enumValues
+	return schema
 }
 
 func LoadInputImage(req AnalyzeRequest) (InputImage, error) {
