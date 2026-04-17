@@ -13,11 +13,6 @@ import (
 	base "godocmirrortranslator/internal/renderer"
 )
 
-const (
-	portraitWidthMM  = 210.0
-	portraitHeightMM = 297.0
-)
-
 type Renderer struct{}
 
 func New() *Renderer {
@@ -50,8 +45,8 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 		return nil, fmt.Errorf("read source image: %w", err)
 	}
 
-	pageWidth, pageHeight := a4Dimensions(page.Orientation)
-	scale := fitScale(pageWidth, pageHeight, float64(page.SourceImageWidth), float64(page.SourceImageHeight))
+	pageWidth, pageHeight := base.A4Dimensions(page.Orientation)
+	scale := base.FitScale(pageWidth, pageHeight, float64(page.SourceImageWidth), float64(page.SourceImageHeight))
 	imageWidth := float64(page.SourceImageWidth) * scale
 	imageHeight := float64(page.SourceImageHeight) * scale
 	offsetX := (pageWidth - imageWidth) / 2
@@ -117,25 +112,6 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 
 	b.WriteString("</svg>\n")
 	return []byte(b.String()), nil
-}
-
-func a4Dimensions(orientation domain.Orientation) (float64, float64) {
-	if orientation == domain.OrientationLandscape {
-		return portraitHeightMM, portraitWidthMM
-	}
-	return portraitWidthMM, portraitHeightMM
-}
-
-func fitScale(pageWidth, pageHeight, sourceWidth, sourceHeight float64) float64 {
-	if sourceWidth <= 0 || sourceHeight <= 0 {
-		return 1
-	}
-	widthScale := pageWidth / sourceWidth
-	heightScale := pageHeight / sourceHeight
-	if widthScale < heightScale {
-		return widthScale
-	}
-	return heightScale
 }
 
 func textAnchor(align domain.TextAlign) string {
