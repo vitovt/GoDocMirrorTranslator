@@ -75,35 +75,20 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString("  <style:style style:name=\"dp1\" style:family=\"drawing-page\"/>\n")
 	b.WriteString("  <style:style style:name=\"grImage\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\"/></style:style>\n")
 	for i, block := range page.Blocks {
-		text := renderedText(block)
-		fontFamily := block.FontFamily
-		if fontFamily == "" {
-			fontFamily = opts.FontFamily
-		}
-		fontSizeMM := block.FontSize * scale
-		if fontSizeMM <= 0 {
-			fontSizeMM = opts.DefaultFontSize * scale
-		}
-		if fontSizeMM < 0.9 {
-			fontSizeMM = 0.9
-		}
-		color := block.Color
-		if color == "" {
-			color = opts.TextColor
-		}
-		opacity := block.Opacity
-		if block.Opacity == 0 && opts.HasOpacity {
-			opacity = opts.Opacity
-		}
-		lineHeight := block.LineHeight
-		if lineHeight <= 0 {
-			lineHeight = domain.DefaultLineHeight
-		}
-		align := fodgAlign(block.Align)
-		b.WriteString(fmt.Sprintf("  <style:style style:name=\"gr%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" draw:auto-grow-width=\"false\" draw:textarea-horizontal-align=\"%s\" draw:textarea-vertical-align=\"top\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\" fo:min-height=\"0mm\" fo:min-width=\"0mm\"/><style:text-properties fo:color=\"%s\" fo:font-size=\"%s\" style:font-name=\"%s\" loext:opacity=\"%s\"/></style:style>\n", i+1, align, html.EscapeString(color), odfPoint(fontSizeMM), html.EscapeString(fontFamily), odfPercent(opacity)))
-		b.WriteString(fmt.Sprintf("  <style:style style:name=\"P%d\" style:family=\"paragraph\"><style:paragraph-properties fo:text-align=\"%s\" fo:margin-top=\"0mm\" fo:margin-bottom=\"0mm\" fo:line-height=\"%s\"/></style:style>\n", i+1, align, odfPercent(lineHeight)))
-		if strings.TrimSpace(text) == "" {
+		metrics := fodgMetricsForBlock(block, opts, scale, offsetX, offsetY)
+		if strings.TrimSpace(metrics.Text) == "" {
 			continue
+		}
+		b.WriteString(fmt.Sprintf("  <style:style style:name=\"gr%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" draw:auto-grow-width=\"false\" draw:textarea-horizontal-align=\"%s\" draw:textarea-vertical-align=\"top\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\" fo:min-height=\"0mm\" fo:min-width=\"0mm\"/><style:text-properties fo:color=\"%s\" fo:font-size=\"%s\" style:font-name=\"%s\" loext:opacity=\"%s\"%s/></style:style>\n", i+1, metrics.Align, html.EscapeString(metrics.Color), odfPoint(metrics.FontSizeMM), html.EscapeString(metrics.FontFamily), odfPercent(metrics.Opacity), fontWeightAttr(opts.FontWeight)))
+		b.WriteString(fmt.Sprintf("  <style:style style:name=\"P%d\" style:family=\"paragraph\"><style:paragraph-properties fo:text-align=\"%s\" fo:margin-top=\"0mm\" fo:margin-bottom=\"0mm\" fo:line-height=\"%s\"/></style:style>\n", i+1, metrics.Align, odfPercent(metrics.LineHeight)))
+		if opts.BackgroundEnabled && opts.BackgroundOpacity > 0 {
+			b.WriteString(fmt.Sprintf("  <style:style style:name=\"bg%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"solid\" draw:fill-color=\"%s\" draw:opacity=\"%s\"/></style:style>\n", i+1, html.EscapeString(opts.BackgroundColor), odfPercent(opts.BackgroundOpacity)))
+		}
+		if opts.OutlineWidth > 0 {
+			b.WriteString(fmt.Sprintf("  <style:style style:name=\"grOutline%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" draw:auto-grow-width=\"false\" draw:textarea-horizontal-align=\"%s\" draw:textarea-vertical-align=\"top\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\" fo:min-height=\"0mm\" fo:min-width=\"0mm\"/><style:text-properties fo:color=\"%s\" fo:font-size=\"%s\" style:font-name=\"%s\" loext:opacity=\"100.00%%\"%s/></style:style>\n", i+1, metrics.Align, html.EscapeString(opts.OutlineColor), odfPoint(metrics.FontSizeMM), html.EscapeString(metrics.FontFamily), fontWeightAttr(opts.FontWeight)))
+		}
+		if opts.ShadowEnabled && opts.ShadowOpacity > 0 {
+			b.WriteString(fmt.Sprintf("  <style:style style:name=\"grShadow%d\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" draw:auto-grow-height=\"false\" draw:auto-grow-width=\"false\" draw:textarea-horizontal-align=\"%s\" draw:textarea-vertical-align=\"top\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\" fo:min-height=\"0mm\" fo:min-width=\"0mm\"/><style:text-properties fo:color=\"%s\" fo:font-size=\"%s\" style:font-name=\"%s\" loext:opacity=\"%s\"%s/></style:style>\n", i+1, metrics.Align, html.EscapeString(opts.ShadowColor), odfPoint(metrics.FontSizeMM), html.EscapeString(metrics.FontFamily), odfPercent(opts.ShadowOpacity), fontWeightAttr(opts.FontWeight)))
 		}
 	}
 	b.WriteString(" </office:automatic-styles>\n")
@@ -114,46 +99,51 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString("  </draw:frame>\n")
 
 	for i, block := range page.Blocks {
-		text := renderedText(block)
-		if strings.TrimSpace(text) == "" {
+		metrics := fodgMetricsForBlock(block, opts, scale, offsetX, offsetY)
+		if strings.TrimSpace(metrics.Text) == "" {
 			continue
 		}
-		fontSizeMM := block.FontSize * scale
-		if fontSizeMM <= 0 {
-			fontSizeMM = opts.DefaultFontSize * scale
-		}
-		if fontSizeMM < 0.9 {
-			fontSizeMM = 0.9
-		}
-		lineHeight := block.LineHeight
-		if lineHeight <= 0 {
-			lineHeight = domain.DefaultLineHeight
+		hasReadabilityLayers := (opts.BackgroundEnabled && opts.BackgroundOpacity > 0) || opts.OutlineWidth > 0 || (opts.ShadowEnabled && opts.ShadowOpacity > 0)
+		baseZ := i + 1
+		mainZ := baseZ
+		if hasReadabilityLayers {
+			baseZ = (i * 10) + 1
+			mainZ = baseZ + 6
 		}
 
-		frameX := offsetX + (block.X * scale)
-		frameY := offsetY + (block.Y * scale)
-		frameWidth := block.Width * scale
-		if frameWidth <= 0 {
-			frameWidth = fontSizeMM * 3
-		}
-		frameHeight := block.Height * scale
-		minHeight := frameMinHeight(text, fontSizeMM, lineHeight)
-		if frameHeight < minHeight {
-			frameHeight = minHeight
+		if opts.BackgroundEnabled && opts.BackgroundOpacity > 0 {
+			paddingX := opts.BackgroundPaddingX * scale
+			paddingY := opts.BackgroundPaddingY * scale
+			cornerRadius := opts.BackgroundRadius * scale
+			b.WriteString(fmt.Sprintf("  <draw:rect draw:style-name=\"bg%d\" draw:layer=\"layout\" svg:x=\"%s\" svg:y=\"%s\" svg:width=\"%s\" svg:height=\"%s\" draw:z-index=\"%d\"%s%s/>\n",
+				i+1,
+				odfLength(metrics.FrameX-paddingX),
+				odfLength(metrics.FrameY-paddingY),
+				odfLength(metrics.FrameWidth+(paddingX*2)),
+				odfLength(metrics.FrameHeight+(paddingY*2)),
+				baseZ,
+				metrics.TransformAttr,
+				cornerRadiusAttr(cornerRadius),
+			))
 		}
 
-		transformAttr := ""
-		if block.Rotation != 0 {
-			transformAttr = fmt.Sprintf(" draw:transform=\"rotate (%0.10f)\"", block.Rotation*(math.Pi/180))
+		if opts.OutlineWidth > 0 {
+			outlineOffset := opts.OutlineWidth * scale
+			for idx, offset := range [][2]float64{
+				{-outlineOffset, 0},
+				{outlineOffset, 0},
+				{0, -outlineOffset},
+				{0, outlineOffset},
+			} {
+				writeTextFrame(&b, fmt.Sprintf("grOutline%d", i+1), fmt.Sprintf("P%d", i+1), metrics, metrics.FrameX+offset[0], metrics.FrameY+offset[1], baseZ+idx+1)
+			}
 		}
 
-		b.WriteString(fmt.Sprintf("  <draw:frame draw:style-name=\"gr%d\" draw:text-style-name=\"P%d\" draw:layer=\"layout\" svg:x=\"%s\" svg:y=\"%s\" svg:width=\"%s\" svg:height=\"%s\" draw:z-index=\"%d\"%s>\n", i+1, i+1, odfLength(frameX), odfLength(frameY), odfLength(frameWidth), odfLength(frameHeight), i+1, transformAttr))
-		b.WriteString("   <draw:text-box>\n")
-		for _, line := range strings.Split(text, "\n") {
-			b.WriteString(fmt.Sprintf("    <text:p text:style-name=\"P%d\">%s</text:p>\n", i+1, html.EscapeString(line)))
+		if opts.ShadowEnabled && opts.ShadowOpacity > 0 {
+			writeTextFrame(&b, fmt.Sprintf("grShadow%d", i+1), fmt.Sprintf("P%d", i+1), metrics, metrics.FrameX+(opts.ShadowOffsetX*scale), metrics.FrameY+(opts.ShadowOffsetY*scale), baseZ+5)
 		}
-		b.WriteString("   </draw:text-box>\n")
-		b.WriteString("  </draw:frame>\n")
+
+		writeTextFrame(&b, fmt.Sprintf("gr%d", i+1), fmt.Sprintf("P%d", i+1), metrics, metrics.FrameX, metrics.FrameY, mainZ)
 	}
 
 	b.WriteString(" </draw:page></office:drawing></office:body>\n")
@@ -189,6 +179,124 @@ func frameMinHeight(text string, fontSizeMM, lineHeight float64) float64 {
 		return height
 	}
 	return height + float64(lineCount-1)*(fontSizeMM*lineHeight)
+}
+
+type fodgTextMetrics struct {
+	Text          string
+	Lines         []string
+	FontFamily    string
+	FontSizeMM    float64
+	Color         string
+	Opacity       float64
+	LineHeight    float64
+	Align         string
+	FrameX        float64
+	FrameY        float64
+	FrameWidth    float64
+	FrameHeight   float64
+	TransformAttr string
+}
+
+func fodgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale, offsetX, offsetY float64) fodgTextMetrics {
+	text := renderedText(block)
+	fontFamily := block.FontFamily
+	if fontFamily == "" {
+		fontFamily = opts.FontFamily
+	}
+	fontSizeMM := block.FontSize * scale
+	if fontSizeMM <= 0 {
+		fontSizeMM = opts.DefaultFontSize * scale
+	}
+	if fontSizeMM < 0.9 {
+		fontSizeMM = 0.9
+	}
+	color := block.Color
+	if color == "" {
+		color = opts.TextColor
+	}
+	opacity := block.Opacity
+	if block.Opacity == 0 && opts.HasOpacity {
+		opacity = opts.Opacity
+	}
+	lineHeight := block.LineHeight
+	if lineHeight <= 0 {
+		lineHeight = domain.DefaultLineHeight
+	}
+
+	frameX := offsetX + (block.X * scale)
+	frameY := offsetY + (block.Y * scale)
+	frameWidth := block.Width * scale
+	if frameWidth <= 0 {
+		frameWidth = estimatedFrameWidth(text, fontSizeMM)
+	}
+	frameHeight := block.Height * scale
+	minHeight := frameMinHeight(text, fontSizeMM, lineHeight)
+	if frameHeight < minHeight {
+		frameHeight = minHeight
+	}
+	transformAttr := ""
+	if block.Rotation != 0 {
+		transformAttr = fmt.Sprintf(" draw:transform=\"rotate (%0.10f)\"", block.Rotation*(math.Pi/180))
+	}
+
+	return fodgTextMetrics{
+		Text:          text,
+		Lines:         strings.Split(text, "\n"),
+		FontFamily:    fontFamily,
+		FontSizeMM:    fontSizeMM,
+		Color:         color,
+		Opacity:       opacity,
+		LineHeight:    lineHeight,
+		Align:         fodgAlign(block.Align),
+		FrameX:        frameX,
+		FrameY:        frameY,
+		FrameWidth:    frameWidth,
+		FrameHeight:   frameHeight,
+		TransformAttr: transformAttr,
+	}
+}
+
+func estimatedFrameWidth(text string, fontSizeMM float64) float64 {
+	maxLen := 1
+	for _, line := range strings.Split(text, "\n") {
+		if lineLen := len([]rune(line)); lineLen > maxLen {
+			maxLen = lineLen
+		}
+	}
+	return float64(maxLen) * fontSizeMM * 0.62
+}
+
+func fontWeightAttr(weight string) string {
+	if weight == "bold" {
+		return " fo:font-weight=\"bold\""
+	}
+	return ""
+}
+
+func cornerRadiusAttr(radius float64) string {
+	if radius <= 0 {
+		return ""
+	}
+	return fmt.Sprintf(" draw:corner-radius=\"%s\"", odfLength(radius))
+}
+
+func writeTextFrame(b *strings.Builder, graphicStyleName, paragraphStyleName string, metrics fodgTextMetrics, frameX, frameY float64, zIndex int) {
+	b.WriteString(fmt.Sprintf("  <draw:frame draw:style-name=\"%s\" draw:text-style-name=\"%s\" draw:layer=\"layout\" svg:x=\"%s\" svg:y=\"%s\" svg:width=\"%s\" svg:height=\"%s\" draw:z-index=\"%d\"%s>\n",
+		graphicStyleName,
+		paragraphStyleName,
+		odfLength(frameX),
+		odfLength(frameY),
+		odfLength(metrics.FrameWidth),
+		odfLength(metrics.FrameHeight),
+		zIndex,
+		metrics.TransformAttr,
+	))
+	b.WriteString("   <draw:text-box>\n")
+	for _, line := range metrics.Lines {
+		b.WriteString(fmt.Sprintf("    <text:p text:style-name=\"%s\">%s</text:p>\n", paragraphStyleName, html.EscapeString(line)))
+	}
+	b.WriteString("   </draw:text-box>\n")
+	b.WriteString("  </draw:frame>\n")
 }
 
 func odfLength(valueMM float64) string {
