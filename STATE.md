@@ -27,6 +27,8 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Initial Fyne desktop GUI shell with validation, async processing, config persistence, and picker adapters
 - GUI-controlled optional layout JSON export persisted through GUI preferences
 - GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
+- README, example config, sample input/output assets, and an Android app icon are now checked into the repo as v1 deliverables
+- `make android` has been validated locally with the available Fyne + Android SDK toolchain and now emits `build/android/godocmirrortranslator.apk`
 
 ## Architecture constraints
 - Domain model must stay provider-agnostic and renderer-agnostic.
@@ -41,7 +43,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - GUI platform differences are handled at the edge: desktop window sizing/folder opening stays in the GUI layer, while mobile uses file-oriented output actions without changing application-core render behavior.
 
 ## Repository conventions
-- `cmd/app` is the application entrypoint.
+- `cmd/app` is the application entrypoint and now also contains the Android app icon used by `make android`.
 - `internal/domain` holds core models and validation/defaulting logic.
 - `internal/app` holds use cases, render orchestration, file output, and filename templating.
 - `internal/config` holds local config defaults, path resolution, environment overlays, masking, and persistence.
@@ -57,6 +59,9 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - `internal/cli` contains CLI wiring only.
 - `internal/gui` contains the Fyne shell, validation logic, picker adapter, and GUI tests.
 - `tests/integration` contains render-flow integration tests.
+- `examples/` contains checked-in example configuration files.
+- `samples/input` and `samples/output` contain checked-in sample assets for manual verification and packaging smoke checks.
+- `README.md` documents setup, CLI/GUI usage, config precedence, and sample asset locations.
 
 ## Validation rules
 - Prefer the repository `make` targets as the primary workflow entrypoints.
@@ -67,13 +72,13 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - In this environment, set `GOCACHE=/tmp/go-build` when the default Go cache is not writable.
 
 ## Current milestone
-Milestone 1 backend foundation and the initial desktop GUI shell are in place: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, live OpenAI and Gemini adapters, CLI wiring, GUI shell, local config persistence, provider runtime-config injection, baseline tests, and an initial SVG golden snapshot.
+Milestone 1 is effectively complete in the current repo: repo skeleton, domain model, renderer interface, SVG renderer, mock provider, live OpenAI and Gemini adapters, CLI wiring, desktop/mobile-aware GUI shell, local config persistence, provider runtime-config injection, coverage targets for core/config/renderer/provider packages, README, example config, sample assets, Android app icon, validated Android APK packaging, baseline tests, and an SVG golden snapshot.
 
 ## Next implementation targets
-1. Polish the GUI shell for Android/desktop differences, richer success/error UX, and additional provider-specific settings.
-2. Expand golden files and broader renderer/provider tests.
-3. Reconcile the accepted spec decisions back into `SPEC.md`.
-4. Harden provider behavior around parse failures, refusals, and larger-image handling as real usage reveals gaps.
+1. Polish the GUI shell further for Android/desktop differences and additional provider-specific settings as real usage drives them.
+2. Expand golden files and broader renderer/provider edge-case tests.
+3. Start the v2 FODG renderer slice without disturbing the current SVG path.
+4. Add packaging and release documentation around the validated desktop/Android build flow.
 
 ## Open decisions
 - Exact native picker package choice
