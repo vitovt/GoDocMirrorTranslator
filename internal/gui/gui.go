@@ -24,6 +24,7 @@ import (
 const (
 	appID       = "com.vitovt.godocmirrortranslator"
 	windowTitle = "Handwritten Overlay Translator"
+	narrowWidth = 860
 )
 
 var supportedImageExtensions = []string{".jpg", ".jpeg", ".png", ".webp"}
@@ -38,6 +39,13 @@ type UI struct {
 
 	configPath string
 	cfg        config.Config
+
+	sidePanelToggle   *widget.Button
+	settingsTabs      *container.AppTabs
+	sidePanel         *fyne.Container
+	layoutRoot        *responsiveRoot
+	sidePanelVisible  bool
+	lastCompactLayout bool
 
 	inputBrowseButton  *widget.Button
 	outputBrowseButton *widget.Button
@@ -110,6 +118,8 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 		configPath:  configPath,
 		cfg:         cfg,
 	}
+	ui.sidePanelVisible = !isMobileDevice(device)
+	ui.lastCompactLayout = isMobileDevice(device)
 
 	ui.inputEntry = widget.NewEntry()
 	ui.inputEntry.SetPlaceHolder("Select a source image")
@@ -148,6 +158,9 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.openAIImageDetail = widget.NewSelect([]string{"auto", "low", "high"}, func(string) {
 		ui.refreshValidation()
 	})
+	ui.sidePanelToggle = widget.NewButtonWithIcon("", theme.MenuIcon(), func() {
+		ui.toggleSidePanel()
+	})
 
 	ui.saveButton = widget.NewButtonWithIcon("Save Settings", theme.DocumentSaveIcon(), func() {
 		if _, err := ui.saveSettings(); err != nil {
@@ -177,10 +190,12 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.detailsEntry.Disable()
 
 	ui.installChangeHandlers()
-	window.SetContent(ui.content())
+	ui.layoutRoot = newResponsiveRoot(ui.content(), ui.handleResponsiveLayout)
+	window.SetContent(ui.layoutRoot)
 	ui.applyConfig(cfg)
 	ui.syncModelOptions()
 	ui.syncAdvancedOptions()
+	ui.updateSidePanelToggle()
 	ui.refreshValidation()
 
 	return ui
@@ -190,25 +205,42 @@ func (u *UI) content() fyne.CanvasObject {
 	inputRow := container.NewBorder(nil, nil, nil, u.inputBrowseButton, u.inputEntry)
 	outputRow := container.NewBorder(nil, nil, nil, u.outputBrowseButton, u.outputDirEntry)
 
-	form := widget.NewForm(
+	mainForm := widget.NewForm(
 		widget.NewFormItem("Input Image", inputRow),
 		widget.NewFormItem("Output Folder", outputRow),
 		widget.NewFormItem("Filename Template", u.templateEntry),
-		widget.NewFormItem("Provider", u.providerSelect),
-		widget.NewFormItem("Model", u.modelSelect),
 		widget.NewFormItem("Source Language", u.sourceLangEntry),
 		widget.NewFormItem("Target Language", u.targetLangEntry),
+		widget.NewFormItem("Preserve Columns", u.preserveColumns),
+	)
+
+	aiForm := widget.NewForm(
+		widget.NewFormItem("Provider", u.providerSelect),
+		widget.NewFormItem("Model", u.modelSelect),
 		widget.NewFormItem("Timeout", u.timeoutEntry),
+		widget.NewFormItem("Save Layout JSON", u.saveLayoutJSON),
+		widget.NewFormItem("OpenAI Image Detail", u.openAIImageDetail),
+		widget.NewFormItem("OpenAI API Key", u.openAIKeyEntry),
+		widget.NewFormItem("Gemini API Key", u.geminiKeyEntry),
+	)
+
+	designForm := widget.NewForm(
 		widget.NewFormItem("Font Family", u.fontFamilyEntry),
 		widget.NewFormItem("Font Size", u.fontSizeEntry),
 		widget.NewFormItem("Overlay Color", u.colorEntry),
 		widget.NewFormItem("Overlay Opacity", u.opacityEntry),
-		widget.NewFormItem("Preserve Columns", u.preserveColumns),
-		widget.NewFormItem("Save Layout JSON", u.saveLayoutJSON),
-		widget.NewFormItem("OpenAI API Key", u.openAIKeyEntry),
-		widget.NewFormItem("Gemini API Key", u.geminiKeyEntry),
-		widget.NewFormItem("OpenAI Image Detail", u.openAIImageDetail),
 	)
+	u.settingsTabs = container.NewAppTabs(
+		container.NewTabItem("Main", container.NewVScroll(mainForm)),
+		container.NewTabItem("AI Settings", container.NewVScroll(aiForm)),
+		container.NewTabItem("Design Settings", container.NewVScroll(designForm)),
+	)
+	u.settingsTabs.SetTabLocation(container.TabLocationLeading)
+	u.settingsTabs.SelectIndex(0)
+	u.sidePanel = container.NewPadded(u.settingsTabs)
+	if !u.sidePanelVisible {
+		u.sidePanel.Hide()
+	}
 
 	actions := container.NewHBox(
 		u.saveButton,
@@ -218,14 +250,28 @@ func (u *UI) content() fyne.CanvasObject {
 		u.progress,
 	)
 
-	status := container.NewVBox(
-		u.statusLabel,
-		u.validationLabel,
-		widget.NewLabel("Details"),
-		u.detailsEntry,
+	topBar := container.NewBorder(
+		nil,
+		widget.NewSeparator(),
+		nil,
+		nil,
+		container.NewHBox(
+			u.sidePanelToggle,
+			widget.NewLabel("Settings"),
+			layout.NewSpacer(),
+		),
 	)
 
-	return container.NewBorder(nil, container.NewVBox(actions, status), nil, nil, container.NewVScroll(form))
+	statusHeader := container.NewVBox(
+		u.statusLabel,
+		u.validationLabel,
+		widget.NewSeparator(),
+		widget.NewLabel("Details"),
+	)
+	status := container.NewBorder(statusHeader, nil, nil, nil, u.detailsEntry)
+
+	center := container.NewBorder(nil, nil, u.sidePanel, nil, container.NewPadded(status))
+	return container.NewBorder(topBar, actions, nil, nil, center)
 }
 
 func (u *UI) installChangeHandlers() {
@@ -628,6 +674,53 @@ func (u *UI) hasOutputTarget() bool {
 	return strings.TrimSpace(u.lastOutputDir) != ""
 }
 
+func (u *UI) toggleSidePanel() {
+	u.sidePanelVisible = !u.sidePanelVisible
+	u.applySidePanelVisibility()
+}
+
+func (u *UI) handleResponsiveLayout(size fyne.Size) {
+	compact := u.isCompactLayout(size)
+	if compact && !u.lastCompactLayout {
+		u.sidePanelVisible = false
+	}
+	u.lastCompactLayout = compact
+	u.applySidePanelVisibility()
+}
+
+func (u *UI) isCompactLayout(size fyne.Size) bool {
+	if isMobileDevice(u.device) {
+		return true
+	}
+	if size.Width <= 0 {
+		return false
+	}
+	return size.Width < narrowWidth
+}
+
+func (u *UI) applySidePanelVisibility() {
+	if u.sidePanel == nil {
+		return
+	}
+	if u.sidePanelVisible {
+		u.sidePanel.Show()
+	} else {
+		u.sidePanel.Hide()
+	}
+	u.updateSidePanelToggle()
+}
+
+func (u *UI) updateSidePanelToggle() {
+	if u.sidePanelToggle == nil {
+		return
+	}
+	if u.sidePanelVisible {
+		u.sidePanelToggle.SetText("Hide Panel")
+		return
+	}
+	u.sidePanelToggle.SetText("Show Panel")
+}
+
 func (u *UI) interactiveControls() []disableable {
 	return []disableable{
 		u.inputBrowseButton,
@@ -657,4 +750,49 @@ func (u *UI) interactiveControls() []disableable {
 type disableable interface {
 	Disable()
 	Enable()
+}
+
+type responsiveRoot struct {
+	widget.BaseWidget
+	content  fyne.CanvasObject
+	onLayout func(fyne.Size)
+}
+
+func newResponsiveRoot(content fyne.CanvasObject, onLayout func(fyne.Size)) *responsiveRoot {
+	root := &responsiveRoot{
+		content:  content,
+		onLayout: onLayout,
+	}
+	root.ExtendBaseWidget(root)
+	return root
+}
+
+func (r *responsiveRoot) CreateRenderer() fyne.WidgetRenderer {
+	return &responsiveRootRenderer{root: r}
+}
+
+type responsiveRootRenderer struct {
+	root *responsiveRoot
+}
+
+func (r *responsiveRootRenderer) Layout(size fyne.Size) {
+	if r.root.onLayout != nil {
+		r.root.onLayout(size)
+	}
+	r.root.content.Move(fyne.NewPos(0, 0))
+	r.root.content.Resize(size)
+}
+
+func (r *responsiveRootRenderer) MinSize() fyne.Size {
+	return r.root.content.MinSize()
+}
+
+func (r *responsiveRootRenderer) Refresh() {
+	r.root.content.Refresh()
+}
+
+func (r *responsiveRootRenderer) Destroy() {}
+
+func (r *responsiveRootRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.root.content}
 }

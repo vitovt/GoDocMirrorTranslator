@@ -267,10 +267,70 @@ func TestNewUIDisablesLayoutJSONByDefault(t *testing.T) {
 	}
 }
 
+func TestNewUIDefaultsToMainTabWithVisibleDesktopPanel(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	if ui.settingsTabs == nil {
+		t.Fatal("settingsTabs = nil, want settings tab container")
+	}
+	if ui.settingsTabs.SelectedIndex() != 0 {
+		t.Fatalf("SelectedIndex() = %d, want main tab at index 0", ui.settingsTabs.SelectedIndex())
+	}
+	if !ui.sidePanelVisible {
+		t.Fatal("side panel should start enabled on desktop width")
+	}
+	if ui.sidePanelToggle.Text != "Hide Panel" {
+		t.Fatalf("sidePanelToggle.Text = %q, want Hide Panel", ui.sidePanelToggle.Text)
+	}
+}
+
 func TestNewUIUsesMobileOutputActionLabel(t *testing.T) {
 	ui, _, _ := newTestUIWithDevice(t, fakeDevice{mobile: true})
 	if ui.openOutputButton.Text != "Open Output File" {
 		t.Fatalf("openOutputButton.Text = %q, want mobile file label", ui.openOutputButton.Text)
+	}
+	if ui.sidePanelVisible {
+		t.Fatal("side panel should start hidden on mobile")
+	}
+	if ui.sidePanelToggle.Text != "Show Panel" {
+		t.Fatalf("sidePanelToggle.Text = %q, want Show Panel", ui.sidePanelToggle.Text)
+	}
+}
+
+func TestToggleSidePanelShowsAndHidesSettings(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	ui.toggleSidePanel()
+	if ui.sidePanelVisible {
+		t.Fatal("side panel should hide after toggle")
+	}
+	if ui.sidePanelToggle.Text != "Show Panel" {
+		t.Fatalf("sidePanelToggle.Text = %q, want Show Panel", ui.sidePanelToggle.Text)
+	}
+
+	ui.toggleSidePanel()
+	if !ui.sidePanelVisible {
+		t.Fatal("side panel should show after second toggle")
+	}
+	if ui.sidePanelToggle.Text != "Hide Panel" {
+		t.Fatalf("sidePanelToggle.Text = %q, want Hide Panel", ui.sidePanelToggle.Text)
+	}
+}
+
+func TestResponsiveLayoutAutoHidesSidePanelWhenNarrow(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	ui.handleResponsiveLayout(fyne.NewSize(1200, 760))
+	if !ui.sidePanelVisible {
+		t.Fatal("side panel should remain visible on wide layout")
+	}
+
+	ui.handleResponsiveLayout(fyne.NewSize(640, 760))
+	if ui.sidePanelVisible {
+		t.Fatal("side panel should auto-hide on narrow layout")
+	}
+	if ui.sidePanelToggle.Text != "Show Panel" {
+		t.Fatalf("sidePanelToggle.Text = %q, want Show Panel after auto-hide", ui.sidePanelToggle.Text)
 	}
 }
 
@@ -570,6 +630,9 @@ func newTestUIWithPicker(t *testing.T, device fyne.Device, application *appcore.
 	if device == nil {
 		device = fyneApp.Driver().Device()
 	}
+	if !isMobileDevice(device) {
+		window.Resize(fyne.NewSize(960, 760))
+	}
 	ui := newUI(context.Background(), fyneApp, device, window, application, cfgPath, cfg, picker)
 	return ui, tempDir, cfgPath
 }
@@ -598,6 +661,9 @@ func newTestUIWithApplication(t *testing.T, device fyne.Device, application *app
 	window := fyneApp.NewWindow("test")
 	if device == nil {
 		device = fyneApp.Driver().Device()
+	}
+	if !isMobileDevice(device) {
+		window.Resize(fyne.NewSize(960, 760))
 	}
 	ui := newUI(context.Background(), fyneApp, device, window, application, cfgPath, cfg, noopPicker{})
 	return ui, tempDir, cfgPath
