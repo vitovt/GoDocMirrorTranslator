@@ -27,6 +27,8 @@ func Run(ctx context.Context, args []string, stdout io.Writer, stderr io.Writer)
 	switch args[0] {
 	case "render":
 		return runRender(ctx, application, args[1:], stdout, stderr)
+	case "rerender":
+		return runRerender(ctx, application, args[1:], stdout, stderr)
 	case "providers":
 		if len(args) > 1 && args[1] == "list" {
 			for _, name := range application.ProviderNames() {
@@ -128,6 +130,7 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 	fs.Float64Var(&req.RenderOptions.Opacity, "opacity", req.RenderOptions.Opacity, "Fallback text opacity")
 	fs.StringVar(&req.RenderOptions.TextColor, "color", req.RenderOptions.TextColor, "Fallback text color")
 	fs.DurationVar(&req.Timeout, "timeout", req.Timeout, "Provider request timeout")
+	fs.BoolVar(&req.OverwriteExisting, "overwrite", false, "Overwrite the exact output path instead of generating a suffixed filename")
 	fs.BoolVar(&req.SaveLayoutJSON, "save-layout-json", false, "Write layout JSON next to the rendered output")
 	verbose := fs.Bool("verbose", false, "Print extra result information")
 	fs.StringVar(&configPath, "config", configPath, "Optional config file path")
@@ -149,6 +152,76 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 	_, _ = fmt.Fprintln(stdout, result.OutputPath)
 	if *verbose && result.LayoutJSONPath != "" {
 		_, _ = fmt.Fprintf(stdout, "layout_json=%s\n", result.LayoutJSONPath)
+	}
+	return 0
+}
+
+func runRerender(ctx context.Context, application *app.Application, args []string, stdout io.Writer, stderr io.Writer) int {
+	showHelpOnly := hasHelpFlag(args)
+	configPath := ""
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--config" {
+			if i+1 < len(args) {
+				configPath = args[i+1]
+			}
+			continue
+		}
+		if strings.HasPrefix(args[i], "--config=") {
+			configPath = strings.TrimPrefix(args[i], "--config=")
+		}
+	}
+
+	cfg := config.Default()
+	if !showHelpOnly {
+		var err error
+		cfg, _, err = config.LoadEffective(configPath)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "rerender: load config: %v\n", err)
+			return 1
+		}
+	}
+
+	req := app.RerenderRequest{
+		OutputDir:      cfg.DefaultOutputDir,
+		OutputTemplate: cfg.OutputTemplate,
+		RendererName:   cfg.DefaultRenderer,
+		RenderOptions:  cfg.RenderOptions(),
+	}
+
+	fs := flag.NewFlagSet("rerender", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	fs.Usage = func() {
+		printRerenderUsage(stderr, fs)
+	}
+
+	fs.StringVar(&req.LayoutJSONPath, "layout-json", "", "Path to the saved layout JSON file")
+	fs.StringVar(&req.OutputDir, "output-dir", req.OutputDir, "Directory for generated files")
+	fs.StringVar(&req.OutputTemplate, "output-template", req.OutputTemplate, "Filename template for rendered output")
+	fs.StringVar(&req.RendererName, "renderer", req.RendererName, "Renderer to use")
+	fs.StringVar(&req.RenderOptions.FontFamily, "font-family", req.RenderOptions.FontFamily, "Fallback font family")
+	fs.Float64Var(&req.RenderOptions.DefaultFontSize, "font-size", req.RenderOptions.DefaultFontSize, "Fallback font size")
+	fs.Float64Var(&req.RenderOptions.Opacity, "opacity", req.RenderOptions.Opacity, "Fallback text opacity")
+	fs.StringVar(&req.RenderOptions.TextColor, "color", req.RenderOptions.TextColor, "Fallback text color")
+	fs.BoolVar(&req.OverwriteExisting, "overwrite", false, "Overwrite the exact output path instead of generating a suffixed filename")
+	verbose := fs.Bool("verbose", false, "Print extra result information")
+	fs.StringVar(&configPath, "config", configPath, "Optional config file path")
+
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+
+	result, err := application.Rerender(ctx, req)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "rerender: %v\n", err)
+		return 1
+	}
+
+	_, _ = fmt.Fprintln(stdout, result.OutputPath)
+	if *verbose {
+		_, _ = fmt.Fprintf(stdout, "layout_json=%s\n", req.LayoutJSONPath)
 	}
 	return 0
 }
@@ -338,6 +411,7 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Commands:")
 	_, _ = fmt.Fprintln(w, "  render")
+	_, _ = fmt.Fprintln(w, "  rerender")
 	_, _ = fmt.Fprintln(w, "  gui")
 	_, _ = fmt.Fprintln(w, "  config set")
 	_, _ = fmt.Fprintln(w, "  config get")
@@ -348,6 +422,7 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Key render flags:")
 	_, _ = fmt.Fprintln(w, "  --input PATH")
+	_, _ = fmt.Fprintln(w, "  --layout-json PATH")
 	_, _ = fmt.Fprintln(w, "  --output-dir DIR")
 	_, _ = fmt.Fprintln(w, "  --output-template TEMPLATE")
 	_, _ = fmt.Fprintln(w, "  --provider NAME")
@@ -360,6 +435,7 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  --opacity NUMBER")
 	_, _ = fmt.Fprintln(w, "  --color VALUE")
 	_, _ = fmt.Fprintln(w, "  --timeout DURATION")
+	_, _ = fmt.Fprintln(w, "  --overwrite")
 	_, _ = fmt.Fprintln(w, "  --save-layout-json")
 	_, _ = fmt.Fprintln(w, "  --config PATH")
 	_, _ = fmt.Fprintln(w, "")
@@ -367,6 +443,7 @@ func printHelp(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider mock")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider openai --model gpt-4.1-mini --save-layout-json")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --renderer fodg")
+	_, _ = fmt.Fprintln(w, "  app rerender --layout-json out/page.json --renderer fodg")
 	_, _ = fmt.Fprintln(w, "  app config set default_provider openai")
 	_, _ = fmt.Fprintln(w, "  app config set default_renderer fodg")
 	_, _ = fmt.Fprintln(w, "  app config set provider_options.openai.image_detail high")
@@ -386,7 +463,24 @@ func printRenderUsage(w io.Writer, fs *flag.FlagSet) {
 	_, _ = fmt.Fprintln(w, "Examples:")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider mock")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --provider openai --model gpt-4.1-mini --save-layout-json")
+	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --overwrite")
 	_, _ = fmt.Fprintln(w, "  app render --input page.png --output-dir out --renderer fodg")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Config precedence: built-in defaults, config file, environment, CLI flags")
+}
+
+func printRerenderUsage(w io.Writer, fs *flag.FlagSet) {
+	_, _ = fmt.Fprintln(w, "Usage: app rerender [flags]")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Render a new SVG or FODG from an existing layout JSON without calling the AI provider again.")
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Flags:")
+	fs.PrintDefaults()
+	_, _ = fmt.Fprintln(w, "")
+	_, _ = fmt.Fprintln(w, "Examples:")
+	_, _ = fmt.Fprintln(w, "  app rerender --layout-json out/page.json")
+	_, _ = fmt.Fprintln(w, "  app rerender --layout-json out/page.json --renderer fodg --output-template review_copy.fodg")
+	_, _ = fmt.Fprintln(w, "  app rerender --layout-json out/page.json --overwrite")
 	_, _ = fmt.Fprintln(w, "")
 	_, _ = fmt.Fprintln(w, "Config precedence: built-in defaults, config file, environment, CLI flags")
 }

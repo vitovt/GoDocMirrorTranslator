@@ -50,6 +50,11 @@ type RerenderRequest struct {
 	Now               func() time.Time
 }
 
+type OutputTargets struct {
+	OutputPath     string
+	LayoutJSONPath string
+}
+
 type RenderResult struct {
 	OutputPath     string
 	LayoutJSONPath string
@@ -72,6 +77,81 @@ func (a *Application) ValidateInputImage(path string) error {
 func (a *Application) ValidateLayoutJSON(path string) error {
 	_, err := loadSavedLayout(path)
 	return err
+}
+
+func (a *Application) PlannedRenderTargets(req RenderRequest) (OutputTargets, error) {
+	if req.InputPath == "" {
+		return OutputTargets{}, fmt.Errorf("input path is required")
+	}
+	if req.ProviderName == "" {
+		req.ProviderName = "mock"
+	}
+	if req.RendererName == "" {
+		req.RendererName = "svg"
+	}
+	if req.OutputTemplate == "" {
+		req.OutputTemplate = DefaultOutputTemplate
+	}
+	if req.Now == nil {
+		req.Now = time.Now
+	}
+	if req.OutputDir == "" {
+		req.OutputDir = filepath.Dir(req.InputPath)
+	}
+
+	rendererImpl, ok := a.Renderers[req.RendererName]
+	if !ok {
+		return OutputTargets{}, fmt.Errorf("unknown renderer %q", req.RendererName)
+	}
+
+	outputName := outputFileName(req.OutputTemplate, req.ProviderName, req.Model, req.InputPath, req.Now(), rendererImpl.FileExtension())
+	targets := OutputTargets{
+		OutputPath: filepath.Join(req.OutputDir, outputName),
+	}
+	if req.SaveLayoutJSON {
+		targets.LayoutJSONPath = strings.TrimSuffix(targets.OutputPath, filepath.Ext(targets.OutputPath)) + ".json"
+	}
+	return targets, nil
+}
+
+func (a *Application) PlannedRerenderTargets(req RerenderRequest) (OutputTargets, error) {
+	if strings.TrimSpace(req.LayoutJSONPath) == "" {
+		return OutputTargets{}, fmt.Errorf("layout json path is required")
+	}
+	if req.RendererName == "" {
+		req.RendererName = "svg"
+	}
+	if req.OutputTemplate == "" {
+		req.OutputTemplate = DefaultOutputTemplate
+	}
+	if req.Now == nil {
+		req.Now = time.Now
+	}
+	if req.OutputDir == "" {
+		req.OutputDir = filepath.Dir(req.LayoutJSONPath)
+	}
+
+	rendererImpl, ok := a.Renderers[req.RendererName]
+	if !ok {
+		return OutputTargets{}, fmt.Errorf("unknown renderer %q", req.RendererName)
+	}
+
+	page, err := loadSavedLayout(req.LayoutJSONPath)
+	if err != nil {
+		return OutputTargets{}, err
+	}
+
+	outputName := outputFileName(
+		req.OutputTemplate,
+		page.Metadata["provider"],
+		page.Metadata["model"],
+		page.SourceImagePath,
+		req.Now(),
+		rendererImpl.FileExtension(),
+	)
+	return OutputTargets{
+		OutputPath: filepath.Join(req.OutputDir, outputName),
+	}, nil
 }
 
 func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResult, error) {

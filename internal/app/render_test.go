@@ -239,6 +239,64 @@ func TestRerenderUsesSavedLayoutWithoutCallingProvider(t *testing.T) {
 	}
 }
 
+func TestPlannedRenderTargetsIncludesLayoutJSON(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	application := New("test")
+	targets, err := application.PlannedRenderTargets(RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("PlannedRenderTargets() error = %v", err)
+	}
+	if targets.OutputPath != filepath.Join(tempDir, "translated.svg") {
+		t.Fatalf("OutputPath = %q, want %q", targets.OutputPath, filepath.Join(tempDir, "translated.svg"))
+	}
+	if targets.LayoutJSONPath != filepath.Join(tempDir, "translated.json") {
+		t.Fatalf("LayoutJSONPath = %q, want %q", targets.LayoutJSONPath, filepath.Join(tempDir, "translated.json"))
+	}
+}
+
+func TestPlannedRerenderTargetsLoadsSavedLayout(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	application := New("test")
+	result, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	targets, err := application.PlannedRerenderTargets(RerenderRequest{
+		LayoutJSONPath: result.LayoutJSONPath,
+		OutputDir:      filepath.Join(tempDir, "rerendered"),
+		OutputTemplate: "layout_copy.fodg",
+		RendererName:   "fodg",
+	})
+	if err != nil {
+		t.Fatalf("PlannedRerenderTargets() error = %v", err)
+	}
+	if targets.OutputPath != filepath.Join(tempDir, "rerendered", "layout_copy.fodg") {
+		t.Fatalf("OutputPath = %q, want %q", targets.OutputPath, filepath.Join(tempDir, "rerendered", "layout_copy.fodg"))
+	}
+	if targets.LayoutJSONPath != "" {
+		t.Fatalf("LayoutJSONPath = %q, want empty for rerender", targets.LayoutJSONPath)
+	}
+}
+
 func writeTestPNG(t *testing.T, path string, width, height int) {
 	t.Helper()
 	img := image.NewRGBA(image.Rect(0, 0, width, height))

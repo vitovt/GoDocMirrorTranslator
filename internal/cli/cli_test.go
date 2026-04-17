@@ -39,6 +39,8 @@ func TestRunHelpIncludesRenderFlagsAndProviderOptionExample(t *testing.T) {
 	for _, want := range []string{
 		"--output-template TEMPLATE",
 		"--renderer NAME",
+		"--layout-json PATH",
+		"--overwrite",
 		"--save-layout-json",
 		"default_renderer",
 		"provider_options.openai.image_detail",
@@ -57,6 +59,7 @@ func TestSubcommandHelpReturnsSuccess(t *testing.T) {
 		want string
 	}{
 		{name: "render", args: []string{"render", "--help"}, want: "Usage: app render [flags]"},
+		{name: "rerender", args: []string{"rerender", "--help"}, want: "Usage: app rerender [flags]"},
 		{name: "gui", args: []string{"gui", "--help"}, want: "Usage: app gui [flags]"},
 		{name: "config", args: []string{"config", "--help"}, want: "Usage: app config <init|get|set> [flags]"},
 		{name: "config init", args: []string{"config", "init", "--help"}, want: "Usage: app config init [flags]"},
@@ -91,6 +94,7 @@ func TestRenderHelpIncludesExamplesAndPrecedence(t *testing.T) {
 	for _, want := range []string{
 		"Examples:",
 		"--renderer",
+		"--overwrite",
 		"--save-layout-json",
 		"Config precedence: built-in defaults, config file, environment, CLI flags",
 	} {
@@ -124,6 +128,62 @@ func TestRunRender(t *testing.T) {
 	jsonPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".json"
 	if _, err := os.Stat(jsonPath); err != nil {
 		t.Fatalf("expected layout json at %q: %v", jsonPath, err)
+	}
+}
+
+func TestRunRerender(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{
+		"render",
+		"--input", inputPath,
+		"--output-dir", tempDir,
+		"--provider", "mock",
+		"--save-layout-json",
+	}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run(render) exit code = %d, stderr = %s", code, stderr.String())
+	}
+	outputPath := strings.TrimSpace(strings.Split(stdout.String(), "\n")[0])
+	layoutJSONPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + ".json"
+
+	stdout.Reset()
+	stderr.Reset()
+	code = Run(context.Background(), []string{
+		"rerender",
+		"--layout-json", layoutJSONPath,
+		"--output-dir", tempDir,
+		"--output-template", "rerendered.fodg",
+		"--renderer", "fodg",
+	}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("Run(rerender) exit code = %d, stderr = %s", code, stderr.String())
+	}
+	rerenderPath := strings.TrimSpace(stdout.String())
+	if rerenderPath != filepath.Join(tempDir, "rerendered.fodg") {
+		t.Fatalf("rerender output path = %q, want %q", rerenderPath, filepath.Join(tempDir, "rerendered.fodg"))
+	}
+	if _, err := os.Stat(rerenderPath); err != nil {
+		t.Fatalf("expected rerendered output at %q: %v", rerenderPath, err)
+	}
+}
+
+func TestRunRerenderFailsForMissingLayoutJSON(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := Run(context.Background(), []string{
+		"rerender",
+		"--layout-json", "/definitely/missing/layout.json",
+	}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("Run(rerender missing json) exit code = %d, stderr = %s", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "read layout json") {
+		t.Fatalf("stderr = %q, want missing layout json failure", stderr.String())
 	}
 }
 
