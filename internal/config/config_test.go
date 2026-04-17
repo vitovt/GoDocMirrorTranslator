@@ -507,29 +507,6 @@ func TestSetSupportsKnownKeysAndRejectsUnknownKeys(t *testing.T) {
 	}
 }
 
-func TestSaveLayoutJSONPreferenceDefaultsToDisabled(t *testing.T) {
-	cfg := Default()
-	if cfg.SaveLayoutJSONEnabled() {
-		t.Fatal("SaveLayoutJSONEnabled() = true, want false by default")
-	}
-}
-
-func TestSetSaveLayoutJSONEnabledPersistsBoolean(t *testing.T) {
-	cfg := Default()
-	cfg.SetSaveLayoutJSONEnabled(false)
-	if cfg.SaveLayoutJSONEnabled() {
-		t.Fatal("SaveLayoutJSONEnabled() = true, want false after update")
-	}
-	cfg.SetSaveLayoutJSONEnabled(true)
-	if !cfg.SaveLayoutJSONEnabled() {
-		t.Fatal("SaveLayoutJSONEnabled() = false, want true after update")
-	}
-	cfg.GUIPreferences[guiPrefLayoutJSON] = "not-bool"
-	if cfg.SaveLayoutJSONEnabled() {
-		t.Fatal("SaveLayoutJSONEnabled() = true, want false for invalid stored value")
-	}
-}
-
 func TestSetProviderOptionCreatesNestedMap(t *testing.T) {
 	cfg := Default()
 	if err := cfg.Set("provider_options.openai.image_detail", "high"); err != nil {
@@ -643,14 +620,5 @@ func TestNormalizeAndPreferenceHelpersOnZeroConfig(t *testing.T) {
 	}
 	if cfg.ProviderOptions == nil || cfg.GUIPreferences == nil {
 		t.Fatalf("normalize() did not initialize maps: %#v", cfg)
-	}
-
-	var blank Config
-	if blank.SaveLayoutJSONEnabled() {
-		t.Fatal("SaveLayoutJSONEnabled() = true, want false with nil preferences")
-	}
-	blank.SetSaveLayoutJSONEnabled(true)
-	if !blank.SaveLayoutJSONEnabled() {
-		t.Fatal("SaveLayoutJSONEnabled() = false, want true after SetSaveLayoutJSONEnabled on zero config")
 	}
 }

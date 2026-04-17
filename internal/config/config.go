@@ -14,10 +14,9 @@ import (
 )
 
 const (
-	EnvPrefix         = "GODOCMIRRORTRANSLATOR_"
-	ConfigPathEnv     = EnvPrefix + "CONFIG"
-	defaultConfigDir  = "handwritten-overlay-translator"
-	guiPrefLayoutJSON = "save_layout_json"
+	EnvPrefix        = "GODOCMIRRORTRANSLATOR_"
+	ConfigPathEnv    = EnvPrefix + "CONFIG"
+	defaultConfigDir = "handwritten-overlay-translator"
 )
 
 type Config struct {
@@ -542,28 +541,6 @@ func (c Config) ProviderConfig(providerName, model string) provider.ProviderConf
 		providerCfg.AdvancedOptions[key] = value
 	}
 	return providerCfg
-}
-
-func (c Config) SaveLayoutJSONEnabled() bool {
-	if c.GUIPreferences == nil {
-		return false
-	}
-	value := strings.TrimSpace(c.GUIPreferences[guiPrefLayoutJSON])
-	if value == "" {
-		return false
-	}
-	enabled, err := strconv.ParseBool(value)
-	if err != nil {
-		return false
-	}
-	return enabled
-}
-
-func (c *Config) SetSaveLayoutJSONEnabled(enabled bool) {
-	if c.GUIPreferences == nil {
-		c.GUIPreferences = map[string]string{}
-	}
-	c.GUIPreferences[guiPrefLayoutJSON] = strconv.FormatBool(enabled)
 }
 
 func maskSecret(value string) string {
