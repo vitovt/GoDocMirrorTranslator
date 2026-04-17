@@ -2,6 +2,7 @@ package gui
 
 import (
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -416,6 +417,161 @@ func TestProcessingDisablesInteractiveControls(t *testing.T) {
 	if ui.processButton.Disabled() {
 		t.Fatal("process button should be enabled again after successful processing")
 	}
+}
+
+type scriptedPicker struct {
+	inputPath  string
+	inputErr   error
+	outputPath string
+	outputErr  error
+}
+
+func (p scriptedPicker) PickInputImage(_ fyne.Window, onPicked func(path string, err error)) {
+	onPicked(p.inputPath, p.inputErr)
+}
+
+func (p scriptedPicker) PickOutputDir(_ fyne.Window, onPicked func(path string, err error)) {
+	onPicked(p.outputPath, p.outputErr)
+}
+
+type failingProvider struct {
+	err error
+}
+
+func (p *failingProvider) Name() string {
+	return "mock"
+}
+
+func (p *failingProvider) AnalyzePage(context.Context, provider.AnalyzeRequest) (*domain.DocumentPage, error) {
+	return nil, p.err
+}
+
+func (p *failingProvider) ValidateConfig(provider.ProviderConfig) error {
+	return nil
+}
+
+func (p *failingProvider) SupportedModels() []string {
+	return []string{"mock-v1"}
+}
+
+func TestPickInputImageSetsInputAndDefaultOutputDir(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 64, 64)
+
+	ui, _, _ := newTestUIWithPicker(t, nil, appcore.New("test"), scriptedPicker{inputPath: inputPath})
+	ui.outputDirEntry.SetText("")
+
+	ui.pickInputImage()
+
+	if ui.inputEntry.Text != inputPath {
+		t.Fatalf("inputEntry.Text = %q, want %q", ui.inputEntry.Text, inputPath)
+	}
+	if ui.outputDirEntry.Text != tempDir {
+		t.Fatalf("outputDirEntry.Text = %q, want %q", ui.outputDirEntry.Text, tempDir)
+	}
+}
+
+func TestPickInputImageHandlesPickerError(t *testing.T) {
+	ui, _, _ := newTestUIWithPicker(t, nil, appcore.New("test"), scriptedPicker{inputErr: errors.New("input picker failed")})
+
+	ui.pickInputImage()
+
+	if ui.statusLabel.Text != "Failed to choose input image" {
+		t.Fatalf("statusLabel.Text = %q, want picker failure status", ui.statusLabel.Text)
+	}
+	if !strings.Contains(ui.detailsEntry.Text, "input picker failed") {
+		t.Fatalf("detailsEntry.Text = %q, want picker failure details", ui.detailsEntry.Text)
+	}
+}
+
+func TestPickOutputDirSetsSelectedPath(t *testing.T) {
+	outputDir := filepath.Join(t.TempDir(), "out")
+	ui, _, _ := newTestUIWithPicker(t, nil, appcore.New("test"), scriptedPicker{outputPath: outputDir})
+
+	ui.pickOutputDir()
+
+	if ui.outputDirEntry.Text != outputDir {
+		t.Fatalf("outputDirEntry.Text = %q, want %q", ui.outputDirEntry.Text, outputDir)
+	}
+}
+
+func TestPickOutputDirHandlesPickerError(t *testing.T) {
+	ui, _, _ := newTestUIWithPicker(t, nil, appcore.New("test"), scriptedPicker{outputErr: errors.New("output picker failed")})
+
+	ui.pickOutputDir()
+
+	if ui.statusLabel.Text != "Failed to choose output folder" {
+		t.Fatalf("statusLabel.Text = %q, want picker failure status", ui.statusLabel.Text)
+	}
+	if !strings.Contains(ui.detailsEntry.Text, "output picker failed") {
+		t.Fatalf("detailsEntry.Text = %q, want picker failure details", ui.detailsEntry.Text)
+	}
+}
+
+func TestStartProcessingFailureShowsStatus(t *testing.T) {
+	application := appcore.New("test")
+	application.ProviderFactories["mock"] = func(provider.ProviderConfig) provider.Provider {
+		return &failingProvider{err: errors.New("provider exploded")}
+	}
+
+	ui, tempDir, _ := newTestUIWithPicker(t, nil, application, noopPicker{})
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 128, 128)
+
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
+	ui.refreshValidation()
+	ui.startProcessing()
+
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+
+	if ui.openOutputButton.Disabled() != true {
+		t.Fatal("open output button should remain disabled after failed processing")
+	}
+	if ui.statusLabel.Text != "Processing failed" {
+		t.Fatalf("statusLabel.Text = %q, want Processing failed", ui.statusLabel.Text)
+	}
+	if !strings.Contains(ui.detailsEntry.Text, "provider exploded") {
+		t.Fatalf("detailsEntry.Text = %q, want provider error details", ui.detailsEntry.Text)
+	}
+}
+
+func TestOpenOutputPathDesktopRequiresOutputDir(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+	if _, err := ui.openOutputPath(); err == nil {
+		t.Fatal("openOutputPath() error = nil, want missing desktop output dir error")
+	}
+
+	ui.lastOutputDir = "/tmp/out"
+	got, err := ui.openOutputPath()
+	if err != nil {
+		t.Fatalf("openOutputPath() error = %v", err)
+	}
+	if got != "/tmp/out" {
+		t.Fatalf("openOutputPath() = %q, want /tmp/out", got)
+	}
+}
+
+func newTestUIWithPicker(t *testing.T, device fyne.Device, application *appcore.Application, picker picker) (*UI, string, string) {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	cfgPath := filepath.Join(tempDir, "config.json")
+	cfg := config.Default()
+	cfg.DefaultOutputDir = filepath.Join(tempDir, "default-out")
+	t.Setenv("LANG", "en_US.UTF-8")
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+
+	fyneApp := test.NewTempApp(t)
+	window := fyneApp.NewWindow("test")
+	if device == nil {
+		device = fyneApp.Driver().Device()
+	}
+	ui := newUI(context.Background(), fyneApp, device, window, application, cfgPath, cfg, picker)
+	return ui, tempDir, cfgPath
 }
 
 func newTestUI(t *testing.T) (*UI, string, string) {
