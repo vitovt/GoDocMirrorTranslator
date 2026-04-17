@@ -14,6 +14,7 @@ import (
 type nativeDesktopPicker struct {
 	fallback   picker
 	pickInput  func() (string, error)
+	pickLayout func() (string, error)
 	pickOutput func() (string, error)
 }
 
@@ -21,6 +22,7 @@ func newDefaultPicker() picker {
 	return nativeDesktopPicker{
 		fallback:   dialogPicker{},
 		pickInput:  pickNativeInputImage,
+		pickLayout: pickNativeLayoutJSON,
 		pickOutput: pickNativeOutputDir,
 	}
 }
@@ -33,6 +35,11 @@ func (p nativeDesktopPicker) PickInputImage(parent fyne.Window, onPicked func(pa
 func (p nativeDesktopPicker) PickOutputDir(parent fyne.Window, onPicked func(path string, err error)) {
 	path, err := p.pickOutput()
 	p.handleSelection(parent, onPicked, path, err, p.fallback.PickOutputDir)
+}
+
+func (p nativeDesktopPicker) PickLayoutJSON(parent fyne.Window, onPicked func(path string, err error)) {
+	path, err := p.pickLayout()
+	p.handleSelection(parent, onPicked, path, err, p.fallback.PickLayoutJSON)
 }
 
 func (p nativeDesktopPicker) handleSelection(
@@ -65,4 +72,11 @@ func pickNativeOutputDir() (string, error) {
 	return nativedialog.Directory().
 		Title("Select Output Folder").
 		Browse()
+}
+
+func pickNativeLayoutJSON() (string, error) {
+	return nativedialog.File().
+		Filter("Layout JSON", "json").
+		Title("Select Layout JSON").
+		Load()
 }

@@ -27,6 +27,10 @@ func (noopPicker) PickInputImage(_ fyne.Window, onPicked func(path string, err e
 	onPicked("", nil)
 }
 
+func (noopPicker) PickLayoutJSON(_ fyne.Window, onPicked func(path string, err error)) {
+	onPicked("", nil)
+}
+
 func (noopPicker) PickOutputDir(_ fyne.Window, onPicked func(path string, err error)) {
 	onPicked("", nil)
 }
@@ -193,7 +197,6 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui.templateEntry.SetText("saved_{provider}.svg")
 	ui.sourceLangEntry.SetText("Polish")
 	ui.targetLangEntry.SetText("German")
-	ui.saveLayoutJSON.SetChecked(false)
 	ui.syncModelOptions()
 	ui.modelSelect.SetSelected("gpt-4.1-mini")
 
@@ -217,9 +220,6 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	if loaded.OutputTemplate != "saved_{provider}.svg" {
 		t.Fatalf("OutputTemplate = %q, want saved_{provider}.svg", loaded.OutputTemplate)
 	}
-	if loaded.SaveLayoutJSONEnabled() {
-		t.Fatal("SaveLayoutJSONEnabled() = true, want false")
-	}
 }
 
 func TestStartProcessingWithMockProvider(t *testing.T) {
@@ -230,7 +230,6 @@ func TestStartProcessingWithMockProvider(t *testing.T) {
 
 	ui.inputEntry.SetText(inputPath)
 	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
-	ui.saveLayoutJSON.SetChecked(true)
 	ui.refreshValidation()
 	ui.startProcessing()
 
@@ -241,7 +240,7 @@ func TestStartProcessingWithMockProvider(t *testing.T) {
 	if ui.openOutputButton.Disabled() {
 		t.Fatal("open output button is disabled after successful render")
 	}
-	if !strings.Contains(ui.statusLabel.Text, "Processing finished") {
+	if !strings.Contains(ui.statusLabel.Text, "Analyze finished") {
 		t.Fatalf("status = %q, want success", ui.statusLabel.Text)
 	}
 
@@ -262,12 +261,15 @@ func TestStartProcessingWithMockProvider(t *testing.T) {
 	if loaded.DefaultOutputDir != filepath.Join(tempDir, "out") {
 		t.Fatalf("DefaultOutputDir = %q, want persisted output dir", loaded.DefaultOutputDir)
 	}
+	if ui.layoutJSONEntry.Text == "" {
+		t.Fatal("layoutJSONEntry.Text is empty after successful analyze")
+	}
 }
 
-func TestNewUIDisablesLayoutJSONByDefault(t *testing.T) {
+func TestNewUIStartsWithEmptyLayoutJSONField(t *testing.T) {
 	ui, _, _ := newTestUI(t)
-	if ui.saveLayoutJSON.Checked {
-		t.Fatal("saveLayoutJSON.Checked = true, want false from default config")
+	if ui.layoutJSONEntry.Text != "" {
+		t.Fatalf("layoutJSONEntry.Text = %q, want empty", ui.layoutJSONEntry.Text)
 	}
 }
 
@@ -467,7 +469,7 @@ func TestOpenOutputPathUsesFileOnMobile(t *testing.T) {
 	}
 }
 
-func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
+func TestStartAnalyzeAlwaysWritesLayoutJSON(t *testing.T) {
 	ui, tempDir, _ := newTestUI(t)
 
 	inputPath := filepath.Join(tempDir, "page.png")
@@ -475,7 +477,6 @@ func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
 
 	ui.inputEntry.SetText(inputPath)
 	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
-	ui.saveLayoutJSON.SetChecked(false)
 	ui.refreshValidation()
 	ui.startProcessing()
 
@@ -484,15 +485,138 @@ func TestStartProcessingWithoutLayoutJSON(t *testing.T) {
 	})
 
 	outputs := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")
-	if len(outputs) != 1 {
-		t.Fatalf("details = %q, want only svg path", ui.detailsEntry.Text)
+	if len(outputs) != 2 {
+		t.Fatalf("details = %q, want svg and json paths", ui.detailsEntry.Text)
 	}
 	if filepath.Ext(outputs[0]) != ".svg" {
 		t.Fatalf("details = %q, want svg output path", ui.detailsEntry.Text)
 	}
-	jsonPath := strings.TrimSuffix(outputs[0], filepath.Ext(outputs[0])) + ".json"
-	if _, err := os.Stat(jsonPath); !os.IsNotExist(err) {
-		t.Fatalf("expected no layout json at %q, stat err = %v", jsonPath, err)
+	if filepath.Ext(outputs[1]) != ".json" {
+		t.Fatalf("details = %q, want layout json path", ui.detailsEntry.Text)
+	}
+}
+
+func TestRerenderUsesSelectedLayoutJSON(t *testing.T) {
+	ui, tempDir, _ := newTestUI(t)
+
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 128, 128)
+
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
+	ui.refreshValidation()
+	ui.startProcessing()
+
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+
+	layoutJSONPath := ui.layoutJSONEntry.Text
+	if layoutJSONPath == "" {
+		t.Fatal("layoutJSONEntry.Text is empty after analyze")
+	}
+
+	ui.rendererSelect.SetSelected("fodg")
+	ui.templateEntry.SetText("rerendered_output.fodg")
+	ui.refreshValidation()
+	ui.startRerender()
+
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+
+	if ui.statusLabel.Text != "Re-render finished" {
+		t.Fatalf("statusLabel.Text = %q, want Re-render finished", ui.statusLabel.Text)
+	}
+	outputs := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")
+	if len(outputs) != 2 {
+		t.Fatalf("details = %q, want output path and source layout json path", ui.detailsEntry.Text)
+	}
+	if filepath.Ext(outputs[0]) != ".fodg" {
+		t.Fatalf("rerender output = %q, want .fodg", outputs[0])
+	}
+	if outputs[1] != layoutJSONPath {
+		t.Fatalf("rerender details layout json = %q, want %q", outputs[1], layoutJSONPath)
+	}
+	if ui.layoutJSONEntry.Text != layoutJSONPath {
+		t.Fatalf("layoutJSONEntry.Text = %q, want unchanged %q", ui.layoutJSONEntry.Text, layoutJSONPath)
+	}
+}
+
+func TestRerenderValidationDoesNotRequireProviderCredentials(t *testing.T) {
+	ui, tempDir, _ := newTestUI(t)
+
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 128, 128)
+
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
+	ui.refreshValidation()
+	ui.startProcessing()
+
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+
+	ui.providerSelect.SetSelected("openai")
+	ui.openAIKeyEntry.SetText("")
+	ui.syncModelOptions()
+	ui.refreshValidation()
+
+	if ui.rerenderButton.Disabled() {
+		t.Fatalf("rerender button is disabled with valid layout json and missing provider key: %s", ui.validationLabel.Text)
+	}
+	if !ui.processButton.Disabled() {
+		t.Fatal("analyze button should remain disabled without openai credentials")
+	}
+}
+
+func TestAnalyzeCancelLeavesExistingOutputsUnchanged(t *testing.T) {
+	ui, tempDir, _ := newTestUI(t)
+
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 128, 128)
+	outputDir := filepath.Join(tempDir, "out")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error = %v", outputDir, err)
+	}
+	existingOutput := filepath.Join(outputDir, "existing.svg")
+	existingJSON := filepath.Join(outputDir, "existing.json")
+	if err := os.WriteFile(existingOutput, []byte("old svg"), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", existingOutput, err)
+	}
+	if err := os.WriteFile(existingJSON, []byte("old json"), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", existingJSON, err)
+	}
+
+	ui.confirmOverwrite = func(_ string, _ string, onDone func(bool)) {
+		onDone(false)
+	}
+	ui.inputEntry.SetText(inputPath)
+	ui.outputDirEntry.SetText(outputDir)
+	ui.templateEntry.SetText("existing.svg")
+	ui.refreshValidation()
+	ui.startAnalyze()
+
+	if ui.running {
+		t.Fatal("analyze should not start after overwrite rejection")
+	}
+	if ui.statusLabel.Text != "Analyze cancelled" {
+		t.Fatalf("statusLabel.Text = %q, want Analyze cancelled", ui.statusLabel.Text)
+	}
+	content, err := os.ReadFile(existingOutput)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", existingOutput, err)
+	}
+	if string(content) != "old svg" {
+		t.Fatalf("existing output content = %q, want unchanged old svg", string(content))
+	}
+	content, err = os.ReadFile(existingJSON)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", existingJSON, err)
+	}
+	if string(content) != "old json" {
+		t.Fatalf("existing layout json content = %q, want unchanged old json", string(content))
 	}
 }
 
@@ -505,7 +629,6 @@ func TestStartProcessingWithFODGRenderer(t *testing.T) {
 	ui.inputEntry.SetText(inputPath)
 	ui.outputDirEntry.SetText(filepath.Join(tempDir, "out"))
 	ui.rendererSelect.SetSelected("fodg")
-	ui.saveLayoutJSON.SetChecked(false)
 	ui.refreshValidation()
 	ui.startProcessing()
 
@@ -513,7 +636,7 @@ func TestStartProcessingWithFODGRenderer(t *testing.T) {
 		return !ui.running
 	})
 
-	outputPath := strings.TrimSpace(ui.detailsEntry.Text)
+	outputPath := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")[0]
 	if filepath.Ext(outputPath) != ".fodg" {
 		t.Fatalf("details = %q, want fodg output path", ui.detailsEntry.Text)
 	}
@@ -542,7 +665,7 @@ func TestStartProcessingUsesInputFolderWhenOutputDirEmpty(t *testing.T) {
 		return !ui.running
 	})
 
-	outputPath := strings.TrimSpace(ui.detailsEntry.Text)
+	outputPath := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")[0]
 	if outputPath == "" {
 		t.Fatal("detailsEntry.Text is empty, want rendered output path")
 	}
@@ -593,7 +716,8 @@ func TestProcessingDisablesInteractiveControls(t *testing.T) {
 		{"renderer select", ui.rendererSelect.Disabled()},
 		{"provider select", ui.providerSelect.Disabled()},
 		{"save settings", ui.saveButton.Disabled()},
-		{"process", ui.processButton.Disabled()},
+		{"analyze", ui.processButton.Disabled()},
+		{"rerender", ui.rerenderButton.Disabled()},
 	} {
 		if !check.disabled {
 			t.Fatalf("%s should be disabled while processing", check.name)
@@ -626,17 +750,26 @@ func TestProcessingDisablesInteractiveControls(t *testing.T) {
 	if ui.processButton.Disabled() {
 		t.Fatal("process button should be enabled again after successful processing")
 	}
+	if ui.rerenderButton.Disabled() {
+		t.Fatal("rerender button should be enabled again after successful processing")
+	}
 }
 
 type scriptedPicker struct {
 	inputPath  string
 	inputErr   error
+	layoutPath string
+	layoutErr  error
 	outputPath string
 	outputErr  error
 }
 
 func (p scriptedPicker) PickInputImage(_ fyne.Window, onPicked func(path string, err error)) {
 	onPicked(p.inputPath, p.inputErr)
+}
+
+func (p scriptedPicker) PickLayoutJSON(_ fyne.Window, onPicked func(path string, err error)) {
+	onPicked(p.layoutPath, p.layoutErr)
 }
 
 func (p scriptedPicker) PickOutputDir(_ fyne.Window, onPicked func(path string, err error)) {
@@ -718,6 +851,30 @@ func TestPickOutputDirHandlesPickerError(t *testing.T) {
 	}
 }
 
+func TestPickLayoutJSONSetsSelectedPath(t *testing.T) {
+	layoutJSONPath := filepath.Join(t.TempDir(), "page.json")
+	ui, _, _ := newTestUIWithPicker(t, nil, appcore.New("test"), scriptedPicker{layoutPath: layoutJSONPath})
+
+	ui.pickLayoutJSON()
+
+	if ui.layoutJSONEntry.Text != layoutJSONPath {
+		t.Fatalf("layoutJSONEntry.Text = %q, want %q", ui.layoutJSONEntry.Text, layoutJSONPath)
+	}
+}
+
+func TestPickLayoutJSONHandlesPickerError(t *testing.T) {
+	ui, _, _ := newTestUIWithPicker(t, nil, appcore.New("test"), scriptedPicker{layoutErr: errors.New("layout picker failed")})
+
+	ui.pickLayoutJSON()
+
+	if ui.statusLabel.Text != "Failed to choose layout json" {
+		t.Fatalf("statusLabel.Text = %q, want picker failure status", ui.statusLabel.Text)
+	}
+	if !strings.Contains(ui.detailsEntry.Text, "layout picker failed") {
+		t.Fatalf("detailsEntry.Text = %q, want picker failure details", ui.detailsEntry.Text)
+	}
+}
+
 func TestStartProcessingFailureShowsStatus(t *testing.T) {
 	application := appcore.New("test")
 	application.ProviderFactories["mock"] = func(provider.ProviderConfig) provider.Provider {
@@ -740,8 +897,8 @@ func TestStartProcessingFailureShowsStatus(t *testing.T) {
 	if ui.openOutputButton.Disabled() != true {
 		t.Fatal("open output button should remain disabled after failed processing")
 	}
-	if ui.statusLabel.Text != "Processing failed" {
-		t.Fatalf("statusLabel.Text = %q, want Processing failed", ui.statusLabel.Text)
+	if ui.statusLabel.Text != "Analyze failed" {
+		t.Fatalf("statusLabel.Text = %q, want Analyze failed", ui.statusLabel.Text)
 	}
 	if !strings.Contains(ui.detailsEntry.Text, "provider exploded") {
 		t.Fatalf("detailsEntry.Text = %q, want provider error details", ui.detailsEntry.Text)

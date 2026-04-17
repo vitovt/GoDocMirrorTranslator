@@ -13,10 +13,13 @@ import (
 
 type fallbackPickerStub struct {
 	inputCalled  bool
+	layoutCalled bool
 	outputCalled bool
 	inputPath    string
+	layoutPath   string
 	outputPath   string
 	inputErr     error
+	layoutErr    error
 	outputErr    error
 }
 
@@ -28,6 +31,11 @@ func (p *fallbackPickerStub) PickInputImage(_ fyne.Window, onPicked func(path st
 func (p *fallbackPickerStub) PickOutputDir(_ fyne.Window, onPicked func(path string, err error)) {
 	p.outputCalled = true
 	onPicked(p.outputPath, p.outputErr)
+}
+
+func (p *fallbackPickerStub) PickLayoutJSON(_ fyne.Window, onPicked func(path string, err error)) {
+	p.layoutCalled = true
+	onPicked(p.layoutPath, p.layoutErr)
 }
 
 func TestNativeDesktopPickerPickInputImageUsesNativePath(t *testing.T) {
@@ -109,5 +117,33 @@ func TestNativeDesktopPickerPickOutputDirFallsBackAfterNativeError(t *testing.T)
 	}
 	if !fallback.outputCalled {
 		t.Fatal("PickOutputDir() did not use fallback picker after native error")
+	}
+}
+
+func TestNativeDesktopPickerPickLayoutJSONUsesNativePath(t *testing.T) {
+	fallback := &fallbackPickerStub{}
+	picker := nativeDesktopPicker{
+		fallback: fallback,
+		pickLayout: func() (string, error) {
+			return filepath.Join(string(filepath.Separator), "tmp", "picked", "..", "page.json"), nil
+		},
+	}
+
+	var gotPath string
+	var gotErr error
+	picker.PickLayoutJSON(nil, func(path string, err error) {
+		gotPath = path
+		gotErr = err
+	})
+
+	if gotErr != nil {
+		t.Fatalf("PickLayoutJSON() error = %v", gotErr)
+	}
+	wantPath := filepath.Join(string(filepath.Separator), "tmp", "page.json")
+	if gotPath != wantPath {
+		t.Fatalf("PickLayoutJSON() path = %q, want %q", gotPath, wantPath)
+	}
+	if fallback.layoutCalled {
+		t.Fatal("PickLayoutJSON() unexpectedly used fallback picker")
 	}
 }

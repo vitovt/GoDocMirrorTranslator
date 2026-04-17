@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -39,8 +40,9 @@ type UI struct {
 	application *appcore.Application
 	picker      picker
 
-	configPath string
-	cfg        config.Config
+	configPath       string
+	cfg              config.Config
+	confirmOverwrite func(title string, message string, onDone func(bool))
 
 	menuToggle        *widget.Button
 	menuPanel         *fyne.Container
@@ -60,36 +62,38 @@ type UI struct {
 	compactLayout     bool
 	detailsVisible    bool
 
-	inputBrowseButton  *widget.Button
-	outputBrowseButton *widget.Button
-	inputEntry         *widget.Entry
-	outputDirEntry     *widget.Entry
-	templateEntry      *widget.Entry
-	rendererSelect     *widget.Select
-	providerSelect     *widget.Select
-	modelSelect        *widget.Select
-	sourceLangEntry    *widget.Entry
-	targetLangEntry    *widget.Entry
-	timeoutEntry       *widget.Entry
-	fontFamilyEntry    *widget.Entry
-	fontSizeEntry      *widget.Entry
-	colorEntry         *widget.Entry
-	opacityEntry       *widget.Entry
-	preserveColumns    *widget.Check
-	saveLayoutJSON     *widget.Check
-	openAIKeyEntry     *widget.Entry
-	geminiKeyEntry     *widget.Entry
-	openAIImageDetail  *widget.Select
-	saveButton         *widget.Button
-	processButton      *widget.Button
-	openOutputButton   *widget.Button
-	progress           *widget.ProgressBarInfinite
-	statusLabel        *widget.Label
-	validationLabel    *widget.Label
-	detailsEntry       *widget.Entry
-	lastOutputDir      string
-	lastOutputPath     string
-	running            bool
+	inputBrowseButton      *widget.Button
+	layoutJSONBrowseButton *widget.Button
+	outputBrowseButton     *widget.Button
+	inputEntry             *widget.Entry
+	layoutJSONEntry        *widget.Entry
+	outputDirEntry         *widget.Entry
+	templateEntry          *widget.Entry
+	rendererSelect         *widget.Select
+	providerSelect         *widget.Select
+	modelSelect            *widget.Select
+	sourceLangEntry        *widget.Entry
+	targetLangEntry        *widget.Entry
+	timeoutEntry           *widget.Entry
+	fontFamilyEntry        *widget.Entry
+	fontSizeEntry          *widget.Entry
+	colorEntry             *widget.Entry
+	opacityEntry           *widget.Entry
+	preserveColumns        *widget.Check
+	openAIKeyEntry         *widget.Entry
+	geminiKeyEntry         *widget.Entry
+	openAIImageDetail      *widget.Select
+	saveButton             *widget.Button
+	processButton          *widget.Button
+	rerenderButton         *widget.Button
+	openOutputButton       *widget.Button
+	progress               *widget.ProgressBarInfinite
+	statusLabel            *widget.Label
+	validationLabel        *widget.Label
+	detailsEntry           *widget.Entry
+	lastOutputDir          string
+	lastOutputPath         string
+	running                bool
 }
 
 func Run(ctx context.Context, application *appcore.Application, version string, configPath string) error {
@@ -132,6 +136,9 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 		configPath:  configPath,
 		cfg:         cfg,
 	}
+	ui.confirmOverwrite = func(title string, message string, onDone func(bool)) {
+		dialog.ShowConfirm(title, message, onDone, ui.window)
+	}
 	ui.menuVisible = true
 	ui.compactLayout = isMobileDevice(device)
 	ui.detailsVisible = !ui.compactLayout
@@ -139,8 +146,13 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 
 	ui.inputEntry = widget.NewEntry()
 	ui.inputEntry.SetPlaceHolder("Select a source image")
+	ui.layoutJSONEntry = widget.NewEntry()
+	ui.layoutJSONEntry.SetPlaceHolder("Optional; filled after Analyze or browse an existing JSON")
 	ui.inputBrowseButton = widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
 		ui.pickInputImage()
+	})
+	ui.layoutJSONBrowseButton = widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
+		ui.pickLayoutJSON()
 	})
 	ui.outputDirEntry = widget.NewEntry()
 	ui.outputDirEntry.SetPlaceHolder("Optional; defaults to the input folder")
@@ -167,9 +179,6 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.colorEntry = widget.NewEntry()
 	ui.opacityEntry = widget.NewEntry()
 	ui.preserveColumns = widget.NewCheck("", func(bool) {
-		ui.refreshValidation()
-	})
-	ui.saveLayoutJSON = widget.NewCheck("", func(bool) {
 		ui.refreshValidation()
 	})
 	ui.openAIKeyEntry = widget.NewPasswordEntry()
@@ -202,9 +211,13 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 		ui.setStatus("Settings saved", ui.configPath)
 	})
 	ui.processButton = widget.NewButtonWithIcon("Process", theme.MediaPlayIcon(), func() {
-		ui.startProcessing()
+		ui.startAnalyze()
 	})
+	ui.processButton.SetText("Analyze")
 	ui.processButton.Importance = widget.HighImportance
+	ui.rerenderButton = widget.NewButtonWithIcon("Re-render", theme.ViewRefreshIcon(), func() {
+		ui.startRerender()
+	})
 	ui.openOutputButton = widget.NewButtonWithIcon(ui.openOutputActionLabel(), theme.FolderOpenIcon(), func() {
 		if err := ui.openOutputDir(); err != nil {
 			dialog.ShowError(err, ui.window)
@@ -234,10 +247,12 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 
 func (u *UI) content() fyne.CanvasObject {
 	inputRow := container.NewBorder(nil, nil, nil, u.inputBrowseButton, u.inputEntry)
+	layoutJSONRow := container.NewBorder(nil, nil, nil, u.layoutJSONBrowseButton, u.layoutJSONEntry)
 	outputRow := container.NewBorder(nil, nil, nil, u.outputBrowseButton, u.outputDirEntry)
 
 	mainForm := widget.NewForm(
 		widget.NewFormItem("Input Image", inputRow),
+		widget.NewFormItem("Layout JSON", layoutJSONRow),
 		widget.NewFormItem("Output Folder", outputRow),
 		widget.NewFormItem("Filename Template", u.templateEntry),
 		widget.NewFormItem("Output Format", u.rendererSelect),
@@ -250,7 +265,6 @@ func (u *UI) content() fyne.CanvasObject {
 		widget.NewFormItem("Provider", u.providerSelect),
 		widget.NewFormItem("Model", u.modelSelect),
 		widget.NewFormItem("Timeout", u.timeoutEntry),
-		widget.NewFormItem("Save Layout JSON", u.saveLayoutJSON),
 		widget.NewFormItem("OpenAI Image Detail", u.openAIImageDetail),
 		widget.NewFormItem("OpenAI API Key", u.openAIKeyEntry),
 		widget.NewFormItem("Gemini API Key", u.geminiKeyEntry),
@@ -286,6 +300,7 @@ func (u *UI) content() fyne.CanvasObject {
 	actions := container.NewHBox(
 		u.saveButton,
 		u.processButton,
+		u.rerenderButton,
 		u.openOutputButton,
 		layout.NewSpacer(),
 		u.progress,
@@ -325,6 +340,7 @@ func (u *UI) installChangeHandlers() {
 		entry *widget.Entry
 	}{
 		{u.inputEntry},
+		{u.layoutJSONEntry},
 		{u.outputDirEntry},
 		{u.templateEntry},
 		{u.sourceLangEntry},
@@ -347,6 +363,7 @@ func (u *UI) installChangeHandlers() {
 
 func (u *UI) applyConfig(cfg config.Config) {
 	u.inputEntry.SetText("")
+	u.layoutJSONEntry.SetText("")
 	u.outputDirEntry.SetText(cfg.DefaultOutputDir)
 	u.templateEntry.SetText(cfg.OutputTemplate)
 	u.rendererSelect.SetSelected(defaultRendererName(cfg.DefaultRenderer))
@@ -358,8 +375,6 @@ func (u *UI) applyConfig(cfg config.Config) {
 	u.colorEntry.SetText(cfg.OverlayColor)
 	u.opacityEntry.SetText(fmt.Sprintf("%g", cfg.OverlayOpacity))
 	u.preserveColumns.SetChecked(cfg.PreserveColumns)
-	u.saveLayoutJSON.Checked = cfg.SaveLayoutJSONEnabled()
-	u.saveLayoutJSON.Refresh()
 	u.openAIKeyEntry.SetText(cfg.OpenAIAPIKey)
 	u.geminiKeyEntry.SetText(cfg.GeminiAPIKey)
 	u.openAIImageDetail.SetSelected(configValue(cfg.ProviderOptions, "openai", "image_detail", "auto"))
@@ -412,26 +427,36 @@ func (u *UI) syncAdvancedOptions() {
 func (u *UI) refreshValidation() {
 	u.refreshInteractivity()
 	settingsErr := u.settingsValidationError()
-	processErr := u.processValidationError()
+	analyzeErr := u.analyzeValidationError()
+	rerenderErr := u.rerenderValidationError()
 
 	if u.running || settingsErr != nil {
 		u.saveButton.Disable()
 	} else {
 		u.saveButton.Enable()
 	}
-	if u.running || processErr != nil {
+	if u.running || analyzeErr != nil {
 		u.processButton.Disable()
 	} else {
 		u.processButton.Enable()
+	}
+	if u.running || rerenderErr != nil {
+		u.rerenderButton.Disable()
+	} else {
+		u.rerenderButton.Enable()
 	}
 
 	switch {
 	case u.running:
 		u.validationLabel.SetText("Processing in progress...")
-	case processErr != nil:
-		u.validationLabel.SetText(processErr.Error())
 	case settingsErr != nil:
 		u.validationLabel.SetText(settingsErr.Error())
+	case strings.TrimSpace(u.layoutJSONEntry.Text) != "" && rerenderErr != nil:
+		u.validationLabel.SetText(rerenderErr.Error())
+	case analyzeErr != nil:
+		u.validationLabel.SetText(analyzeErr.Error())
+	case rerenderErr != nil:
+		u.validationLabel.SetText(rerenderErr.Error())
 	default:
 		u.validationLabel.SetText("")
 	}
@@ -464,17 +489,11 @@ func (u *UI) settingsValidationError() error {
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(cfg.DefaultProvider) == "" {
-		return fmt.Errorf("provider is required")
-	}
 	if strings.TrimSpace(cfg.DefaultRenderer) == "" {
 		return fmt.Errorf("output format is required")
 	}
 	if !containsString(u.application.RendererNames(), cfg.DefaultRenderer) {
 		return fmt.Errorf("unknown output format %q", cfg.DefaultRenderer)
-	}
-	if strings.TrimSpace(cfg.DefaultModel) == "" {
-		return fmt.Errorf("model is required")
 	}
 	if strings.TrimSpace(cfg.SourceLanguage) == "" || strings.TrimSpace(cfg.TargetLanguage) == "" {
 		return fmt.Errorf("source and target languages are required")
@@ -494,14 +513,24 @@ func (u *UI) settingsValidationError() error {
 	if cfg.Timeout <= 0 {
 		return fmt.Errorf("timeout must be positive")
 	}
-	if err := u.application.ValidateProviderConfig(cfg.DefaultProvider, cfg.ProviderConfig(cfg.DefaultProvider, cfg.DefaultModel)); err != nil {
-		return err
+	if strings.TrimSpace(cfg.DefaultProvider) == "" {
+		return fmt.Errorf("provider is required")
+	}
+	if strings.TrimSpace(cfg.DefaultModel) == "" {
+		return fmt.Errorf("model is required")
 	}
 	return nil
 }
 
-func (u *UI) processValidationError() error {
+func (u *UI) analyzeValidationError() error {
 	if err := u.settingsValidationError(); err != nil {
+		return err
+	}
+	cfg, err := u.configFromWidgets()
+	if err != nil {
+		return err
+	}
+	if err := u.application.ValidateProviderConfig(cfg.DefaultProvider, cfg.ProviderConfig(cfg.DefaultProvider, cfg.DefaultModel)); err != nil {
 		return err
 	}
 	inputPath := strings.TrimSpace(u.inputEntry.Text)
@@ -509,6 +538,20 @@ func (u *UI) processValidationError() error {
 		return fmt.Errorf("input image is required")
 	}
 	if err := u.application.ValidateInputImage(inputPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (u *UI) rerenderValidationError() error {
+	if err := u.settingsValidationError(); err != nil {
+		return err
+	}
+	layoutJSONPath := strings.TrimSpace(u.layoutJSONEntry.Text)
+	if layoutJSONPath == "" {
+		return fmt.Errorf("layout json is required")
+	}
+	if err := u.application.ValidateLayoutJSON(layoutJSONPath); err != nil {
 		return err
 	}
 	return nil
@@ -543,7 +586,6 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	cfg.OverlayColor = strings.TrimSpace(u.colorEntry.Text)
 	cfg.OverlayOpacity = opacity
 	cfg.PreserveColumns = u.preserveColumns.Checked
-	cfg.SetSaveLayoutJSONEnabled(u.saveLayoutJSON.Checked)
 	cfg.OpenAIAPIKey = strings.TrimSpace(u.openAIKeyEntry.Text)
 	cfg.GeminiAPIKey = strings.TrimSpace(u.geminiKeyEntry.Text)
 	if cfg.ProviderOptions == nil {
@@ -570,7 +612,17 @@ func (u *UI) buildRenderRequest(cfg config.Config) appcore.RenderRequest {
 		TargetLanguage: cfg.TargetLanguage,
 		Timeout:        cfg.Timeout,
 		RenderOptions:  cfg.RenderOptions(),
-		SaveLayoutJSON: cfg.SaveLayoutJSONEnabled(),
+		SaveLayoutJSON: true,
+	}
+}
+
+func (u *UI) buildRerenderRequest(cfg config.Config) appcore.RerenderRequest {
+	return appcore.RerenderRequest{
+		LayoutJSONPath: strings.TrimSpace(u.layoutJSONEntry.Text),
+		OutputDir:      strings.TrimSpace(u.outputDirEntry.Text),
+		OutputTemplate: cfg.OutputTemplate,
+		RendererName:   cfg.DefaultRenderer,
+		RenderOptions:  cfg.RenderOptions(),
 	}
 }
 
@@ -589,6 +641,10 @@ func (u *UI) saveSettings() (config.Config, error) {
 }
 
 func (u *UI) startProcessing() {
+	u.startAnalyze()
+}
+
+func (u *UI) startAnalyze() {
 	if u.running {
 		return
 	}
@@ -600,13 +656,26 @@ func (u *UI) startProcessing() {
 		return
 	}
 	req := u.buildRenderRequest(cfg)
+	targets, err := u.application.PlannedRenderTargets(req)
+	if err != nil {
+		dialog.ShowError(err, u.window)
+		u.setStatus("Cannot analyze", err.Error())
+		u.refreshValidation()
+		return
+	}
+	u.maybeConfirmOverwrite("Analyze", []string{targets.OutputPath, targets.LayoutJSONPath}, func(overwrite bool) {
+		req.OverwriteExisting = overwrite
+		u.runAnalyze(req)
+	})
+}
 
+func (u *UI) runAnalyze(req appcore.RenderRequest) {
 	u.running = true
 	u.lastOutputDir = ""
 	u.lastOutputPath = ""
 	u.openOutputButton.Disable()
 	u.progress.Show()
-	u.setStatus("Processing document...", "")
+	u.setStatus("Analyzing document...", "")
 	u.refreshValidation()
 
 	go func() {
@@ -615,7 +684,67 @@ func (u *UI) startProcessing() {
 			u.running = false
 			u.progress.Hide()
 			if err != nil {
-				u.setStatus("Processing failed", err.Error())
+				u.setStatus("Analyze failed", err.Error())
+				dialog.ShowError(err, u.window)
+				u.refreshValidation()
+				return
+			}
+
+			u.lastOutputDir = filepath.Dir(result.OutputPath)
+			u.lastOutputPath = result.OutputPath
+			u.layoutJSONEntry.SetText(result.LayoutJSONPath)
+			u.openOutputButton.Enable()
+			details := []string{result.OutputPath}
+			if result.LayoutJSONPath != "" {
+				details = append(details, result.LayoutJSONPath)
+			}
+			u.setStatus("Analyze finished", strings.Join(details, "\n"))
+			u.refreshValidation()
+		})
+	}()
+}
+
+func (u *UI) startRerender() {
+	if u.running {
+		return
+	}
+	cfg, err := u.saveSettings()
+	if err != nil {
+		dialog.ShowError(err, u.window)
+		u.setStatus("Cannot re-render", err.Error())
+		u.refreshValidation()
+		return
+	}
+	req := u.buildRerenderRequest(cfg)
+	targets, err := u.application.PlannedRerenderTargets(req)
+	if err != nil {
+		dialog.ShowError(err, u.window)
+		u.setStatus("Cannot re-render", err.Error())
+		u.refreshValidation()
+		return
+	}
+	u.maybeConfirmOverwrite("Re-render", []string{targets.OutputPath}, func(overwrite bool) {
+		req.OverwriteExisting = overwrite
+		u.runRerender(req)
+	})
+}
+
+func (u *UI) runRerender(req appcore.RerenderRequest) {
+	u.running = true
+	u.lastOutputDir = ""
+	u.lastOutputPath = ""
+	u.openOutputButton.Disable()
+	u.progress.Show()
+	u.setStatus("Re-rendering document...", "")
+	u.refreshValidation()
+
+	go func() {
+		result, err := u.application.Rerender(u.ctx, req)
+		fyne.DoAndWait(func() {
+			u.running = false
+			u.progress.Hide()
+			if err != nil {
+				u.setStatus("Re-render failed", err.Error())
 				dialog.ShowError(err, u.window)
 				u.refreshValidation()
 				return
@@ -624,11 +753,7 @@ func (u *UI) startProcessing() {
 			u.lastOutputDir = filepath.Dir(result.OutputPath)
 			u.lastOutputPath = result.OutputPath
 			u.openOutputButton.Enable()
-			details := []string{result.OutputPath}
-			if result.LayoutJSONPath != "" {
-				details = append(details, result.LayoutJSONPath)
-			}
-			u.setStatus("Processing finished", strings.Join(details, "\n"))
+			u.setStatus("Re-render finished", strings.Join([]string{result.OutputPath, req.LayoutJSONPath}, "\n"))
 			u.refreshValidation()
 		})
 	}()
@@ -668,6 +793,24 @@ func (u *UI) pickOutputDir() {
 			return
 		}
 		u.outputDirEntry.SetText(path)
+		u.refreshValidation()
+	})
+}
+
+func (u *UI) pickLayoutJSON() {
+	u.picker.PickLayoutJSON(u.window, func(path string, err error) {
+		if err != nil {
+			dialog.ShowError(err, u.window)
+			u.setStatus("Failed to choose layout json", err.Error())
+			return
+		}
+		if path == "" {
+			return
+		}
+		u.layoutJSONEntry.SetText(path)
+		if strings.TrimSpace(u.outputDirEntry.Text) == "" {
+			u.outputDirEntry.SetText(filepath.Dir(path))
+		}
 		u.refreshValidation()
 	})
 }
@@ -744,6 +887,47 @@ func (u *UI) hasOutputTarget() bool {
 		return strings.TrimSpace(u.lastOutputPath) != ""
 	}
 	return strings.TrimSpace(u.lastOutputDir) != ""
+}
+
+func (u *UI) maybeConfirmOverwrite(action string, paths []string, onContinue func(overwrite bool)) {
+	existingPaths, err := existingPaths(paths)
+	if err != nil {
+		dialog.ShowError(err, u.window)
+		u.setStatus("Cannot start "+strings.ToLower(action), err.Error())
+		u.refreshValidation()
+		return
+	}
+	if len(existingPaths) == 0 {
+		onContinue(false)
+		return
+	}
+
+	message := "The following files already exist and will be overwritten:\n\n" + strings.Join(existingPaths, "\n") + "\n\nOverwrite them?"
+	u.confirmOverwrite(action+" overwrite", message, func(confirm bool) {
+		if !confirm {
+			u.setStatus(action+" cancelled", "Existing files were left unchanged.")
+			u.refreshValidation()
+			return
+		}
+		onContinue(true)
+	})
+}
+
+func existingPaths(paths []string) ([]string, error) {
+	var existing []string
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		if _, err := os.Stat(path); err == nil {
+			existing = append(existing, path)
+			continue
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("stat existing output %q: %w", path, err)
+		}
+	}
+	return existing, nil
 }
 
 func (u *UI) toggleMenu() {
@@ -918,12 +1102,14 @@ func (u *UI) interactiveControls() []disableable {
 		u.colorEntry,
 		u.opacityEntry,
 		u.preserveColumns,
-		u.saveLayoutJSON,
+		u.layoutJSONBrowseButton,
+		u.layoutJSONEntry,
 		u.openAIKeyEntry,
 		u.geminiKeyEntry,
 		u.openAIImageDetail,
 		u.saveButton,
 		u.processButton,
+		u.rerenderButton,
 	}
 }
 

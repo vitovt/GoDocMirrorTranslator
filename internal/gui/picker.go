@@ -11,6 +11,7 @@ import (
 
 type picker interface {
 	PickInputImage(parent fyne.Window, onPicked func(path string, err error))
+	PickLayoutJSON(parent fyne.Window, onPicked func(path string, err error))
 	PickOutputDir(parent fyne.Window, onPicked func(path string, err error))
 }
 
@@ -52,4 +53,22 @@ func (dialogPicker) PickOutputDir(parent fyne.Window, onPicked func(path string,
 	}, parent)
 	folderDialog.SetTitleText("Select Output Folder")
 	folderDialog.Show()
+}
+
+func (dialogPicker) PickLayoutJSON(parent fyne.Window, onPicked func(path string, err error)) {
+	fileDialog := dialog.NewFileOpen(func(reader fyne.URIReadCloser, err error) {
+		if err != nil {
+			onPicked("", err)
+			return
+		}
+		if reader == nil {
+			onPicked("", nil)
+			return
+		}
+		defer reader.Close()
+		onPicked(filepath.Clean(reader.URI().Path()), nil)
+	}, parent)
+	fileDialog.SetTitleText("Select Layout JSON")
+	fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".json"}))
+	fileDialog.Show()
 }
