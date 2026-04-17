@@ -282,7 +282,6 @@ func (u *UI) content() fyne.CanvasObject {
 		nil,
 		container.NewHBox(
 			u.menuToggle,
-			widget.NewLabel("Menu"),
 			layout.NewSpacer(),
 		),
 	)
@@ -741,6 +740,7 @@ func (u *UI) toggleDetails() {
 func (u *UI) applyShellState() {
 	if u.centerPanel != nil {
 		u.centerPanel.SetState(u.menuVisible, u.compactLayout)
+		u.centerPanel.Refresh()
 	}
 	u.applySectionState()
 	u.applyDetailsState()
@@ -771,6 +771,7 @@ func (u *UI) applySectionState() {
 			child.Hide()
 		}
 	}
+	u.contentPanel.Refresh()
 	u.updateMenuButtonState()
 }
 
@@ -787,11 +788,13 @@ func (u *UI) applyDetailsState() {
 			u.detailsEntry.Hide()
 			u.detailsToggle.SetText("Show Details")
 		}
+		u.detailsPanel.Refresh()
 		return
 	}
 	u.detailsToggle.Hide()
 	u.detailsEntry.Show()
 	u.detailsVisible = true
+	u.detailsPanel.Refresh()
 }
 
 func (u *UI) updateMenuToggle() {
@@ -984,6 +987,7 @@ func (r *menuContentPanelRenderer) MinSize() fyne.Size {
 }
 
 func (r *menuContentPanelRenderer) Refresh() {
+	r.Layout(r.panel.Size())
 	r.panel.menu.Refresh()
 	r.panel.content.Refresh()
 }

@@ -276,6 +276,9 @@ func TestNewUIDefaultsToMainTabWithVisibleDesktopPanel(t *testing.T) {
 	if !ui.menuVisible {
 		t.Fatal("menu should start visible on desktop width")
 	}
+	if !ui.menuPanel.Visible() {
+		t.Fatal("menu panel should be visible on desktop startup")
+	}
 	if ui.menuToggle.Text != "Hide Menu" {
 		t.Fatalf("menuToggle.Text = %q, want Hide Menu", ui.menuToggle.Text)
 	}
@@ -295,6 +298,9 @@ func TestNewUIUsesMobileOutputActionLabel(t *testing.T) {
 	if !ui.menuVisible {
 		t.Fatal("menu should start visible on mobile")
 	}
+	if !ui.menuPanel.Visible() {
+		t.Fatal("menu panel should be visible on mobile startup")
+	}
 	if ui.menuToggle.Text != "Hide Menu" {
 		t.Fatalf("menuToggle.Text = %q, want Hide Menu", ui.menuToggle.Text)
 	}
@@ -313,6 +319,9 @@ func TestToggleMenuShowsAndHidesSettings(t *testing.T) {
 	if ui.menuVisible {
 		t.Fatal("menu should hide after toggle")
 	}
+	if ui.menuPanel.Visible() {
+		t.Fatal("menu panel should be hidden after toggle")
+	}
 	if ui.menuToggle.Text != "Show Menu" {
 		t.Fatalf("menuToggle.Text = %q, want Show Menu", ui.menuToggle.Text)
 	}
@@ -320,6 +329,9 @@ func TestToggleMenuShowsAndHidesSettings(t *testing.T) {
 	ui.toggleMenu()
 	if !ui.menuVisible {
 		t.Fatal("menu should show after second toggle")
+	}
+	if !ui.menuPanel.Visible() {
+		t.Fatal("menu panel should be visible after second toggle")
 	}
 	if ui.menuToggle.Text != "Hide Menu" {
 		t.Fatalf("menuToggle.Text = %q, want Hide Menu", ui.menuToggle.Text)
@@ -363,6 +375,15 @@ func TestSelectingSectionAutoClosesMenuInCompactLayout(t *testing.T) {
 	if ui.menuToggle.Text != "Show Menu" {
 		t.Fatalf("menuToggle.Text = %q, want Show Menu after compact selection", ui.menuToggle.Text)
 	}
+	if ui.menuPanel.Visible() {
+		t.Fatal("menu panel should be hidden after compact selection")
+	}
+	if !sectionObject(t, ui, sectionAI).Visible() {
+		t.Fatal("AI section should be visible after selection")
+	}
+	if sectionObject(t, ui, sectionMain).Visible() {
+		t.Fatal("Main section should be hidden after AI selection")
+	}
 }
 
 func TestCompactDetailsToggleShowsAndHidesDetails(t *testing.T) {
@@ -381,6 +402,29 @@ func TestCompactDetailsToggleShowsAndHidesDetails(t *testing.T) {
 	}
 	if ui.detailsToggle.Text != "Hide Details" {
 		t.Fatalf("detailsToggle.Text = %q, want Hide Details", ui.detailsToggle.Text)
+	}
+	if !ui.detailsEntry.Visible() {
+		t.Fatal("details entry should be visible after expanding compact details")
+	}
+}
+
+func TestSelectingSectionSwitchesVisibleContent(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	if !sectionObject(t, ui, sectionMain).Visible() {
+		t.Fatal("main section should start visible")
+	}
+	if sectionObject(t, ui, sectionAI).Visible() {
+		t.Fatal("AI section should start hidden")
+	}
+
+	ui.selectSection(sectionDesign)
+
+	if !sectionObject(t, ui, sectionDesign).Visible() {
+		t.Fatal("design section should be visible after selection")
+	}
+	if sectionObject(t, ui, sectionMain).Visible() {
+		t.Fatal("main section should be hidden after design selection")
 	}
 }
 
@@ -756,4 +800,19 @@ func contains(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func sectionObject(t *testing.T, ui *UI, section settingsSection) fyne.CanvasObject {
+	t.Helper()
+	for _, child := range ui.contentPanel.Objects {
+		tag, ok := child.(sectionedObject)
+		if !ok {
+			continue
+		}
+		if tag.Section() == section {
+			return child
+		}
+	}
+	t.Fatalf("section %q not found", section)
+	return nil
 }
