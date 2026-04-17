@@ -324,20 +324,20 @@ func TestStartProcessingWithMockProvider(t *testing.T) {
 	ui.refreshValidation()
 	ui.startProcessing()
 
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForAnalyzeTerminal(t, ui)
 
 	if ui.openOutputButton.Disabled() {
 		t.Fatal("open output button is disabled after successful render")
 	}
-	if !strings.Contains(ui.statusLabel.Text, "Analyze finished") {
-		t.Fatalf("status = %q, want success", ui.statusLabel.Text)
+	status := statusText(ui)
+	if !strings.Contains(status, "Analyze finished") {
+		t.Fatalf("status = %q, want success", status)
 	}
 
-	outputs := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")
+	details := detailsText(ui)
+	outputs := strings.Split(strings.TrimSpace(details), "\n")
 	if len(outputs) != 2 {
-		t.Fatalf("details = %q, want svg and json paths", ui.detailsEntry.Text)
+		t.Fatalf("details = %q, want svg and json paths", details)
 	}
 	for _, path := range outputs {
 		if _, err := os.Stat(path); err != nil {
@@ -352,7 +352,7 @@ func TestStartProcessingWithMockProvider(t *testing.T) {
 	if loaded.DefaultOutputDir != filepath.Join(tempDir, "out") {
 		t.Fatalf("DefaultOutputDir = %q, want persisted output dir", loaded.DefaultOutputDir)
 	}
-	if ui.layoutJSONEntry.Text == "" {
+	if layoutJSONPathText(ui) == "" {
 		t.Fatal("layoutJSONEntry.Text is empty after successful analyze")
 	}
 }
@@ -587,19 +587,18 @@ func TestStartAnalyzeAlwaysWritesLayoutJSON(t *testing.T) {
 	ui.refreshValidation()
 	ui.startProcessing()
 
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForAnalyzeTerminal(t, ui)
 
-	outputs := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")
+	details := detailsText(ui)
+	outputs := strings.Split(strings.TrimSpace(details), "\n")
 	if len(outputs) != 2 {
-		t.Fatalf("details = %q, want svg and json paths", ui.detailsEntry.Text)
+		t.Fatalf("details = %q, want svg and json paths", details)
 	}
 	if filepath.Ext(outputs[0]) != ".svg" {
-		t.Fatalf("details = %q, want svg output path", ui.detailsEntry.Text)
+		t.Fatalf("details = %q, want svg output path", details)
 	}
 	if filepath.Ext(outputs[1]) != ".json" {
-		t.Fatalf("details = %q, want layout json path", ui.detailsEntry.Text)
+		t.Fatalf("details = %q, want layout json path", details)
 	}
 }
 
@@ -614,11 +613,9 @@ func TestRerenderUsesSelectedLayoutJSON(t *testing.T) {
 	ui.refreshValidation()
 	ui.startProcessing()
 
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForAnalyzeTerminal(t, ui)
 
-	layoutJSONPath := ui.layoutJSONEntry.Text
+	layoutJSONPath := layoutJSONPathText(ui)
 	if layoutJSONPath == "" {
 		t.Fatal("layoutJSONEntry.Text is empty after analyze")
 	}
@@ -628,16 +625,16 @@ func TestRerenderUsesSelectedLayoutJSON(t *testing.T) {
 	ui.refreshValidation()
 	ui.startRerender()
 
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForRerenderTerminal(t, ui)
 
-	if ui.statusLabel.Text != "Re-render finished" {
-		t.Fatalf("statusLabel.Text = %q, want Re-render finished", ui.statusLabel.Text)
+	status := statusText(ui)
+	if status != "Re-render finished" {
+		t.Fatalf("statusLabel.Text = %q, want Re-render finished", status)
 	}
-	outputs := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")
+	details := detailsText(ui)
+	outputs := strings.Split(strings.TrimSpace(details), "\n")
 	if len(outputs) != 2 {
-		t.Fatalf("details = %q, want output path and source layout json path", ui.detailsEntry.Text)
+		t.Fatalf("details = %q, want output path and source layout json path", details)
 	}
 	if filepath.Ext(outputs[0]) != ".fodg" {
 		t.Fatalf("rerender output = %q, want .fodg", outputs[0])
@@ -645,8 +642,8 @@ func TestRerenderUsesSelectedLayoutJSON(t *testing.T) {
 	if outputs[1] != layoutJSONPath {
 		t.Fatalf("rerender details layout json = %q, want %q", outputs[1], layoutJSONPath)
 	}
-	if ui.layoutJSONEntry.Text != layoutJSONPath {
-		t.Fatalf("layoutJSONEntry.Text = %q, want unchanged %q", ui.layoutJSONEntry.Text, layoutJSONPath)
+	if got := layoutJSONPathText(ui); got != layoutJSONPath {
+		t.Fatalf("layoutJSONEntry.Text = %q, want unchanged %q", got, layoutJSONPath)
 	}
 }
 
@@ -661,9 +658,7 @@ func TestRerenderValidationDoesNotRequireProviderCredentials(t *testing.T) {
 	ui.refreshValidation()
 	ui.startProcessing()
 
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForAnalyzeTerminal(t, ui)
 
 	ui.providerSelect.SetSelected("openai")
 	ui.openAIKeyEntry.SetText("")
@@ -739,13 +734,12 @@ func TestStartProcessingWithFODGRenderer(t *testing.T) {
 	ui.refreshValidation()
 	ui.startProcessing()
 
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForAnalyzeTerminal(t, ui)
 
-	outputPath := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")[0]
+	details := detailsText(ui)
+	outputPath := strings.Split(strings.TrimSpace(details), "\n")[0]
 	if filepath.Ext(outputPath) != ".fodg" {
-		t.Fatalf("details = %q, want fodg output path", ui.detailsEntry.Text)
+		t.Fatalf("details = %q, want fodg output path", details)
 	}
 	if _, err := os.Stat(outputPath); err != nil {
 		t.Fatalf("expected output %q to exist: %v", outputPath, err)
@@ -768,11 +762,9 @@ func TestStartProcessingUsesInputFolderWhenOutputDirEmpty(t *testing.T) {
 
 	ui.startProcessing()
 
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForAnalyzeTerminal(t, ui)
 
-	outputPath := strings.Split(strings.TrimSpace(ui.detailsEntry.Text), "\n")[0]
+	outputPath := strings.Split(strings.TrimSpace(detailsText(ui)), "\n")[0]
 	if outputPath == "" {
 		t.Fatal("detailsEntry.Text is empty, want rendered output path")
 	}
@@ -832,9 +824,7 @@ func TestProcessingDisablesInteractiveControls(t *testing.T) {
 	}
 
 	close(providerImpl.release)
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForAnalyzeTerminal(t, ui)
 
 	if ui.inputEntry.Disabled() {
 		t.Fatal("input entry should be re-enabled after processing")
@@ -997,18 +987,18 @@ func TestStartProcessingFailureShowsStatus(t *testing.T) {
 	ui.refreshValidation()
 	ui.startProcessing()
 
-	waitFor(t, 3*time.Second, func() bool {
-		return !ui.running
-	})
+	waitForAnalyzeTerminal(t, ui)
 
 	if ui.openOutputButton.Disabled() != true {
 		t.Fatal("open output button should remain disabled after failed processing")
 	}
-	if ui.statusLabel.Text != "Analyze failed" {
-		t.Fatalf("statusLabel.Text = %q, want Analyze failed", ui.statusLabel.Text)
+	status := statusText(ui)
+	if status != "Analyze failed" {
+		t.Fatalf("statusLabel.Text = %q, want Analyze failed", status)
 	}
-	if !strings.Contains(ui.detailsEntry.Text, "provider exploded") {
-		t.Fatalf("detailsEntry.Text = %q, want provider error details", ui.detailsEntry.Text)
+	details := detailsText(ui)
+	if !strings.Contains(details, "provider exploded") {
+		t.Fatalf("detailsEntry.Text = %q, want provider error details", details)
 	}
 }
 
@@ -1110,6 +1100,57 @@ func waitFor(t *testing.T, timeout time.Duration, condition func() bool) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatal("condition was not satisfied before timeout")
+}
+
+func waitForRunCompletion(t *testing.T, ui *UI) {
+	t.Helper()
+	waitFor(t, 3*time.Second, func() bool {
+		return !ui.running
+	})
+	fyne.DoAndWait(func() {})
+}
+
+func waitForAnalyzeTerminal(t *testing.T, ui *UI) {
+	t.Helper()
+	waitForTerminalStatus(t, ui, "Analyze finished", "Analyze failed")
+}
+
+func waitForRerenderTerminal(t *testing.T, ui *UI) {
+	t.Helper()
+	waitForTerminalStatus(t, ui, "Re-render finished", "Re-render failed")
+}
+
+func waitForTerminalStatus(t *testing.T, ui *UI, success, failure string) {
+	t.Helper()
+	waitFor(t, 3*time.Second, func() bool {
+		status := statusText(ui)
+		return status == success || status == failure
+	})
+	waitForRunCompletion(t, ui)
+}
+
+func detailsText(ui *UI) string {
+	var details string
+	fyne.DoAndWait(func() {
+		details = ui.detailsEntry.Text
+	})
+	return details
+}
+
+func statusText(ui *UI) string {
+	var status string
+	fyne.DoAndWait(func() {
+		status = ui.statusLabel.Text
+	})
+	return status
+}
+
+func layoutJSONPathText(ui *UI) string {
+	var path string
+	fyne.DoAndWait(func() {
+		path = ui.layoutJSONEntry.Text
+	})
+	return path
 }
 
 func contains(values []string, want string) bool {
