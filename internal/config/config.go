@@ -21,39 +21,69 @@ const (
 )
 
 type Config struct {
-	OpenAIAPIKey      string                       `json:"openai_api_key,omitempty"`
-	GeminiAPIKey      string                       `json:"gemini_api_key,omitempty"`
-	Timeout           time.Duration                `json:"timeout"`
-	DefaultProvider   string                       `json:"default_provider"`
-	DefaultRenderer   string                       `json:"default_renderer"`
-	DefaultModel      string                       `json:"default_model,omitempty"`
-	DefaultOutputDir  string                       `json:"default_output_dir,omitempty"`
-	DefaultFontFamily string                       `json:"default_font_family"`
-	DefaultFontSize   float64                      `json:"default_font_size"`
-	OutputTemplate    string                       `json:"output_template"`
-	OverlayColor      string                       `json:"overlay_color"`
-	OverlayOpacity    float64                      `json:"overlay_opacity"`
-	PreserveColumns   bool                         `json:"preserve_columns"`
-	SourceLanguage    string                       `json:"source_language"`
-	TargetLanguage    string                       `json:"target_language"`
-	ProviderOptions   map[string]map[string]string `json:"provider_options,omitempty"`
-	GUIPreferences    map[string]string            `json:"gui_preferences,omitempty"`
+	OpenAIAPIKey           string                       `json:"openai_api_key,omitempty"`
+	GeminiAPIKey           string                       `json:"gemini_api_key,omitempty"`
+	Timeout                time.Duration                `json:"timeout"`
+	DefaultProvider        string                       `json:"default_provider"`
+	DefaultRenderer        string                       `json:"default_renderer"`
+	DefaultModel           string                       `json:"default_model,omitempty"`
+	DefaultOutputDir       string                       `json:"default_output_dir,omitempty"`
+	DefaultFontFamily      string                       `json:"default_font_family"`
+	DefaultFontSize        float64                      `json:"default_font_size"`
+	DefaultFontWeight      string                       `json:"default_font_weight,omitempty"`
+	OutputTemplate         string                       `json:"output_template"`
+	OverlayColor           string                       `json:"overlay_color"`
+	OverlayOpacity         float64                      `json:"overlay_opacity"`
+	TextOutlineColor       string                       `json:"text_outline_color,omitempty"`
+	TextOutlineWidth       float64                      `json:"text_outline_width"`
+	TextBackgroundEnabled  bool                         `json:"text_background_enabled"`
+	TextBackgroundColor    string                       `json:"text_background_color,omitempty"`
+	TextBackgroundOpacity  float64                      `json:"text_background_opacity"`
+	TextBackgroundPaddingX float64                      `json:"text_background_padding_x"`
+	TextBackgroundPaddingY float64                      `json:"text_background_padding_y"`
+	TextBackgroundRadius   float64                      `json:"text_background_radius"`
+	TextShadowEnabled      bool                         `json:"text_shadow_enabled"`
+	TextShadowColor        string                       `json:"text_shadow_color,omitempty"`
+	TextShadowOpacity      float64                      `json:"text_shadow_opacity"`
+	TextShadowBlur         float64                      `json:"text_shadow_blur"`
+	TextShadowOffsetX      float64                      `json:"text_shadow_offset_x"`
+	TextShadowOffsetY      float64                      `json:"text_shadow_offset_y"`
+	PreserveColumns        bool                         `json:"preserve_columns"`
+	SourceLanguage         string                       `json:"source_language"`
+	TargetLanguage         string                       `json:"target_language"`
+	ProviderOptions        map[string]map[string]string `json:"provider_options,omitempty"`
+	GUIPreferences         map[string]string            `json:"gui_preferences,omitempty"`
 }
 
 func Default() Config {
 	return Config{
-		Timeout:           30 * time.Second,
-		DefaultProvider:   "mock",
-		DefaultRenderer:   "svg",
-		DefaultFontFamily: "Noto Sans",
-		DefaultFontSize:   18,
-		OutputTemplate:    "{input_basename}_{provider}_{timestamp}.svg",
-		OverlayColor:      "#111111",
-		OverlayOpacity:    1,
-		SourceLanguage:    "Ukrainian",
-		TargetLanguage:    "German",
-		ProviderOptions:   map[string]map[string]string{},
-		GUIPreferences:    map[string]string{},
+		Timeout:                30 * time.Second,
+		DefaultProvider:        "mock",
+		DefaultRenderer:        "svg",
+		DefaultFontFamily:      "Noto Sans",
+		DefaultFontSize:        18,
+		DefaultFontWeight:      "normal",
+		OutputTemplate:         "{input_basename}_{provider}_{timestamp}.svg",
+		OverlayColor:           "#111111",
+		OverlayOpacity:         1,
+		TextOutlineColor:       "#ffffff",
+		TextOutlineWidth:       0,
+		TextBackgroundEnabled:  false,
+		TextBackgroundColor:    "#ffffff",
+		TextBackgroundOpacity:  0.85,
+		TextBackgroundPaddingX: 4,
+		TextBackgroundPaddingY: 2,
+		TextBackgroundRadius:   4,
+		TextShadowEnabled:      false,
+		TextShadowColor:        "#000000",
+		TextShadowOpacity:      0.6,
+		TextShadowBlur:         2,
+		TextShadowOffsetX:      2,
+		TextShadowOffsetY:      2,
+		SourceLanguage:         "Ukrainian",
+		TargetLanguage:         "German",
+		ProviderOptions:        map[string]map[string]string{},
+		GUIPreferences:         map[string]string{},
 	}
 }
 
@@ -149,6 +179,9 @@ func (c *Config) normalize() {
 	if c.DefaultFontSize <= 0 {
 		c.DefaultFontSize = defaults.DefaultFontSize
 	}
+	if c.DefaultFontWeight == "" {
+		c.DefaultFontWeight = defaults.DefaultFontWeight
+	}
 	if c.OutputTemplate == "" {
 		c.OutputTemplate = defaults.OutputTemplate
 	}
@@ -157,6 +190,36 @@ func (c *Config) normalize() {
 	}
 	if c.OverlayOpacity < 0 {
 		c.OverlayOpacity = defaults.OverlayOpacity
+	}
+	if c.TextOutlineColor == "" {
+		c.TextOutlineColor = defaults.TextOutlineColor
+	}
+	if c.TextOutlineWidth < 0 {
+		c.TextOutlineWidth = defaults.TextOutlineWidth
+	}
+	if c.TextBackgroundColor == "" {
+		c.TextBackgroundColor = defaults.TextBackgroundColor
+	}
+	if c.TextBackgroundOpacity < 0 {
+		c.TextBackgroundOpacity = defaults.TextBackgroundOpacity
+	}
+	if c.TextBackgroundPaddingX < 0 {
+		c.TextBackgroundPaddingX = defaults.TextBackgroundPaddingX
+	}
+	if c.TextBackgroundPaddingY < 0 {
+		c.TextBackgroundPaddingY = defaults.TextBackgroundPaddingY
+	}
+	if c.TextBackgroundRadius < 0 {
+		c.TextBackgroundRadius = defaults.TextBackgroundRadius
+	}
+	if c.TextShadowColor == "" {
+		c.TextShadowColor = defaults.TextShadowColor
+	}
+	if c.TextShadowOpacity < 0 {
+		c.TextShadowOpacity = defaults.TextShadowOpacity
+	}
+	if c.TextShadowBlur < 0 {
+		c.TextShadowBlur = defaults.TextShadowBlur
 	}
 	if c.SourceLanguage == "" {
 		c.SourceLanguage = defaults.SourceLanguage
@@ -174,17 +237,21 @@ func (c *Config) normalize() {
 
 func (c *Config) ApplyEnv(lookup func(string) (string, bool)) error {
 	stringMappings := map[string]*string{
-		EnvPrefix + "OPENAI_API_KEY":      &c.OpenAIAPIKey,
-		EnvPrefix + "GEMINI_API_KEY":      &c.GeminiAPIKey,
-		EnvPrefix + "DEFAULT_PROVIDER":    &c.DefaultProvider,
-		EnvPrefix + "DEFAULT_RENDERER":    &c.DefaultRenderer,
-		EnvPrefix + "DEFAULT_MODEL":       &c.DefaultModel,
-		EnvPrefix + "DEFAULT_OUTPUT_DIR":  &c.DefaultOutputDir,
-		EnvPrefix + "DEFAULT_FONT_FAMILY": &c.DefaultFontFamily,
-		EnvPrefix + "OUTPUT_TEMPLATE":     &c.OutputTemplate,
-		EnvPrefix + "OVERLAY_COLOR":       &c.OverlayColor,
-		EnvPrefix + "SOURCE_LANGUAGE":     &c.SourceLanguage,
-		EnvPrefix + "TARGET_LANGUAGE":     &c.TargetLanguage,
+		EnvPrefix + "OPENAI_API_KEY":        &c.OpenAIAPIKey,
+		EnvPrefix + "GEMINI_API_KEY":        &c.GeminiAPIKey,
+		EnvPrefix + "DEFAULT_PROVIDER":      &c.DefaultProvider,
+		EnvPrefix + "DEFAULT_RENDERER":      &c.DefaultRenderer,
+		EnvPrefix + "DEFAULT_MODEL":         &c.DefaultModel,
+		EnvPrefix + "DEFAULT_OUTPUT_DIR":    &c.DefaultOutputDir,
+		EnvPrefix + "DEFAULT_FONT_FAMILY":   &c.DefaultFontFamily,
+		EnvPrefix + "DEFAULT_FONT_WEIGHT":   &c.DefaultFontWeight,
+		EnvPrefix + "OUTPUT_TEMPLATE":       &c.OutputTemplate,
+		EnvPrefix + "OVERLAY_COLOR":         &c.OverlayColor,
+		EnvPrefix + "TEXT_OUTLINE_COLOR":    &c.TextOutlineColor,
+		EnvPrefix + "TEXT_BACKGROUND_COLOR": &c.TextBackgroundColor,
+		EnvPrefix + "TEXT_SHADOW_COLOR":     &c.TextShadowColor,
+		EnvPrefix + "SOURCE_LANGUAGE":       &c.SourceLanguage,
+		EnvPrefix + "TARGET_LANGUAGE":       &c.TargetLanguage,
 	}
 	for envKey, target := range stringMappings {
 		if value, ok := lookup(envKey); ok {
@@ -213,12 +280,89 @@ func (c *Config) ApplyEnv(lookup func(string) (string, bool)) error {
 		}
 		c.OverlayOpacity = opacity
 	}
+	if value, ok := lookup(EnvPrefix + "TEXT_OUTLINE_WIDTH"); ok {
+		outlineWidth, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_OUTLINE_WIDTH", err)
+		}
+		c.TextOutlineWidth = outlineWidth
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_BACKGROUND_OPACITY"); ok {
+		backgroundOpacity, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_BACKGROUND_OPACITY", err)
+		}
+		c.TextBackgroundOpacity = backgroundOpacity
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_BACKGROUND_PADDING_X"); ok {
+		paddingX, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_BACKGROUND_PADDING_X", err)
+		}
+		c.TextBackgroundPaddingX = paddingX
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_BACKGROUND_PADDING_Y"); ok {
+		paddingY, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_BACKGROUND_PADDING_Y", err)
+		}
+		c.TextBackgroundPaddingY = paddingY
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_BACKGROUND_RADIUS"); ok {
+		radius, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_BACKGROUND_RADIUS", err)
+		}
+		c.TextBackgroundRadius = radius
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_SHADOW_OPACITY"); ok {
+		shadowOpacity, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_SHADOW_OPACITY", err)
+		}
+		c.TextShadowOpacity = shadowOpacity
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_SHADOW_BLUR"); ok {
+		shadowBlur, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_SHADOW_BLUR", err)
+		}
+		c.TextShadowBlur = shadowBlur
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_SHADOW_OFFSET_X"); ok {
+		shadowOffsetX, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_SHADOW_OFFSET_X", err)
+		}
+		c.TextShadowOffsetX = shadowOffsetX
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_SHADOW_OFFSET_Y"); ok {
+		shadowOffsetY, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_SHADOW_OFFSET_Y", err)
+		}
+		c.TextShadowOffsetY = shadowOffsetY
+	}
 	if value, ok := lookup(EnvPrefix + "PRESERVE_COLUMNS"); ok {
 		preserveColumns, err := strconv.ParseBool(value)
 		if err != nil {
 			return fmt.Errorf("parse %s: %w", EnvPrefix+"PRESERVE_COLUMNS", err)
 		}
 		c.PreserveColumns = preserveColumns
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_BACKGROUND_ENABLED"); ok {
+		backgroundEnabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_BACKGROUND_ENABLED", err)
+		}
+		c.TextBackgroundEnabled = backgroundEnabled
+	}
+	if value, ok := lookup(EnvPrefix + "TEXT_SHADOW_ENABLED"); ok {
+		shadowEnabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", EnvPrefix+"TEXT_SHADOW_ENABLED", err)
+		}
+		c.TextShadowEnabled = shadowEnabled
 	}
 	return nil
 }
@@ -256,6 +400,8 @@ func (c *Config) Set(key, value string) error {
 			return fmt.Errorf("parse default_font_size: %w", err)
 		}
 		c.DefaultFontSize = fontSize
+	case "default_font_weight":
+		c.DefaultFontWeight = value
 	case "output_template":
 		c.OutputTemplate = value
 	case "overlay_color":
@@ -266,6 +412,78 @@ func (c *Config) Set(key, value string) error {
 			return fmt.Errorf("parse overlay_opacity: %w", err)
 		}
 		c.OverlayOpacity = opacity
+	case "text_outline_color":
+		c.TextOutlineColor = value
+	case "text_outline_width":
+		outlineWidth, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_outline_width: %w", err)
+		}
+		c.TextOutlineWidth = outlineWidth
+	case "text_background_enabled":
+		backgroundEnabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("parse text_background_enabled: %w", err)
+		}
+		c.TextBackgroundEnabled = backgroundEnabled
+	case "text_background_color":
+		c.TextBackgroundColor = value
+	case "text_background_opacity":
+		backgroundOpacity, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_background_opacity: %w", err)
+		}
+		c.TextBackgroundOpacity = backgroundOpacity
+	case "text_background_padding_x":
+		paddingX, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_background_padding_x: %w", err)
+		}
+		c.TextBackgroundPaddingX = paddingX
+	case "text_background_padding_y":
+		paddingY, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_background_padding_y: %w", err)
+		}
+		c.TextBackgroundPaddingY = paddingY
+	case "text_background_radius":
+		radius, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_background_radius: %w", err)
+		}
+		c.TextBackgroundRadius = radius
+	case "text_shadow_enabled":
+		shadowEnabled, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("parse text_shadow_enabled: %w", err)
+		}
+		c.TextShadowEnabled = shadowEnabled
+	case "text_shadow_color":
+		c.TextShadowColor = value
+	case "text_shadow_opacity":
+		shadowOpacity, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_shadow_opacity: %w", err)
+		}
+		c.TextShadowOpacity = shadowOpacity
+	case "text_shadow_blur":
+		shadowBlur, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_shadow_blur: %w", err)
+		}
+		c.TextShadowBlur = shadowBlur
+	case "text_shadow_offset_x":
+		shadowOffsetX, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_shadow_offset_x: %w", err)
+		}
+		c.TextShadowOffsetX = shadowOffsetX
+	case "text_shadow_offset_y":
+		shadowOffsetY, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("parse text_shadow_offset_y: %w", err)
+		}
+		c.TextShadowOffsetY = shadowOffsetY
 	case "preserve_columns":
 		preserveColumns, err := strconv.ParseBool(value)
 		if err != nil {
@@ -285,12 +503,27 @@ func (c *Config) Set(key, value string) error {
 
 func (c Config) RenderOptions() base.RenderOptions {
 	return base.RenderOptions{
-		FontFamily:      c.DefaultFontFamily,
-		DefaultFontSize: c.DefaultFontSize,
-		TextColor:       c.OverlayColor,
-		Opacity:         c.OverlayOpacity,
-		HasOpacity:      true,
-		PreserveColumns: c.PreserveColumns,
+		FontFamily:         c.DefaultFontFamily,
+		DefaultFontSize:    c.DefaultFontSize,
+		TextColor:          c.OverlayColor,
+		Opacity:            c.OverlayOpacity,
+		HasOpacity:         true,
+		PreserveColumns:    c.PreserveColumns,
+		FontWeight:         c.DefaultFontWeight,
+		OutlineColor:       c.TextOutlineColor,
+		OutlineWidth:       c.TextOutlineWidth,
+		BackgroundEnabled:  c.TextBackgroundEnabled,
+		BackgroundColor:    c.TextBackgroundColor,
+		BackgroundOpacity:  c.TextBackgroundOpacity,
+		BackgroundPaddingX: c.TextBackgroundPaddingX,
+		BackgroundPaddingY: c.TextBackgroundPaddingY,
+		BackgroundRadius:   c.TextBackgroundRadius,
+		ShadowEnabled:      c.TextShadowEnabled,
+		ShadowColor:        c.TextShadowColor,
+		ShadowOpacity:      c.TextShadowOpacity,
+		ShadowBlur:         c.TextShadowBlur,
+		ShadowOffsetX:      c.TextShadowOffsetX,
+		ShadowOffsetY:      c.TextShadowOffsetY,
 	}
 }
 

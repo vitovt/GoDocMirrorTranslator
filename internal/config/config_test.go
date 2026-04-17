@@ -176,16 +176,19 @@ func TestLoadEffectiveAppliesEnvOverrides(t *testing.T) {
 func TestApplyEnvOverridesDefaults(t *testing.T) {
 	cfg := Default()
 	env := map[string]string{
-		EnvPrefix + "DEFAULT_PROVIDER":  "gemini",
-		EnvPrefix + "DEFAULT_RENDERER":  "fodg",
-		EnvPrefix + "DEFAULT_FONT_SIZE": "22.5",
-		EnvPrefix + "OVERLAY_OPACITY":   "0.7",
-		EnvPrefix + "PRESERVE_COLUMNS":  "true",
-		EnvPrefix + "TIMEOUT":           "45s",
-		EnvPrefix + "SOURCE_LANGUAGE":   "Polish",
-		EnvPrefix + "TARGET_LANGUAGE":   "German",
-		EnvPrefix + "OPENAI_API_KEY":    "env-openai",
-		EnvPrefix + "GEMINI_API_KEY":    "env-gemini",
+		EnvPrefix + "DEFAULT_PROVIDER":        "gemini",
+		EnvPrefix + "DEFAULT_RENDERER":        "fodg",
+		EnvPrefix + "DEFAULT_FONT_SIZE":       "22.5",
+		EnvPrefix + "DEFAULT_FONT_WEIGHT":     "bold",
+		EnvPrefix + "OVERLAY_OPACITY":         "0.7",
+		EnvPrefix + "TEXT_BACKGROUND_ENABLED": "true",
+		EnvPrefix + "TEXT_SHADOW_ENABLED":     "true",
+		EnvPrefix + "PRESERVE_COLUMNS":        "true",
+		EnvPrefix + "TIMEOUT":                 "45s",
+		EnvPrefix + "SOURCE_LANGUAGE":         "Polish",
+		EnvPrefix + "TARGET_LANGUAGE":         "German",
+		EnvPrefix + "OPENAI_API_KEY":          "env-openai",
+		EnvPrefix + "GEMINI_API_KEY":          "env-gemini",
 	}
 	lookup := func(key string) (string, bool) {
 		value, ok := env[key]
@@ -203,8 +206,14 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 	if cfg.DefaultFontSize != 22.5 {
 		t.Fatalf("DefaultFontSize = %v, want 22.5", cfg.DefaultFontSize)
 	}
+	if cfg.DefaultFontWeight != "bold" {
+		t.Fatalf("DefaultFontWeight = %q, want bold", cfg.DefaultFontWeight)
+	}
 	if cfg.OverlayOpacity != 0.7 {
 		t.Fatalf("OverlayOpacity = %v, want 0.7", cfg.OverlayOpacity)
+	}
+	if !cfg.TextBackgroundEnabled || !cfg.TextShadowEnabled {
+		t.Fatalf("text readability toggles = background:%v shadow:%v, want both true", cfg.TextBackgroundEnabled, cfg.TextShadowEnabled)
 	}
 	if !cfg.PreserveColumns {
 		t.Fatal("PreserveColumns = false, want true")
@@ -360,6 +369,16 @@ func TestSetSupportsKnownKeysAndRejectsUnknownKeys(t *testing.T) {
 			},
 		},
 		{
+			key:   "default_font_weight",
+			value: "bold",
+			check: func(t *testing.T, cfg Config) {
+				t.Helper()
+				if cfg.DefaultFontWeight != "bold" {
+					t.Fatalf("DefaultFontWeight = %q, want bold", cfg.DefaultFontWeight)
+				}
+			},
+		},
+		{
 			key:   "output_template",
 			value: "custom.svg",
 			check: func(t *testing.T, cfg Config) {
@@ -386,6 +405,36 @@ func TestSetSupportsKnownKeysAndRejectsUnknownKeys(t *testing.T) {
 				t.Helper()
 				if cfg.OverlayOpacity != 0.25 {
 					t.Fatalf("OverlayOpacity = %v, want 0.25", cfg.OverlayOpacity)
+				}
+			},
+		},
+		{
+			key:   "text_outline_width",
+			value: "1.5",
+			check: func(t *testing.T, cfg Config) {
+				t.Helper()
+				if cfg.TextOutlineWidth != 1.5 {
+					t.Fatalf("TextOutlineWidth = %v, want 1.5", cfg.TextOutlineWidth)
+				}
+			},
+		},
+		{
+			key:   "text_background_enabled",
+			value: "true",
+			check: func(t *testing.T, cfg Config) {
+				t.Helper()
+				if !cfg.TextBackgroundEnabled {
+					t.Fatal("TextBackgroundEnabled = false, want true")
+				}
+			},
+		},
+		{
+			key:   "text_shadow_enabled",
+			value: "true",
+			check: func(t *testing.T, cfg Config) {
+				t.Helper()
+				if !cfg.TextShadowEnabled {
+					t.Fatal("TextShadowEnabled = false, want true")
 				}
 			},
 		},
@@ -439,6 +488,9 @@ func TestSetSupportsKnownKeysAndRejectsUnknownKeys(t *testing.T) {
 		{key: "timeout", value: "bad", want: "parse timeout"},
 		{key: "default_font_size", value: "bad", want: "parse default_font_size"},
 		{key: "overlay_opacity", value: "bad", want: "parse overlay_opacity"},
+		{key: "text_outline_width", value: "bad", want: "parse text_outline_width"},
+		{key: "text_background_enabled", value: "bad", want: "parse text_background_enabled"},
+		{key: "text_shadow_enabled", value: "bad", want: "parse text_shadow_enabled"},
 		{key: "preserve_columns", value: "bad", want: "parse preserve_columns"},
 		{key: "unknown_key", value: "value", want: "unknown config key"},
 	} {
@@ -501,8 +553,23 @@ func TestRenderOptionsAndProviderConfigMirrorConfig(t *testing.T) {
 	cfg := Default()
 	cfg.DefaultFontFamily = "Fira Sans"
 	cfg.DefaultFontSize = 19
+	cfg.DefaultFontWeight = "bold"
 	cfg.OverlayColor = "#334455"
 	cfg.OverlayOpacity = 0.6
+	cfg.TextOutlineColor = "#ffffff"
+	cfg.TextOutlineWidth = 2
+	cfg.TextBackgroundEnabled = true
+	cfg.TextBackgroundColor = "#fefefe"
+	cfg.TextBackgroundOpacity = 0.8
+	cfg.TextBackgroundPaddingX = 5
+	cfg.TextBackgroundPaddingY = 3
+	cfg.TextBackgroundRadius = 6
+	cfg.TextShadowEnabled = true
+	cfg.TextShadowColor = "#101010"
+	cfg.TextShadowOpacity = 0.4
+	cfg.TextShadowBlur = 3
+	cfg.TextShadowOffsetX = 2
+	cfg.TextShadowOffsetY = 1
 	cfg.PreserveColumns = true
 	cfg.OpenAIAPIKey = "sk-openai"
 	cfg.GeminiAPIKey = "gm-gemini"
@@ -510,7 +577,27 @@ func TestRenderOptionsAndProviderConfigMirrorConfig(t *testing.T) {
 	cfg.ProviderOptions["gemini"] = map[string]string{"temperature": "0"}
 
 	renderOpts := cfg.RenderOptions()
-	if renderOpts.FontFamily != "Fira Sans" || renderOpts.DefaultFontSize != 19 || renderOpts.TextColor != "#334455" || renderOpts.Opacity != 0.6 || !renderOpts.HasOpacity || !renderOpts.PreserveColumns {
+	if renderOpts.FontFamily != "Fira Sans" ||
+		renderOpts.DefaultFontSize != 19 ||
+		renderOpts.FontWeight != "bold" ||
+		renderOpts.TextColor != "#334455" ||
+		renderOpts.Opacity != 0.6 ||
+		!renderOpts.HasOpacity ||
+		renderOpts.OutlineColor != "#ffffff" ||
+		renderOpts.OutlineWidth != 2 ||
+		!renderOpts.BackgroundEnabled ||
+		renderOpts.BackgroundColor != "#fefefe" ||
+		renderOpts.BackgroundOpacity != 0.8 ||
+		renderOpts.BackgroundPaddingX != 5 ||
+		renderOpts.BackgroundPaddingY != 3 ||
+		renderOpts.BackgroundRadius != 6 ||
+		!renderOpts.ShadowEnabled ||
+		renderOpts.ShadowColor != "#101010" ||
+		renderOpts.ShadowOpacity != 0.4 ||
+		renderOpts.ShadowBlur != 3 ||
+		renderOpts.ShadowOffsetX != 2 ||
+		renderOpts.ShadowOffsetY != 1 ||
+		!renderOpts.PreserveColumns {
 		t.Fatalf("RenderOptions() = %#v, want mirrored render settings", renderOpts)
 	}
 

@@ -100,6 +100,70 @@ func TestRenderOffsetsAlignedTextByBlockWidth(t *testing.T) {
 	}
 }
 
+func TestRenderAppliesReadabilityDecorations(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 800, 1000)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  800,
+		SourceImageHeight: 1000,
+		Blocks: []domain.TextBlock{{
+			SourceText:     "Привіт",
+			TranslatedText: "Hallo",
+			X:              100,
+			Y:              200,
+			Width:          300,
+			Height:         100,
+			FontSize:       24,
+		}},
+	}
+
+	output, err := r.Render(context.Background(), page, base.RenderOptions{
+		FontFamily:         "Noto Sans",
+		DefaultFontSize:    18,
+		TextColor:          "#111111",
+		Opacity:            1,
+		HasOpacity:         true,
+		FontWeight:         "bold",
+		OutlineColor:       "#ffffff",
+		OutlineWidth:       2,
+		BackgroundEnabled:  true,
+		BackgroundColor:    "#ffffdd",
+		BackgroundOpacity:  0.85,
+		BackgroundPaddingX: 6,
+		BackgroundPaddingY: 3,
+		BackgroundRadius:   4,
+		ShadowEnabled:      true,
+		ShadowColor:        "#000000",
+		ShadowOpacity:      0.5,
+		ShadowBlur:         2,
+		ShadowOffsetX:      2,
+		ShadowOffsetY:      1,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	content := string(output)
+	for _, fragment := range []string{
+		"<defs>",
+		`filter id="text-shadow"`,
+		"<rect ",
+		`font-weight="bold"`,
+		`stroke="#ffffff"`,
+		`paint-order="stroke fill"`,
+		`fill="#ffffdd"`,
+		`filter="url(#text-shadow)"`,
+	} {
+		if !strings.Contains(content, fragment) {
+			t.Fatalf("Render() output missing %q in %q", fragment, content)
+		}
+	}
+}
+
 func TestRenderMatchesGoldenFile(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")
