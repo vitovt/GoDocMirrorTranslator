@@ -287,15 +287,13 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	guiApp.Settings().AddListener(func(fyne.Settings) {
 		ui.refreshThemeSurfaces()
 	})
-	fyne.DoAndWait(func() {
-		ui.refreshThemeSurfaces()
-		ui.applyConfig(cfg)
-		ui.refreshRendererGuidance()
-		ui.syncModelOptions()
-		ui.syncAdvancedOptions()
-		ui.applyShellState()
-		ui.refreshValidation()
-	})
+	ui.refreshThemeSurfaces()
+	ui.applyConfig(cfg)
+	ui.refreshRendererGuidance()
+	ui.syncModelOptions()
+	ui.syncAdvancedOptions()
+	ui.applyShellState()
+	ui.refreshValidation()
 
 	return ui
 }
