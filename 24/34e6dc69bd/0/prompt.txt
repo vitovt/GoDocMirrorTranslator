@@ -1,0 +1,513 @@
+review AGENTS.md and STATE.md, make them more project-independent in order to use in other golang projects with another SPEC.md
+
+---
+
+no, don't update AGENTS.md and STATE.md. I've just looked at. They are suitable for current project.
+NOW:
+Analyze helper Makefile. Adapt it to go+fyne instead go+gogio, change AGENTS.md to use primary this make commands instead of raw go commands to format, build, test and so on.
+
+---
+
+try again to read those files.
+
+---
+
+Make corresponding commits.
+Read SPEC.md, AGENTS.md, and STATE.md. Audit the specification for ambiguity, missing constraints, risky assumptions, inconsistent terminology, and implementation gaps. Produce a prioritized review with exact proposed edits to SPEC.md, but do not edit files yet.
+
+---
+
+1. Propose accepted
+2. I want json in v1
+3. Propose accepted
+4. Propose accepted
+5. fully promote Android into v1 deliverables and acceptance
+6. Propose accepted
+7. in v1. provider options should be configured only in gui/saved config. Cli override over default/config settings are not necessary on this stage.
+8. Propose accepted
+9. Propose accepted
+10. Propose accepted
+
+---
+
+Commit changes.
+Then Read again SPEC.md, AGENTS.md, and STATE.md. Create a concrete implementation plan for milestone 1, then start implementing the repository skeleton, domain model, renderer interface, SVG renderer, CLI wiring, and tests in small reviewable commits.
+
+---
+
+continue
+
+---
+
+continue now
+
+---
+
+I've run `codex --profile project-autonomous`, in .codex/config.toml I see:
+```
+[profiles]
+
+[profiles.project-autonomous]
+model = "gpt-5.4"
+model_provider = "openai"
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+web_search = "live"
+tools_view_image = true
+```
+
+But there are still problems with permissions. Check environment and say what to fix.
+
+---
+
+$ cat  ~/.codex/config.toml 
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+personality = "pragmatic"
+approvals_reviewer = "user"
+
+[projects."/home/vitovt/Desktop/Недороблені-недопушені_проги"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Dev"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Antigravity"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/var/diaries/generalmd/01_Projects/YouTube/Deutschland-investigation"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/var/diaries/generalmd/.obsidian/plugins/csv-codeblock"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Dropbox/Documents/Projects/Horoshop/yml_catalog"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Downloads/del/Horoshop/dev.zolotoy-standart.com.ua-BITRIX"]
+trust_level = "trusted"
+
+[notice]
+"hide_gpt-5.1-codex-max_migration_prompt" = true
+
+[notice.model_migrations]
+"gpt-5.1-codex-max" = "gpt-5.2-codex"
+"gpt-5.3-codex" = "gpt-5.4"
+"gpt-5.2" = "gpt-5.4"
+
+#[mcp_servers.playwright]
+#command = "npx"
+#args = ["@playwright/mcp@latest"]
+
+[tui]
+status_line = ["model-name", "model-with-reasoning", "current-dir", "project-root", "context-remaining", "context-used", "five-hour-limit", "weekly-limit", "context-window-size", "used-tokens", "session-id"]
+
+[profiles.spec-review]
+approvals_reviewer = "user"
+[projects."/home/vitovt/Desktop/Dev/GoDocMirrorTranslator"]
+trust_level = "trusted"
+
+[projects."/home/vitovt/Desktop/Dev/WeatherChecker3"]
+trust_level = "trusted"
+
+---
+
+I've changed bwrap apparmor rules. Try access again
+
+---
+
+Now make commits and continue developing.
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue
+
+---
+
+continue until SPEC will be fullfilled
+
+---
+
+commit now. I've fixed permissions
+
+---
+
+commit now. I've fixed permissions
+
+---
+
+continue
+
+---
+
+replace default filepicker by OS native. Here is an example how it was done in another project:
+https://github.com/vitovt/OCImageDownloader/commit/e29738f76eb01eceb6d04a4f330863cf052d984d
+
+---
+
+I've specified OpenAI API key and tried to process an image. I see an error:
+[Image #1]
+
+---
+
+Can we use official go api library ? Or it will be overhead ?
+https://github.com/openai/openai-go
+
+---
+
+Fix the schema. Don't migrate to the OpenAI adapter at all.
+
+---
+
+Now develop side menu. Put on top accordeon button. When I press it - side panel shows/hides. When screen is narrow (resized window or mobile device) - auto hide this panel. 
+In this side panel should be tabs:
+- ai settins: all keys, details, timeouts, etc ...
+- design settings: fonts, colors, size
+- main tab (default on app open - top one): here should stay: Input image, Output Folder, Filename Tamplate, Source language, target language, Preserver columns
+Bottom panel with save/process/open should allways stay visible
+
+---
+
+Ok. But you din't understand.
+Ther shoulnd't be 3 panels.
+Only 2. Left - menu, which shows and hides exactly as I want. But when I press button on this left menu panel - content should change in main panel. Not in the middle.
+You can leave implementation allmost as it is. But make 2nd panel persistent, and move 3d right panel to the bottom, as it was before.
+Don't start implementing now - write how did you understand me.
+
+---
+
+Yes, you understand me right.
+Additionally:
+- rename Show/Hide Panel to Show/Hide Menu
+- When app starts - allways show left panel opened
+- On small windows (mobile, another orientation) left panel with buttons don't move main content, but overlaps: the goal - to have enought place on small screens.
+- Bottom: status/details arrea goes below save/process/open buttons.
+How did you understand ? Maybe you have something else to offer for better usability for mobile devices in vertical orientation ?
+
+---
+
+>   - when the user taps a menu item on a narrow/mobile layout, auto-close the overlay menu immediately
+Yes, I accept this.
+> - make the bottom details area collapsed by default on mobile, showing only status plus a small Details expander
+Yes, I accpet this too.
+Start implementint all this.
+
+---
+
+Now it is broken.
+Menu is allways visible. Show/Hide does nothing.
+Central area, where should be main content,is empty
+Additional unclicable "Menu" word right of the button Show/Hide menu
+Selection a menu section changes nothing
+
+Status arrea is in right place and OK
+
+---
+
+Menu is OK. But content in central area or absent or invisible.
+
+---
+
+Now it is visible. The only thing: menu bar SHOULD overlap main content. Now it moves main content area aside makes it smaller.
+
+---
+
+Sorry, I didn't check it carefully.
+It already overlaps on small screens. It moves aside only on large screens. This behaviour is acceptible. So you don't need to make those additional changes.
+
+---
+
+I vant to make more application with this design in the future.
+fyne + side panel + status panel. Adaptive to mobile and small/vertical screens. And so on.
+UPDATE SPEC.md - add special Fyne adaptive design section in that way, that it could be copy-pasted to another spec of another application.
+Describe all details of behaviour and implementation there in order to simplify development of another application later.
+
+---
+
+Now Implement Libre Office format support (FODG)
+
+---
+
+continue
+
+---
+
+It works. Everything is correct.
+Now I need following functions. Analyse and offer your view how to implement them:
+- Overlay text readability. Now text is fast undistinguishable on bright colorfull images. And changing color helps only on some part of image.
+  - Ability to change font color
+  - Additional font decorations
+  - Ability to add text background
+    - Rectangular background
+    - The best will be not square background, but shadow.
+- Ability to reuse again existing json for different formatting without submiting to AI the same image again.
+
+---
+
+Everything what you've offered:
+1. Formatting - everything is ok, implement
+2. JSON: everything is ok. More details:
+- in GUI: 
+  - add in Main:
+      - Layout JSON
+         - by default is empty
+         - after every success Process (of image) fills with current path
+         - when pressed Process again - process image again and change Layout JSON field to actual value
+      - button between process and Open Output Folder - to regenerate image with existing json but current formattings set
+      rename Process and this new button to short clear and easy distinguishable names
+- don't need to keep backward format compatibility
+Write what you would do and don't do before I approve.
+
+---
+
+ok. Add error handling (non existing image file, non existing json file, rewrite confirmation, etc )
+If json contains image path - use relative (only filename) if source image is in the same folder
+If everything is clear - start working.
+
+---
+
+FODG format, when I do rerender:
+ - Text background works OK.
+ - Font size - doesn't make impact - it looks allways as 18 in libreoffice
+ - Font allways is Liberation Sans
+ - Font Weight - doesn't work, for example I use Bold, bit it looks without bold. Here is how it looks in libreoffice draw:
+[Image #2]
+ - Outline width - creates N additional textes. For example if outline width = 5, then I totally get 6 (5+1) textes
+ - outline color - doesn't make impact - allways black
+ - overlay color - doesn't work too - letters allways black
+ - shadow color - doesn't work - shadow allways black
+ - shadow - creates duplicate text instead of using inbuild shadow function.
+Here is how built in shadow function looks in libreoffice:
+[Image #1]
+Here is how font settings looks like
+
+Let's fix it
+
+---
+
+FODG format, when I do rerender:
+ - Text background works, but it is separate color bar under the text. It should be from text properties.
+ - Font size - doesn't make impact - it looks allways as 18 in libreoffice
+ - Font allways is Liberation Sans
+ - Font Weight - doesn't work, for example I use Bold, bit it looks without bold. Here is how it looks in libreoffice draw:
+[Image #2]
+ - Outline width - creates N additional textes. For example if outline width = 5, then I totally get 6 (5+1) textes
+ - outline color - doesn't make impact - allways black
+ - overlay color - doesn't work too - letters allways black
+ - shadow color - doesn't work - shadow allways black
+ - shadow - creates duplicate text instead of using inbuild shadow function.
+Here is how built in shadow function looks in libreoffice:
+[Image #1]
+
+ - Additionally: page size IS OK (A4, landscape), but original SVG image didn't fit to the width (in my example it is wider than A4) and scriptures are also out of the page width. It should be resized to the width of the page (or height if height is greater als width)
+
+Let's fix it according to fodg specification.
+
+---
+
+- Is "Overlay Color" color of the text ? If yes - it should be renamed.
+- in ofdg mode:
+  - I use "Overlay color" = #00FF00 - I see green letters.
+  - When I set Outline color = #ff0000 and Outline width > 0, I see red border (it's ok) but letters become white. Why ? Explain.
+  - font size for different text areas are different (13,9; 7,9; 9,9;) - explain
+  - what does overlay opacity means ? I set 1, I set 0.1 - and don't see difference. And better if it will be in %
+
+---
+
+do what you've proposed
+
+---
+
+>   - Why you get red border but white letters in FODG: LibreOffice Draw does not treat this like SVG fill + stroke. In FODG we enable contoured text with style:text-outline="true" when width is greater than zero   at internal/renderer/fodg/renderer.go:289, and when outline is enabled we currently switch the text color to the outline color at internal/renderer/fodg/renderer.go:177. LibreOffice then renders contoured    text as hollow text: colored outline, no separate inner fill. So the inside looks white because it is just the background showing through. Also, in FODG the current Outline Width is effectively only an on/off trigger, not a true adjustable stroke width.
+
+Ok. Can I in this case achieve red border with green letters inside ? Or with black ? Is it achiavable ?
+I mean: now if I enable outline width > 0 — I see white letters and outline color border.
+can I see: text color letters + outline color border ? Or it will be allways white ? Is it possible somehow change for fodg ?
+
+---
+
+Ok. Skip it for now.
+
+1. In the gui tab "design settings" - make reorders:
+- move background settings block bottom, below text shadow block
+- move Render Formattings notes at the very bottom of this area, after baground bottom settings
+
+2. Windows build under linux fails. Fix it:
+
+$ make snapshot
+Downloading Go modules...
+all modules verified
+Formatting check passed.
+golangci-lint is not installed, skipping lint.
+Running Go tests...
+?       godocmirrortranslator/cmd/app   [no test files]
+ok      godocmirrortranslator/internal/app      (cached)
+ok      godocmirrortranslator/internal/cli      (cached)
+ok      godocmirrortranslator/internal/config   (cached)
+ok      godocmirrortranslator/internal/domain   (cached)
+?       godocmirrortranslator/internal/prompts  [no test files]
+ok      godocmirrortranslator/internal/gui      (cached)
+?       godocmirrortranslator/internal/provider/mock    [no test files]
+ok      godocmirrortranslator/internal/provider (cached)
+ok      godocmirrortranslator/internal/provider/gemini  (cached)
+ok      godocmirrortranslator/internal/provider/openai  (cached)
+ok      godocmirrortranslator/internal/renderer (cached)
+ok      godocmirrortranslator/internal/renderer/fodg    (cached)
+ok      godocmirrortranslator/internal/renderer/svg     (cached)
+ok      godocmirrortranslator/tests/integration (cached)
+Checks completed.
+Building Linux binary...
+Linux build completed: build/linux/godocmirrortranslator
+Packaging Linux artifact: dist/0.0.0-76e5034-dev-dirty/godocmirrortranslator_0.0.0-76e5034-dev-dirty_linux_amd64
+Building Windows binary...
+# runtime/cgo
+gcc: error: unrecognized command-line option ‘-mthreads’; did you mean ‘-pthread’?
+make: *** [Makefile:281: windows] Error 1
+```
+or
+```
+$ make windows
+Downloading Go modules...
+all modules verified
+Formatting check passed.
+golangci-lint is not installed, skipping lint.
+Running Go tests...
+?       godocmirrortranslator/cmd/app   [no test files]
+ok      godocmirrortranslator/internal/app      (cached)
+ok      godocmirrortranslator/internal/cli      (cached)
+ok      godocmirrortranslator/internal/config   (cached)
+ok      godocmirrortranslator/internal/domain   (cached)
+?       godocmirrortranslator/internal/prompts  [no test files]
+ok      godocmirrortranslator/internal/gui      (cached)
+ok      godocmirrortranslator/internal/provider (cached)
+?       godocmirrortranslator/internal/provider/mock    [no test files]
+ok      godocmirrortranslator/internal/provider/gemini  (cached)
+ok      godocmirrortranslator/internal/provider/openai  (cached)
+ok      godocmirrortranslator/internal/renderer (cached)
+ok      godocmirrortranslator/internal/renderer/fodg    (cached)
+ok      godocmirrortranslator/internal/renderer/svg     (cached)
+ok      godocmirrortranslator/tests/integration (cached)
+Checks completed.
+Building Windows binary...
+# runtime/cgo
+gcc: error: unrecognized command-line option ‘-mthreads’; did you mean ‘-pthread’?
+make: *** [Makefile:281: windows] Error 1
+
+3. add to the .gitignore all release paths
+
+---
+
+The app won't start on android, I see startup screen until kill the app:
+```
+$ adb logcat -v time --pid=$(adb shell pidof com.vitovt.godocmirrortranslator)
+--------- beginning of main
+04-18 17:15:07.451 I/libc    (31328): SetHeapTaggingLevel: tag level set to 0
+04-18 17:15:07.455 I/irrortranslator(31328): Late-enabling -Xcheck:jni
+04-18 17:15:07.472 I/irrortranslator(31328): Using CollectorTypeCMC GC.
+04-18 17:15:07.497 D/nativeloader(31328): Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+04-18 17:15:07.527 D/ApplicationLoaders(31328): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+04-18 17:15:07.534 D/nativeloader(31328): Configuring clns-7 for other apk /data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/base.apk. target_sdk_version=29, uses_libraries=, library_path=/data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/lib/arm64:/data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.vitovt.godocmirrortranslator
+04-18 17:15:07.534 D/nativeloader(31328): Extending system_exposed_libraries: libteeservice_client.trustonic.so:libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so
+04-18 17:15:07.548 V/GraphicsEnvironment(31328): Currently set values for:
+04-18 17:15:07.548 V/GraphicsEnvironment(31328):   angle_gl_driver_selection_pkgs=[]
+04-18 17:15:07.548 V/GraphicsEnvironment(31328):   angle_gl_driver_selection_values=[]
+04-18 17:15:07.548 V/GraphicsEnvironment(31328): Global.Settings values are invalid: number of packages: 0, number of values: 0
+04-18 17:15:07.548 V/GraphicsEnvironment(31328): Neither updatable production driver nor prerelease driver is supported.
+04-18 17:15:07.573 D/libMEOW (31328): meow new tls: 0x779ccf1080
+04-18 17:15:07.574 D/libMEOW (31328): meow reload base cfg path: na
+04-18 17:15:07.574 D/libMEOW (31328): meow reload overlay cfg path: na
+04-18 17:15:07.574 W/QT      (31328): qt_process_init() called
+04-18 17:15:07.574 E/QT      (31328): [QT]file does not exist
+04-18 17:15:07.574 W/QT      (31328): Support!!
+04-18 17:15:07.575 E/QT      (31328): [QT]file does not exist
+04-18 17:15:07.575 D/libMEOW (31328): applied 1 plugins for [com.vitovt.godocmirrortranslator]:
+04-18 17:15:07.576 D/libMEOW (31328):   plugin 1: [libMEOW_gift.so]: 0xb40000782cc88030
+04-18 17:15:07.576 D/libMEOW (31328): rebuild call chain: 0x779cd310c0
+04-18 17:15:07.577 D/libMEOW (31328): meow delete tls: 0x779ccf1080
+04-18 17:15:07.584 I/hxy     (31328): pkg:::com.vitovt.godocmirrortranslator---name::::android.software.picture_in_picture
+04-18 17:15:07.589 D/nativeloader(31328): Load /data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/lib/arm64/libgodocmirrortranslator.so using class loader ns clns-7 (caller=/data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/base.apk): ok
+04-18 17:15:07.597 I/Fyne    (31328): Fyne error:  Failed to load user locales
+04-18 17:15:07.597 I/Fyne    (31328):   Cause: no current JVM
+04-18 17:15:07.597 I/Fyne    (31328):   At: /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/lang/lang.go:205
+04-18 17:15:07.604 I/hxy     (31328): pkg:::com.vitovt.godocmirrortranslator---name::::android.hardware.type.watch
+04-18 17:15:07.632 D/nativeloader(31328): Load /data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/lib/arm64/libgodocmirrortranslator.so using class loader ns clns-7 (caller=<unknown>): ok
+
+```
+
+```
+adb logcat -v time ActivityManager:I AndroidRuntime:E System.err:W *:S
+
+04-18 17:16:24.621 I/ActivityManager( 1531): Start proc 2475:com.vitovt.godocmirrortranslator/u0a422 for next-top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:24.850 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2475) has died: fg  TOP 
+04-18 17:16:24.863 I/ActivityManager( 1531): Start proc 2522:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.045 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2522) has died: fg  TOP 
+04-18 17:16:25.059 I/ActivityManager( 1531): Start proc 2559:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.244 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2559) has died: fg  TOP 
+04-18 17:16:25.257 I/ActivityManager( 1531): Start proc 2589:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.442 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2589) has died: fg  TOP 
+04-18 17:16:25.455 I/ActivityManager( 1531): Start proc 2637:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.651 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2637) has died: fg  TOP 
+04-18 17:16:25.666 I/ActivityManager( 1531): Start proc 2681:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.858 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2681) has died: fg  TOP 
+04-18 17:16:25.871 I/ActivityManager( 1531): Start proc 2723:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.065 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2723) has died: fg  TOP 
+04-18 17:16:26.078 I/ActivityManager( 1531): Start proc 2760:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.295 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2760) has died: fg  TOP 
+04-18 17:16:26.308 I/ActivityManager( 1531): Start proc 2786:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.502 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2786) has died: fg  TOP 
+04-18 17:16:26.515 I/ActivityManager( 1531): Start proc 2812:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.709 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2812) has died: fg  TOP 
+04-18 17:16:26.722 I/ActivityManager( 1531): Start proc 2838:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.911 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2838) has died: fg  TOP 
+04-18 17:16:26.924 I/ActivityManager( 1531): Start proc 2884:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.115 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2884) has died: fg  TOP 
+04-18 17:16:27.128 I/ActivityManager( 1531): Start proc 2917:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.312 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2917) has died: fg  TOP 
+04-18 17:16:27.326 I/ActivityManager( 1531): Start proc 2961:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.518 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2961) has died: fg  TOP 
+04-18 17:16:27.532 I/ActivityManager( 1531): Start proc 2995:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.725 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2995) has died: fg  TOP 
+04-18 17:16:27.740 I/ActivityManager( 1531): Start proc 3026:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.938 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3026) has died: fg  TOP 
+04-18 17:16:27.951 I/ActivityManager( 1531): Start proc 3065:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.142 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3065) has died: fg  TOP 
+04-18 17:16:28.154 I/ActivityManager( 1531): Start proc 3093:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.343 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3093) has died: fg  TOP 
+04-18 17:16:28.355 I/ActivityManager( 1531): Start proc 3117:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.542 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3117) has died: fg  TOP 
+04-18 17:16:28.555 I/ActivityManager( 1531): Start proc 3144:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.740 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3144) has died: fg  TOP 
+04-18 17:16:28.755 I/ActivityManager( 1531): Start proc 3169:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.947 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3169) has died: fg  TOP 
+04-18 17:16:28.962 I/ActivityManager( 1531): Start proc 3226:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+^C
+
+```
+
+---
+
+In light system mode on android and PC left menu bar, which appears after clicking on Show menu, stays black anyway.
