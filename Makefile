@@ -392,6 +392,7 @@ release-check:
 		echo "Release requires an exact git tag on HEAD."; \
 		echo "Current derived version is $(VERSION). Use 'make snapshot' for untagged builds."; \
 		echo "Last git tag was: $$last_tag"; \
+		echo "Add '#git tag vXX.XX.XX' or '#git tag XX.XX.XX' and push '#git push --tags'"; \
 		echo "Recent commits (git log --oneline -n 10):"; \
 		git log --oneline -n 10; \
 		exit 1; \
