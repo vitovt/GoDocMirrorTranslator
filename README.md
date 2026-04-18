@@ -1,6 +1,6 @@
-# Handwritten Overlay Translator
+# Go Document Mirror Translator
 
-Handwritten Overlay Translator takes a photo or scan of a document page, sends it to an AI provider, and generates an editable translated overlay on top of the original image.
+The app takes a photo or scan of a document page, sends it to an AI provider, and generates an editable translated overlay (mirrors it) on top of the original image.
 
 The result is an **A4 SVG** for **Inkscape** or an **A4 FODG** for **LibreOffice Draw**. The background stays the original page image, while the translated text is written as editable text objects so you can fine-tune the result manually afterward.
 

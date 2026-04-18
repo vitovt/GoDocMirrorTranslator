@@ -26,7 +26,7 @@ import (
 
 const (
 	appID        = "com.vitovt.godocmirrortranslator"
-	windowTitle  = "Handwritten Overlay Translator"
+	windowTitle  = "Go Document Mirror Translator"
 	narrowWidth  = 860
 	minMenuWidth = 220
 )

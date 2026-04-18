@@ -16,7 +16,7 @@ import (
 const (
 	EnvPrefix        = "GODOCMIRRORTRANSLATOR_"
 	ConfigPathEnv    = EnvPrefix + "CONFIG"
-	defaultConfigDir = "handwritten-overlay-translator"
+	defaultConfigDir = "godocmirrortranslator"
 	filesDirEnv      = "FILESDIR"
 )
 
