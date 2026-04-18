@@ -45,6 +45,7 @@ type UI struct {
 	confirmOverwrite func(title string, message string, onDone func(bool))
 
 	menuToggle        *widget.Button
+	menuBackground    *canvas.Rectangle
 	menuPanel         *fyne.Container
 	mainMenuButton    *widget.Button
 	aiMenuButton      *widget.Button
@@ -276,7 +277,11 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.installChangeHandlers()
 	ui.layoutRoot = newResponsiveRoot(ui.content(), ui.handleResponsiveLayout)
 	window.SetContent(ui.layoutRoot)
+	guiApp.Settings().AddListener(func(fyne.Settings) {
+		ui.refreshThemeSurfaces()
+	})
 	fyne.DoAndWait(func() {
+		ui.refreshThemeSurfaces()
 		ui.applyConfig(cfg)
 		ui.refreshRendererGuidance()
 		ui.syncModelOptions()
@@ -348,10 +353,10 @@ func (u *UI) content() fyne.CanvasObject {
 		u.aiContentView,
 		u.designContentView,
 	)
-	menuBackground := canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground))
-	menuBackground.SetMinSize(fyne.NewSize(minMenuWidth, 0))
+	u.menuBackground = canvas.NewRectangle(theme.Color(theme.ColorNameMenuBackground))
+	u.menuBackground.SetMinSize(fyne.NewSize(minMenuWidth, 0))
 	u.menuPanel = container.NewStack(
-		menuBackground,
+		u.menuBackground,
 		container.NewPadded(container.NewVBox(
 			u.mainMenuButton,
 			u.aiMenuButton,
@@ -1189,6 +1194,14 @@ func (u *UI) applyShellState() {
 	u.applySectionState()
 	u.applyDetailsState()
 	u.updateMenuToggle()
+}
+
+func (u *UI) refreshThemeSurfaces() {
+	if u.menuBackground == nil {
+		return
+	}
+	u.menuBackground.FillColor = theme.Color(theme.ColorNameMenuBackground)
+	u.menuBackground.Refresh()
 }
 
 func (u *UI) selectSection(section settingsSection) {

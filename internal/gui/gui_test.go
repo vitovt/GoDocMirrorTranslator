@@ -14,6 +14,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
 
 	appcore "godocmirrortranslator/internal/app"
 	"godocmirrortranslator/internal/config"
@@ -452,6 +453,20 @@ func TestToggleMenuShowsAndHidesSettings(t *testing.T) {
 	if ui.menuToggle.Text != "Hide Menu" {
 		t.Fatalf("menuToggle.Text = %q, want Hide Menu", ui.menuToggle.Text)
 	}
+}
+
+func TestMenuBackgroundTracksThemeSurface(t *testing.T) {
+	ui, _, _ := newTestUI(t)
+
+	if !sameColor(ui.menuBackground.FillColor, theme.Color(theme.ColorNameMenuBackground)) {
+		t.Fatalf("initial menu background = %#v, want %#v", ui.menuBackground.FillColor, theme.Color(theme.ColorNameMenuBackground))
+	}
+
+	test.ApplyTheme(t, test.NewTheme())
+
+	waitFor(t, time.Second, func() bool {
+		return sameColor(ui.menuBackground.FillColor, theme.Color(theme.ColorNameMenuBackground))
+	})
 }
 
 func TestResponsiveLayoutUsesCompactOverlayWithoutAutoHidingMenu(t *testing.T) {
@@ -1160,4 +1175,8 @@ func contains(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func sameColor(got color.Color, want color.Color) bool {
+	return color.NRGBAModel.Convert(got) == color.NRGBAModel.Convert(want)
 }
