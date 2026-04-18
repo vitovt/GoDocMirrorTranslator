@@ -1,56 +1,100 @@
 # Handwritten Overlay Translator
 
-Handwritten Overlay Translator is a Go application with a shared CLI and Fyne GUI that sends one document image to an AI provider and produces an editable A4 SVG or FODG overlay. SVG output is intended for Inkscape, and FODG output is intended for LibreOffice Draw.
+Handwritten Overlay Translator takes a photo or scan of a document page, sends it to an AI provider, and generates an editable translated overlay on top of the original image.
 
-## Features
+The result is an **A4 SVG** for **Inkscape** or an **A4 FODG** for **LibreOffice Draw**. The background stays the original page image, while the translated text is written as editable text objects so you can fine-tune the result manually afterward.
 
-- Single-image processing for `.jpg`, `.jpeg`, `.png`, and `.webp`
-- Shared application core used by both CLI and GUI
-- OpenAI and Gemini provider adapters plus a mock provider for local tests and sample generation
-- Editable SVG and FODG output with reusable normalized layout JSON export and rerendering
-- Local config storage for provider credentials and rendering/readability defaults
-- Desktop GUI plus Android packaging support through Fyne
-- Native OS file and folder pickers on desktop, with Fyne fallback on Android
+## What This App Does
 
-## Repository Layout
+Use it when you have:
+- a handwritten or mixed handwritten/printed page;
+- text in one language that you want translated into another;
+- a need to keep the original page visually recognizable;
+- a need to keep the translated text editable after generation.
 
-- `cmd/app` contains the main application entrypoint and Android app icon.
-- `internal/app` contains render orchestration, validation, and file output logic.
-- `internal/config` contains config loading, persistence, masking, and precedence rules.
-- `internal/provider` contains the shared provider contract and provider adapters.
-- `internal/renderer/svg` contains the SVG renderer and golden fixtures.
-- `internal/renderer/fodg` contains the flat LibreOffice Draw renderer and golden fixtures.
-- `internal/gui` contains the Fyne shell and GUI tests.
-- `examples/config.example.json` shows a usable config file shape.
-- `samples/input` and `samples/output` contain checked-in sample assets.
+The app:
+- accepts one image file: `.jpg`, `.jpeg`, `.png`, or `.webp`;
+- analyzes the page with OpenAI or Gemini;
+- extracts an approximate text layout;
+- translates the text;
+- renders a new editable overlay document;
+- can save a reusable layout JSON so you can change formatting later without sending the image to AI again.
 
-## Requirements
+## Typical Workflow
 
-- Go 1.25+
-- For desktop builds on Linux: CGO plus the native dependencies Fyne and the desktop native picker expect, such as `gcc`, `pkg-config`, `libgl1-mesa-dev`, `xorg-dev`, and `libgtk-3-dev`
-- For Android packaging: `fyne` CLI, Android SDK/NDK, and the Java toolchain Fyne expects
-- `golangci-lint` if you want `make lint` to run instead of skipping
+1. Select a source image.
+2. Choose provider, model, source language, and target language.
+3. Click `Analyze`.
+4. Review the generated SVG or FODG in Inkscape or LibreOffice Draw.
+5. If needed, change fonts, colors, outline, background, or shadow and click `Re-render` from the saved layout JSON without re-running AI analysis.
 
-## Common Commands
+## Main Features
 
-```bash
-make fmt
-make fmt-check
-make test
-GOCACHE=/tmp/go-build make check
-make build
-make run-help
-```
+- Shared **GUI + CLI** application core
+- **Fyne GUI** for Linux, Windows, macOS, and Android
+- **CLI** for desktop use and scripting
+- **OpenAI** and **Gemini** provider support
+- **SVG** and **FODG** output
+- **Layout JSON export/import** for rerendering without another provider call
+- Local config for API keys, provider defaults, and render defaults
+- Native desktop file/folder pickers, with Fyne fallback on Android
+- Readability controls for:
+  - text color;
+  - font weight;
+  - outline;
+  - text background;
+  - text shadow
 
-To build an Android APK when the toolchain is installed:
+## Output Formats
 
-```bash
-GOCACHE=/tmp/go-build make android
-```
+### SVG
 
-## CLI Usage
+Best when you want to edit the result in **Inkscape**.
 
-Render one file with the mock provider:
+SVG has the best formatting fidelity in this project right now:
+- editable text;
+- text color and opacity;
+- outline color and width;
+- text background;
+- shadow controls.
+
+### FODG
+
+Best when you want to edit the result in **LibreOffice Draw**.
+
+FODG is supported, but LibreOffice has some import limitations compared with SVG:
+- text remains editable;
+- font family, size, weight, color, background, and shadow work;
+- text opacity is currently ignored by LibreOffice on import;
+- outline behaves like Draw contour mode, not a true adjustable SVG-style stroke.
+
+## GUI
+
+The GUI is designed around a reusable adaptive shell:
+- top bar with `Show Menu` / `Hide Menu`;
+- left navigation menu;
+- one persistent main content area;
+- bottom action bar;
+- bottom status/details area.
+
+On smaller or vertical screens, the left menu overlays the content instead of shrinking it. On compact layouts, selecting a section auto-hides the menu again.
+
+The main GUI sections are:
+- `Main`: input image, layout JSON, output folder, filename template, output format, source/target language, preserve columns;
+- `AI Settings`: provider, model, timeout, API keys, provider-specific options;
+- `Design Settings`: font and readability controls.
+
+## CLI
+
+The CLI supports:
+- analyzing one image;
+- rerendering from one saved layout JSON;
+- listing providers;
+- reading and writing config;
+- launching the GUI;
+- version and help output.
+
+Examples:
 
 ```bash
 go run ./cmd/app render \
@@ -59,29 +103,6 @@ go run ./cmd/app render \
   --provider mock
 ```
 
-Render a LibreOffice Draw file with the mock provider:
-
-```bash
-go run ./cmd/app render \
-  --input samples/input/sample-page.png \
-  --output-dir /tmp/out \
-  --provider mock \
-  --renderer fodg
-```
-
-Render with a live provider and write layout JSON too:
-
-```bash
-go run ./cmd/app render \
-  --input page.png \
-  --output-dir out \
-  --provider openai \
-  --model gpt-4.1-mini \
-  --save-layout-json
-```
-
-Re-render from an existing saved layout JSON without calling the AI provider again:
-
 ```bash
 go run ./cmd/app rerender \
   --layout-json samples/output/sample-page_mock.json \
@@ -89,16 +110,51 @@ go run ./cmd/app rerender \
   --renderer fodg
 ```
 
-List providers:
-
 ```bash
 go run ./cmd/app providers list
 ```
 
-Initialize local config:
+If you prefer repository helpers:
 
 ```bash
-go run ./cmd/app config init
+make build
+make run-help
+```
+
+## Why Layout JSON Matters
+
+AI analysis is the expensive part.
+
+After a successful `Analyze`, the app can save a normalized layout JSON file that contains the app's internal page model. That lets you:
+- rerender with different fonts, colors, outline, shadow, or background;
+- switch between SVG and FODG;
+- avoid paying for and waiting for the same provider call again.
+
+## Requirements
+
+- Go `1.25+`
+- For Linux desktop builds: CGO and the native libraries Fyne expects
+- For Android packaging: `fyne` CLI, Android SDK/NDK, and Java toolchain
+- `golangci-lint` if you want `make lint` to run locally
+
+## Build And Validate
+
+Common repository commands:
+
+```bash
+make fmt
+make fmt-check
+make test
+make check
+make build
+make android
+make run-help
+```
+
+In constrained environments you may need:
+
+```bash
+GOCACHE=/tmp/go-build make check
 ```
 
 ## Configuration
@@ -106,58 +162,44 @@ go run ./cmd/app config init
 Configuration precedence is:
 
 1. built-in defaults
-2. config file / local preferences
+2. saved config file
 3. environment variables
 4. CLI flags
 
-The config file lives under the host OS user config directory in the `handwritten-overlay-translator` subdirectory unless you override it with `--config` or `GODOCMIRRORTRANSLATOR_CONFIG`.
+The app stores config in the OS user config directory under the app-specific folder unless you override it with `--config` or `GODOCMIRRORTRANSLATOR_CONFIG`.
 
-See [examples/config.example.json](examples/config.example.json) for a starting point.
-
-Supported environment variable prefix:
-
-- `GODOCMIRRORTRANSLATOR_`
-
-Examples:
-
+Useful environment variables:
 - `GODOCMIRRORTRANSLATOR_OPENAI_API_KEY`
 - `GODOCMIRRORTRANSLATOR_GEMINI_API_KEY`
 - `GODOCMIRRORTRANSLATOR_DEFAULT_PROVIDER`
 - `GODOCMIRRORTRANSLATOR_OUTPUT_TEMPLATE`
 
-## GUI
+Example config:
+- [examples/config.example.json](examples/config.example.json)
 
-Running `go run ./cmd/app` with no arguments opens the Fyne GUI. The GUI supports:
+## Sample Files
 
-- native-first input and output pickers
-- desktop native OS picker integration with Fyne fallback on Android or unsupported desktop backends
-- `Analyze` from an input image and `Re-render` from an existing layout JSON
-- automatic layout JSON capture after every successful GUI analyze run
-- provider and model selection
-- output format selection
-- layout JSON browsing for rerender workflows
-- readability controls including color, weight, outline, background, and shadow
-- opacity controls shown as percentages in the GUI
-- masked API key inputs
-- provider-specific advanced options currently exposed by the repo
-- persisted render defaults
-- async processing with visible status and details output
-
-## Renderer Formatting Notes
-
-- `SVG` supports text color, text opacity, outline color/width, background color/opacity/padding/radius, and shadow color/opacity/blur/offsets directly.
-- `FODG` supports text color, font family, font size, font weight, character background color, and Draw shadow settings.
-- In `FODG`, LibreOffice Draw currently ignores imported text opacity.
-- In `FODG`, outline width behaves as contour on/off only; it is not a true adjustable stroke width.
-- In `FODG`, outline color controls the contour color, and contoured text is hollow in LibreOffice.
-- In `FODG`, background opacity, padding, and radius do not map to imported text objects the way they do in SVG.
-
-## Sample Assets
-
-The repository includes a checked-in sample input plus outputs generated with the mock provider:
-
+The repository includes sample assets for quick manual testing:
 - [samples/input/sample-page.png](samples/input/sample-page.png)
 - [samples/output/sample-page_mock.svg](samples/output/sample-page_mock.svg)
 - [samples/output/sample-page_mock.json](samples/output/sample-page_mock.json)
 
-These are useful for quick manual checks and packaging smoke tests.
+## Repository Structure
+
+- `cmd/app`: application entrypoint and Android icon
+- `internal/app`: render orchestration, rerendering, file output
+- `internal/config`: config loading, masking, persistence, defaults
+- `internal/provider`: provider contract plus adapters
+- `internal/renderer/svg`: SVG renderer
+- `internal/renderer/fodg`: FODG renderer
+- `internal/gui`: Fyne GUI
+- `internal/cli`: CLI wiring
+
+## Current Status
+
+The project currently supports the full core workflow:
+- analyze image -> generate editable SVG or FODG;
+- save layout JSON;
+- rerender from JSON with different formatting;
+- run through GUI or CLI;
+- package the GUI for Android.
