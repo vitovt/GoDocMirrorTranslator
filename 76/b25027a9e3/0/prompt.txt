@@ -507,3 +507,7 @@ adb logcat -v time ActivityManager:I AndroidRuntime:E System.err:W *:S
 ^C
 
 ```
+
+---
+
+In light system mode on android and PC left menu bar, which appears after clicking on Show menu, stays black anyway.
