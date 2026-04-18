@@ -52,6 +52,7 @@ type Config struct {
 	PreserveColumns        bool                         `json:"preserve_columns"`
 	SourceLanguage         string                       `json:"source_language"`
 	TargetLanguage         string                       `json:"target_language"`
+	ImageDescription       string                       `json:"image_description,omitempty"`
 	ProviderOptions        map[string]map[string]string `json:"provider_options,omitempty"`
 	GUIPreferences         map[string]string            `json:"gui_preferences,omitempty"`
 }
@@ -289,6 +290,7 @@ func (c *Config) ApplyEnv(lookup func(string) (string, bool)) error {
 		EnvPrefix + "TEXT_SHADOW_COLOR":     &c.TextShadowColor,
 		EnvPrefix + "SOURCE_LANGUAGE":       &c.SourceLanguage,
 		EnvPrefix + "TARGET_LANGUAGE":       &c.TargetLanguage,
+		EnvPrefix + "IMAGE_DESCRIPTION":     &c.ImageDescription,
 	}
 	for envKey, target := range stringMappings {
 		if value, ok := lookup(envKey); ok {
@@ -533,6 +535,8 @@ func (c *Config) Set(key, value string) error {
 		c.SourceLanguage = value
 	case "target_language":
 		c.TargetLanguage = value
+	case "image_description":
+		c.ImageDescription = value
 	default:
 		return fmt.Errorf("unknown config key %q", key)
 	}

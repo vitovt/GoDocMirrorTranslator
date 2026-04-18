@@ -1,8 +1,24 @@
 package prompts
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-func DocumentAnalysis(sourceLanguage, targetLanguage string, imageWidth, imageHeight int) string {
+func DocumentAnalysis(sourceLanguage, targetLanguage string, imageWidth, imageHeight int, imageDescription string) string {
+	extraContext := ""
+	if description := strings.TrimSpace(imageDescription); description != "" {
+		extraContext = fmt.Sprintf(`
+
+Additional user-provided document context:
+<document_context>
+%s
+</document_context>
+
+Use this context only to understand what kind of document this is, what the fields likely mean, and which abbreviations or conventions may appear.
+Do not use it to invent text that is not visible in the image.`, description)
+	}
+
 	return fmt.Sprintf(`Analyze the document image and return only JSON that matches the provided schema.
 
 Task:
@@ -11,6 +27,7 @@ Task:
 - Preserve the rough visual layout and column structure.
 - Represent unreadable text blocks with source_text set to "[unreadable]".
 - Do not hallucinate missing text.
+%s
 
 Coordinate rules:
 - Use the original source image pixel space.
@@ -23,5 +40,5 @@ Output rules:
 - Return only valid JSON for the schema.
 - Use one block per distinct visual text area.
 - Include confidence when you can estimate it in the [0,1] range.
-- Keep translated_text concise and faithful to the source block.`, sourceLanguage, targetLanguage, imageWidth, imageHeight)
+- Keep translated_text concise and faithful to the source block.`, sourceLanguage, targetLanguage, extraContext, imageWidth, imageHeight)
 }

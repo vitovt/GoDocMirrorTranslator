@@ -73,6 +73,7 @@ type UI struct {
 	layoutJSONEntry         *widget.Entry
 	outputDirEntry          *widget.Entry
 	templateEntry           *widget.Entry
+	imageDescriptionEntry   *widget.Entry
 	rendererSelect          *widget.Select
 	providerSelect          *widget.Select
 	modelSelect             *widget.Select
@@ -181,6 +182,9 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 		ui.pickOutputDir()
 	})
 	ui.templateEntry = widget.NewEntry()
+	ui.imageDescriptionEntry = widget.NewMultiLineEntry()
+	ui.imageDescriptionEntry.SetMinRowsVisible(4)
+	ui.imageDescriptionEntry.SetPlaceHolder("Optional context about the document type, expected fields, abbreviations, or handwriting conventions")
 	ui.rendererSelect = widget.NewSelect(application.RendererNames(), func(string) {
 		ui.refreshRendererGuidance()
 		ui.refreshValidation()
@@ -302,6 +306,8 @@ func (u *UI) content() fyne.CanvasObject {
 	inputRow := container.NewBorder(nil, nil, nil, u.inputBrowseButton, u.inputEntry)
 	layoutJSONRow := container.NewBorder(nil, nil, nil, u.layoutJSONBrowseButton, u.layoutJSONEntry)
 	outputRow := container.NewBorder(nil, nil, nil, u.outputBrowseButton, u.outputDirEntry)
+	imageDescriptionHint := widget.NewLabel("Optional. Describe what kind of document this is and any field names, abbreviations, or conventions that may help AI recognize visible text more accurately. This text is used only during Analyze and is omitted entirely when left empty.")
+	imageDescriptionHint.Wrapping = fyne.TextWrapWord
 
 	mainForm := widget.NewForm(
 		widget.NewFormItem("Input Image", inputRow),
@@ -311,6 +317,7 @@ func (u *UI) content() fyne.CanvasObject {
 		widget.NewFormItem("Output Format", u.rendererSelect),
 		widget.NewFormItem("Source Language", u.sourceLangEntry),
 		widget.NewFormItem("Target Language", u.targetLangEntry),
+		widget.NewFormItem("Image Description for AI", container.NewVBox(u.imageDescriptionEntry, imageDescriptionHint)),
 		widget.NewFormItem("Preserve Columns", u.preserveColumns),
 	)
 
@@ -418,6 +425,7 @@ func (u *UI) installChangeHandlers() {
 		{u.layoutJSONEntry},
 		{u.outputDirEntry},
 		{u.templateEntry},
+		{u.imageDescriptionEntry},
 		{u.sourceLangEntry},
 		{u.targetLangEntry},
 		{u.timeoutEntry},
@@ -453,6 +461,7 @@ func (u *UI) applyConfig(cfg config.Config) {
 	u.layoutJSONEntry.SetText("")
 	u.outputDirEntry.SetText(cfg.DefaultOutputDir)
 	u.templateEntry.SetText(cfg.OutputTemplate)
+	u.imageDescriptionEntry.SetText(cfg.ImageDescription)
 	u.rendererSelect.SetSelected(defaultRendererName(cfg.DefaultRenderer))
 	u.sourceLangEntry.SetText(cfg.SourceLanguage)
 	u.targetLangEntry.SetText(cfg.TargetLanguage)
@@ -738,6 +747,7 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 
 	cfg.DefaultOutputDir = strings.TrimSpace(u.outputDirEntry.Text)
 	cfg.OutputTemplate = strings.TrimSpace(u.templateEntry.Text)
+	cfg.ImageDescription = strings.TrimSpace(u.imageDescriptionEntry.Text)
 	cfg.DefaultRenderer = strings.TrimSpace(u.rendererSelect.Selected)
 	cfg.DefaultProvider = strings.TrimSpace(u.providerSelect.Selected)
 	cfg.DefaultModel = strings.TrimSpace(u.modelSelect.Selected)
@@ -780,18 +790,19 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 
 func (u *UI) buildRenderRequest(cfg config.Config) appcore.RenderRequest {
 	return appcore.RenderRequest{
-		InputPath:      strings.TrimSpace(u.inputEntry.Text),
-		OutputDir:      strings.TrimSpace(u.outputDirEntry.Text),
-		OutputTemplate: cfg.OutputTemplate,
-		RendererName:   cfg.DefaultRenderer,
-		ProviderName:   cfg.DefaultProvider,
-		ProviderConfig: cfg.ProviderConfig(cfg.DefaultProvider, cfg.DefaultModel),
-		Model:          cfg.DefaultModel,
-		SourceLanguage: cfg.SourceLanguage,
-		TargetLanguage: cfg.TargetLanguage,
-		Timeout:        cfg.Timeout,
-		RenderOptions:  cfg.RenderOptions(),
-		SaveLayoutJSON: true,
+		InputPath:        strings.TrimSpace(u.inputEntry.Text),
+		OutputDir:        strings.TrimSpace(u.outputDirEntry.Text),
+		OutputTemplate:   cfg.OutputTemplate,
+		RendererName:     cfg.DefaultRenderer,
+		ProviderName:     cfg.DefaultProvider,
+		ProviderConfig:   cfg.ProviderConfig(cfg.DefaultProvider, cfg.DefaultModel),
+		Model:            cfg.DefaultModel,
+		SourceLanguage:   cfg.SourceLanguage,
+		TargetLanguage:   cfg.TargetLanguage,
+		ImageDescription: cfg.ImageDescription,
+		Timeout:          cfg.Timeout,
+		RenderOptions:    cfg.RenderOptions(),
+		SaveLayoutJSON:   true,
 	}
 }
 
@@ -1362,6 +1373,7 @@ func (u *UI) interactiveControls() []disableable {
 		u.inputEntry,
 		u.outputDirEntry,
 		u.templateEntry,
+		u.imageDescriptionEntry,
 		u.rendererSelect,
 		u.providerSelect,
 		u.modelSelect,

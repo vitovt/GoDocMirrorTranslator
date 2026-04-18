@@ -33,6 +33,7 @@ type RenderRequest struct {
 	Model             string
 	SourceLanguage    string
 	TargetLanguage    string
+	ImageDescription  string
 	Timeout           time.Duration
 	SaveLayoutJSON    bool
 	OverwriteExisting bool
@@ -209,6 +210,7 @@ func (a *Application) Render(ctx context.Context, req RenderRequest) (RenderResu
 		SourceImageHeight: imageHeight,
 		SourceLanguage:    req.SourceLanguage,
 		TargetLanguage:    req.TargetLanguage,
+		ImageDescription:  req.ImageDescription,
 		Model:             req.Model,
 		Timeout:           req.Timeout,
 	})

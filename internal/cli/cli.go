@@ -100,15 +100,16 @@ func runRender(ctx context.Context, application *app.Application, args []string,
 	}
 
 	req := app.RenderRequest{
-		OutputDir:      cfg.DefaultOutputDir,
-		OutputTemplate: cfg.OutputTemplate,
-		ProviderName:   cfg.DefaultProvider,
-		RendererName:   cfg.DefaultRenderer,
-		Model:          cfg.DefaultModel,
-		SourceLanguage: cfg.SourceLanguage,
-		TargetLanguage: cfg.TargetLanguage,
-		Timeout:        cfg.Timeout,
-		RenderOptions:  cfg.RenderOptions(),
+		OutputDir:        cfg.DefaultOutputDir,
+		OutputTemplate:   cfg.OutputTemplate,
+		ProviderName:     cfg.DefaultProvider,
+		RendererName:     cfg.DefaultRenderer,
+		Model:            cfg.DefaultModel,
+		SourceLanguage:   cfg.SourceLanguage,
+		TargetLanguage:   cfg.TargetLanguage,
+		ImageDescription: cfg.ImageDescription,
+		Timeout:          cfg.Timeout,
+		RenderOptions:    cfg.RenderOptions(),
 	}
 
 	fs := flag.NewFlagSet("render", flag.ContinueOnError)
@@ -399,6 +400,8 @@ func lookupConfigValue(cfg config.Config, key string) (string, error) {
 		return cfg.SourceLanguage, nil
 	case "target_language":
 		return cfg.TargetLanguage, nil
+	case "image_description":
+		return cfg.ImageDescription, nil
 	default:
 		return "", fmt.Errorf("unknown config key %q", key)
 	}

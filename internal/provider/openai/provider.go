@@ -112,7 +112,7 @@ func (p *Provider) AnalyzePage(ctx context.Context, req provider.AnalyzeRequest)
 		Input: []responsesRequestMessage{
 			{
 				Role:    "system",
-				Content: prompts.DocumentAnalysis(req.SourceLanguage, req.TargetLanguage, req.SourceImageWidth, req.SourceImageHeight),
+				Content: prompts.DocumentAnalysis(req.SourceLanguage, req.TargetLanguage, req.SourceImageWidth, req.SourceImageHeight, req.ImageDescription),
 			},
 			{
 				Role: "user",

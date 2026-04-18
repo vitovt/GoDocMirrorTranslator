@@ -106,7 +106,7 @@ func (p *Provider) AnalyzePage(ctx context.Context, req provider.AnalyzeRequest)
 		Contents: []contentRequest{{
 			Parts: []contentPartRequest{
 				{
-					Text: prompts.DocumentAnalysis(req.SourceLanguage, req.TargetLanguage, req.SourceImageWidth, req.SourceImageHeight),
+					Text: prompts.DocumentAnalysis(req.SourceLanguage, req.TargetLanguage, req.SourceImageWidth, req.SourceImageHeight, req.ImageDescription),
 				},
 				{
 					InlineData: &inlineDataPart{

@@ -227,6 +227,7 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui.templateEntry.SetText("saved_{provider}.svg")
 	ui.sourceLangEntry.SetText("Polish")
 	ui.targetLangEntry.SetText("German")
+	ui.imageDescriptionEntry.SetText("Employment record book page with handwritten job history rows")
 	ui.opacityEntry.SetText("25")
 	ui.fontWeightSelect.SetSelected("bold")
 	ui.pageLayoutSelect.SetSelected("Landscape")
@@ -266,6 +267,9 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	}
 	if loaded.OutputTemplate != "saved_{provider}.svg" {
 		t.Fatalf("OutputTemplate = %q, want saved_{provider}.svg", loaded.OutputTemplate)
+	}
+	if loaded.ImageDescription != "Employment record book page with handwritten job history rows" {
+		t.Fatalf("ImageDescription = %q, want persisted image description", loaded.ImageDescription)
 	}
 	if loaded.OverlayOpacity != 0.25 {
 		t.Fatalf("OverlayOpacity = %v, want 0.25", loaded.OverlayOpacity)

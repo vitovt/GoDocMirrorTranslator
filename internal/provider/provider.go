@@ -15,6 +15,7 @@ type AnalyzeRequest struct {
 	SourceImageHeight int
 	SourceLanguage    string
 	TargetLanguage    string
+	ImageDescription  string
 	Model             string
 	Timeout           time.Duration
 }

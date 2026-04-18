@@ -213,6 +213,7 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 		EnvPrefix + "TIMEOUT":                 "45s",
 		EnvPrefix + "SOURCE_LANGUAGE":         "Polish",
 		EnvPrefix + "TARGET_LANGUAGE":         "German",
+		EnvPrefix + "IMAGE_DESCRIPTION":       "Employment record book page",
 		EnvPrefix + "OPENAI_API_KEY":          "env-openai",
 		EnvPrefix + "GEMINI_API_KEY":          "env-gemini",
 	}
@@ -252,6 +253,9 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 	}
 	if cfg.SourceLanguage != "Polish" || cfg.TargetLanguage != "German" {
 		t.Fatalf("languages = %q -> %q, want Polish -> German", cfg.SourceLanguage, cfg.TargetLanguage)
+	}
+	if cfg.ImageDescription != "Employment record book page" {
+		t.Fatalf("ImageDescription = %q, want Employment record book page", cfg.ImageDescription)
 	}
 }
 
@@ -504,6 +508,16 @@ func TestSetSupportsKnownKeysAndRejectsUnknownKeys(t *testing.T) {
 				t.Helper()
 				if cfg.TargetLanguage != "French" {
 					t.Fatalf("TargetLanguage = %q, want French", cfg.TargetLanguage)
+				}
+			},
+		},
+		{
+			key:   "image_description",
+			value: "Scanned employment record book page",
+			check: func(t *testing.T, cfg Config) {
+				t.Helper()
+				if cfg.ImageDescription != "Scanned employment record book page" {
+					t.Fatalf("ImageDescription = %q, want Scanned employment record book page", cfg.ImageDescription)
 				}
 			},
 		},

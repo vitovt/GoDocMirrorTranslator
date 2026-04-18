@@ -14,9 +14,46 @@ import (
 	"testing"
 	"time"
 
+	"godocmirrortranslator/internal/domain"
 	"godocmirrortranslator/internal/provider"
 	base "godocmirrortranslator/internal/renderer"
 )
+
+type capturingProvider struct {
+	lastRequest provider.AnalyzeRequest
+}
+
+func (p *capturingProvider) Name() string {
+	return "capturing"
+}
+
+func (p *capturingProvider) AnalyzePage(_ context.Context, req provider.AnalyzeRequest) (*domain.DocumentPage, error) {
+	p.lastRequest = req
+	page := &domain.DocumentPage{
+		SourceImagePath:   req.ImagePath,
+		SourceImageWidth:  req.SourceImageWidth,
+		SourceImageHeight: req.SourceImageHeight,
+		Blocks: []domain.TextBlock{{
+			ID:             "body",
+			SourceText:     "Привіт",
+			TranslatedText: "Hallo",
+			X:              12,
+			Y:              24,
+			Width:          120,
+			Height:         40,
+		}},
+	}
+	page.Normalize()
+	return page, nil
+}
+
+func (p *capturingProvider) ValidateConfig(provider.ProviderConfig) error {
+	return nil
+}
+
+func (p *capturingProvider) SupportedModels() []string {
+	return []string{"mock-v1"}
+}
 
 func TestRenderValidatesProviderConfigBeforeAnalyze(t *testing.T) {
 	tempDir := t.TempDir()
@@ -34,6 +71,33 @@ func TestRenderValidatesProviderConfigBeforeAnalyze(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "validate provider config") {
 		t.Fatalf("Render() error = %v, want provider validation failure", err)
+	}
+}
+
+func TestRenderPassesImageDescriptionToProvider(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 640, 960)
+
+	capturing := &capturingProvider{}
+	application := New("test")
+	application.ProviderFactories["capturing"] = func(provider.ProviderConfig) provider.Provider {
+		return capturing
+	}
+
+	_, err := application.Render(context.Background(), RenderRequest{
+		InputPath:        inputPath,
+		OutputDir:        tempDir,
+		OutputTemplate:   "translated.svg",
+		ProviderName:     "capturing",
+		ImageDescription: "Employment record book page with handwritten history rows",
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	if capturing.lastRequest.ImageDescription != "Employment record book page with handwritten history rows" {
+		t.Fatalf("ImageDescription = %q, want propagated image description", capturing.lastRequest.ImageDescription)
 	}
 }
 
