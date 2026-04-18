@@ -3,6 +3,7 @@
  <office:font-face-decls>
   <style:font-face style:name="Noto Sans" svg:font-family="&#39;Noto Sans&#39;" style:font-family-generic="roman" style:font-pitch="variable"/>
  </office:font-face-decls>
+ <office:styles/>
  <office:automatic-styles>
   <style:page-layout style:name="pm1"><style:page-layout-properties fo:margin-top="0mm" fo:margin-bottom="0mm" fo:margin-left="0mm" fo:margin-right="0mm" fo:page-width="210.0000mm" fo:page-height="297.0000mm" style:print-orientation="portrait"/></style:page-layout>
   <style:style style:name="dp1" style:family="drawing-page"/>

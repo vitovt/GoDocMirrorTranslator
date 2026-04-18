@@ -72,6 +72,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString(" office:mimetype=\"application/vnd.oasis.opendocument.graphics\">\n")
 
 	writeFontFaceDecls(&b, page, opts)
+	b.WriteString(" <office:styles/>\n")
 	b.WriteString(" <office:automatic-styles>\n")
 	b.WriteString(fmt.Sprintf("  <style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:margin-top=\"0mm\" fo:margin-bottom=\"0mm\" fo:margin-left=\"0mm\" fo:margin-right=\"0mm\" fo:page-width=\"%s\" fo:page-height=\"%s\" style:print-orientation=\"%s\"/></style:page-layout>\n", odfLength(pageWidth), odfLength(pageHeight), page.Orientation))
 	b.WriteString("  <style:style style:name=\"dp1\" style:family=\"drawing-page\"/>\n")

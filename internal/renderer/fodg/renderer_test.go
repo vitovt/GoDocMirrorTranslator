@@ -46,6 +46,7 @@ func TestRenderEmbedsImageAndText(t *testing.T) {
 	content := string(output)
 	for _, fragment := range []string{
 		"<office:document",
+		"<office:styles/>",
 		"<draw:page",
 		"<draw:image",
 		"<office:binary-data>",
@@ -265,6 +266,62 @@ func TestRenderRoundTripsThroughLibreOffice(t *testing.T) {
 	}
 }
 
+func TestRenderLandscapeRemainsLandscapeInLibreOffice(t *testing.T) {
+	if _, err := exec.LookPath("soffice"); err != nil {
+		t.Skip("soffice is not available")
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "wide.png")
+	writeTestPNG(t, inputPath, 1600, 800)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  1600,
+		SourceImageHeight: 800,
+		Orientation:       domain.OrientationLandscape,
+		Blocks: []domain.TextBlock{{
+			SourceText:     "Привіт",
+			TranslatedText: "Hallo",
+			X:              1200,
+			Y:              100,
+			Width:          200,
+			Height:         80,
+			FontSize:       40,
+		}},
+	}
+
+	output, err := r.Render(context.Background(), page, base.DefaultRenderOptions())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	fodgPath := filepath.Join(tempDir, "wide.fodg")
+	if err := os.WriteFile(fodgPath, output, 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", fodgPath, err)
+	}
+
+	cmd := exec.Command("soffice", "--headless", "--convert-to", "svg", "--outdir", tempDir, fodgPath)
+	combined, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("soffice convert error = %v, output = %s", err, string(combined))
+	}
+
+	svgPath := filepath.Join(tempDir, "wide.svg")
+	svgBytes, err := os.ReadFile(svgPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", svgPath, err)
+	}
+	svg := string(svgBytes)
+	if !strings.Contains(svg, `width="297mm" height="210mm"`) {
+		t.Fatalf("converted SVG page size = %q, want landscape 297mm x 210mm", firstSVGTag(svg))
+	}
+	if !strings.Contains(svg, `<image `) {
+		t.Fatalf("converted SVG missing image element: %s", svg)
+	}
+}
+
 func TestRenderImportsReadablePropertiesInLibreOffice(t *testing.T) {
 	if _, err := exec.LookPath("soffice"); err != nil {
 		t.Skip("soffice is not available")
@@ -446,4 +503,13 @@ func writeTestPNG(t *testing.T, path string, width, height int) {
 	if err := png.Encode(file, img); err != nil {
 		t.Fatalf("png.Encode(): %v", err)
 	}
+}
+
+func firstSVGTag(svg string) string {
+	for _, line := range strings.Split(svg, "\n") {
+		if strings.Contains(line, "<svg ") {
+			return line
+		}
+	}
+	return svg
 }
