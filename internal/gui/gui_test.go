@@ -20,6 +20,7 @@ import (
 	"godocmirrortranslator/internal/config"
 	"godocmirrortranslator/internal/domain"
 	"godocmirrortranslator/internal/provider"
+	base "godocmirrortranslator/internal/renderer"
 )
 
 type noopPicker struct{}
@@ -228,6 +229,7 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui.targetLangEntry.SetText("German")
 	ui.opacityEntry.SetText("25")
 	ui.fontWeightSelect.SetSelected("bold")
+	ui.pageLayoutSelect.SetSelected("Landscape")
 	ui.outlineColorEntry.SetText("#ffffff")
 	ui.outlineWidthEntry.SetText("2")
 	ui.backgroundEnabled.SetChecked(true)
@@ -271,6 +273,9 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	if loaded.DefaultFontWeight != "bold" {
 		t.Fatalf("DefaultFontWeight = %q, want bold", loaded.DefaultFontWeight)
 	}
+	if loaded.DefaultPageLayout != string(base.PageLayoutLandscape) {
+		t.Fatalf("DefaultPageLayout = %q, want landscape", loaded.DefaultPageLayout)
+	}
 	if loaded.TextOutlineWidth != 2 {
 		t.Fatalf("TextOutlineWidth = %v, want 2", loaded.TextOutlineWidth)
 	}
@@ -303,6 +308,9 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 func TestApplyConfigDisplaysOpacityAsPercent(t *testing.T) {
 	ui, _, _ := newTestUI(t)
 
+	if ui.pageLayoutSelect.Selected != "auto" {
+		t.Fatalf("pageLayoutSelect.Selected = %q, want auto", ui.pageLayoutSelect.Selected)
+	}
 	if ui.opacityEntry.Text != "100" {
 		t.Fatalf("opacityEntry.Text = %q, want 100", ui.opacityEntry.Text)
 	}

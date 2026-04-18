@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"godocmirrortranslator/internal/provider"
+	base "godocmirrortranslator/internal/renderer"
 )
 
 func TestRenderValidatesProviderConfigBeforeAnalyze(t *testing.T) {
@@ -392,6 +393,97 @@ func TestRenderWritesFODGOutput(t *testing.T) {
 	}
 	if !strings.Contains(string(content), "<office:document") {
 		t.Fatalf("FODG output missing office document root: %s", string(content))
+	}
+}
+
+func TestRenderAppliesPageLayoutOnlyToRenderedOutput(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 1200, 600)
+
+	application := New("test")
+	result, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+		RenderOptions: base.RenderOptions{
+			PageLayout: base.PageLayoutPortrait,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	content, err := os.ReadFile(result.OutputPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", result.OutputPath, err)
+	}
+	if !strings.Contains(string(content), "width=\"210.00mm\" height=\"297.00mm\"") {
+		t.Fatalf("rendered svg = %q, want portrait A4 dimensions", string(content))
+	}
+
+	data, err := os.ReadFile(result.LayoutJSONPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", result.LayoutJSONPath, err)
+	}
+	var layoutFile savedLayoutFile
+	if err := json.Unmarshal(data, &layoutFile); err != nil {
+		t.Fatalf("json.Unmarshal(layout) error = %v", err)
+	}
+	if layoutFile.Page.Orientation != "landscape" {
+		t.Fatalf("saved layout orientation = %q, want landscape from source image", layoutFile.Page.Orientation)
+	}
+}
+
+func TestRerenderAppliesPageLayoutOverrideWithoutChangingSavedLayout(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 1200, 600)
+
+	application := New("test")
+	result, err := application.Render(context.Background(), RenderRequest{
+		InputPath:      inputPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "translated.svg",
+		ProviderName:   "mock",
+		SaveLayoutJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	rerenderResult, err := application.Rerender(context.Background(), RerenderRequest{
+		LayoutJSONPath: result.LayoutJSONPath,
+		OutputDir:      tempDir,
+		OutputTemplate: "portrait.svg",
+		RenderOptions: base.RenderOptions{
+			PageLayout: base.PageLayoutPortrait,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Rerender() error = %v", err)
+	}
+
+	content, err := os.ReadFile(rerenderResult.OutputPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", rerenderResult.OutputPath, err)
+	}
+	if !strings.Contains(string(content), "width=\"210.00mm\" height=\"297.00mm\"") {
+		t.Fatalf("rerendered svg = %q, want portrait A4 dimensions", string(content))
+	}
+
+	data, err := os.ReadFile(result.LayoutJSONPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", result.LayoutJSONPath, err)
+	}
+	var layoutFile savedLayoutFile
+	if err := json.Unmarshal(data, &layoutFile); err != nil {
+		t.Fatalf("json.Unmarshal(layout) error = %v", err)
+	}
+	if layoutFile.Page.Orientation != "landscape" {
+		t.Fatalf("saved layout orientation = %q, want original landscape preserved", layoutFile.Page.Orientation)
 	}
 }
 

@@ -388,8 +388,11 @@ func (a *Application) renderPage(ctx context.Context, page *domain.DocumentPage,
 	if !ok {
 		return RenderResult{}, fmt.Errorf("unknown renderer %q", req.RendererName)
 	}
+	req.RenderOptions = req.RenderOptions.Normalized()
+	pageToRender := cloneDocumentPage(*page)
+	applyPageLayoutOverride(&pageToRender, req.RenderOptions.PageLayout)
 
-	renderBytes, err := rendererImpl.Render(ctx, page, req.RenderOptions)
+	renderBytes, err := rendererImpl.Render(ctx, &pageToRender, req.RenderOptions)
 	if err != nil {
 		return RenderResult{}, fmt.Errorf("render output: %w", err)
 	}
@@ -416,6 +419,15 @@ func (a *Application) renderPage(ctx context.Context, page *domain.DocumentPage,
 	}
 
 	return result, nil
+}
+
+func applyPageLayoutOverride(page *domain.DocumentPage, layout base.PageLayout) {
+	switch layout {
+	case base.PageLayoutPortrait:
+		page.Orientation = domain.OrientationPortrait
+	case base.PageLayoutLandscape:
+		page.Orientation = domain.OrientationLandscape
+	}
 }
 
 func availablePath(path string) (string, error) {

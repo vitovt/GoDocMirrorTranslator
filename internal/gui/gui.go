@@ -21,6 +21,7 @@ import (
 
 	appcore "godocmirrortranslator/internal/app"
 	"godocmirrortranslator/internal/config"
+	base "godocmirrortranslator/internal/renderer"
 )
 
 const (
@@ -31,6 +32,8 @@ const (
 )
 
 var supportedImageExtensions = []string{".jpg", ".jpeg", ".png", ".webp"}
+
+var pageLayoutOptions = []string{"auto", "Portrait", "Landscape"}
 
 type UI struct {
 	ctx         context.Context
@@ -79,6 +82,7 @@ type UI struct {
 	fontFamilyEntry         *widget.Entry
 	fontSizeEntry           *widget.Entry
 	fontWeightSelect        *widget.Select
+	pageLayoutSelect        *widget.Select
 	colorEntry              *widget.Entry
 	opacityEntry            *widget.Entry
 	rendererCapabilityLabel *widget.Label
@@ -195,6 +199,9 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.fontFamilyEntry = widget.NewEntry()
 	ui.fontSizeEntry = widget.NewEntry()
 	ui.fontWeightSelect = widget.NewSelect([]string{"normal", "bold"}, func(string) {
+		ui.refreshValidation()
+	})
+	ui.pageLayoutSelect = widget.NewSelect(pageLayoutOptions, func(string) {
 		ui.refreshValidation()
 	})
 	ui.colorEntry = widget.NewEntry()
@@ -322,6 +329,7 @@ func (u *UI) content() fyne.CanvasObject {
 		widget.NewFormItem("Font Family", u.fontFamilyEntry),
 		widget.NewFormItem("Font Size", u.fontSizeEntry),
 		widget.NewFormItem("Font Weight", u.fontWeightSelect),
+		widget.NewFormItem("Page Layout", u.pageLayoutSelect),
 		widget.NewFormItem("Text Color", u.colorEntry),
 		widget.NewFormItem("Text Opacity (%)", u.opacityEntry),
 		widget.NewFormItem("Outline Color", u.outlineColorEntry),
@@ -454,6 +462,7 @@ func (u *UI) applyConfig(cfg config.Config) {
 	u.fontFamilyEntry.SetText(cfg.DefaultFontFamily)
 	u.fontSizeEntry.SetText(fmt.Sprintf("%g", cfg.DefaultFontSize))
 	u.fontWeightSelect.SetSelected(cfg.DefaultFontWeight)
+	u.pageLayoutSelect.SetSelected(pageLayoutLabel(cfg.DefaultPageLayout))
 	u.colorEntry.SetText(cfg.OverlayColor)
 	u.opacityEntry.SetText(formatPercent(cfg.OverlayOpacity))
 	u.outlineColorEntry.SetText(cfg.TextOutlineColor)
@@ -609,6 +618,9 @@ func (u *UI) settingsValidationError() error {
 	if strings.TrimSpace(cfg.DefaultFontWeight) == "" {
 		return fmt.Errorf("font weight is required")
 	}
+	if !base.IsValidPageLayout(base.PageLayout(cfg.DefaultPageLayout)) {
+		return fmt.Errorf("page layout must be auto, portrait, or landscape")
+	}
 	if cfg.TextOutlineWidth < 0 {
 		return fmt.Errorf("outline width must be non-negative")
 	}
@@ -737,6 +749,7 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	cfg.DefaultFontFamily = strings.TrimSpace(u.fontFamilyEntry.Text)
 	cfg.DefaultFontSize = fontSize
 	cfg.DefaultFontWeight = strings.TrimSpace(u.fontWeightSelect.Selected)
+	cfg.DefaultPageLayout = selectedPageLayout(u.pageLayoutSelect.Selected)
 	cfg.OverlayColor = strings.TrimSpace(u.colorEntry.Text)
 	cfg.OverlayOpacity = opacity
 	cfg.TextOutlineColor = strings.TrimSpace(u.outlineColorEntry.Text)
@@ -1037,6 +1050,35 @@ func defaultRendererName(name string) string {
 	return name
 }
 
+func defaultPageLayout(layout string) string {
+	if !base.IsValidPageLayout(base.PageLayout(strings.TrimSpace(layout))) {
+		return string(base.PageLayoutAuto)
+	}
+	return strings.TrimSpace(layout)
+}
+
+func pageLayoutLabel(layout string) string {
+	switch defaultPageLayout(layout) {
+	case string(base.PageLayoutPortrait):
+		return "Portrait"
+	case string(base.PageLayoutLandscape):
+		return "Landscape"
+	default:
+		return "auto"
+	}
+}
+
+func selectedPageLayout(label string) string {
+	switch strings.TrimSpace(label) {
+	case "Portrait":
+		return string(base.PageLayoutPortrait)
+	case "Landscape":
+		return string(base.PageLayoutLandscape)
+	default:
+		return string(base.PageLayoutAuto)
+	}
+}
+
 func rendererGuidanceText(renderer string) string {
 	switch defaultRendererName(renderer) {
 	case "fodg":
@@ -1331,6 +1373,7 @@ func (u *UI) interactiveControls() []disableable {
 		u.fontFamilyEntry,
 		u.fontSizeEntry,
 		u.fontWeightSelect,
+		u.pageLayoutSelect,
 		u.colorEntry,
 		u.opacityEntry,
 		u.outlineColorEntry,

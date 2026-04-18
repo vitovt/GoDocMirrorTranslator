@@ -6,9 +6,18 @@ import (
 	"godocmirrortranslator/internal/domain"
 )
 
+type PageLayout string
+
+const (
+	PageLayoutAuto      PageLayout = "auto"
+	PageLayoutPortrait  PageLayout = "portrait"
+	PageLayoutLandscape PageLayout = "landscape"
+)
+
 type RenderOptions struct {
 	FontFamily         string
 	DefaultFontSize    float64
+	PageLayout         PageLayout
 	TextColor          string
 	Opacity            float64
 	HasOpacity         bool
@@ -40,6 +49,7 @@ func DefaultRenderOptions() RenderOptions {
 	return RenderOptions{
 		FontFamily:         "Noto Sans",
 		DefaultFontSize:    18,
+		PageLayout:         PageLayoutAuto,
 		TextColor:          "#111111",
 		Opacity:            1,
 		HasOpacity:         true,
@@ -68,6 +78,9 @@ func (o RenderOptions) Normalized() RenderOptions {
 	}
 	if o.DefaultFontSize <= 0 {
 		o.DefaultFontSize = defaults.DefaultFontSize
+	}
+	if !IsValidPageLayout(o.PageLayout) {
+		o.PageLayout = defaults.PageLayout
 	}
 	if o.TextColor == "" {
 		o.TextColor = defaults.TextColor
@@ -110,4 +123,13 @@ func (o RenderOptions) Normalized() RenderOptions {
 		o.ShadowBlur = defaults.ShadowBlur
 	}
 	return o
+}
+
+func IsValidPageLayout(layout PageLayout) bool {
+	switch layout {
+	case PageLayoutAuto, PageLayoutPortrait, PageLayoutLandscape:
+		return true
+	default:
+		return false
+	}
 }

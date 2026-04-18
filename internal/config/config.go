@@ -31,6 +31,7 @@ type Config struct {
 	DefaultFontFamily      string                       `json:"default_font_family"`
 	DefaultFontSize        float64                      `json:"default_font_size"`
 	DefaultFontWeight      string                       `json:"default_font_weight,omitempty"`
+	DefaultPageLayout      string                       `json:"default_page_layout,omitempty"`
 	OutputTemplate         string                       `json:"output_template"`
 	OverlayColor           string                       `json:"overlay_color"`
 	OverlayOpacity         float64                      `json:"overlay_opacity"`
@@ -63,6 +64,7 @@ func Default() Config {
 		DefaultFontFamily:      "Noto Sans",
 		DefaultFontSize:        18,
 		DefaultFontWeight:      "normal",
+		DefaultPageLayout:      string(base.PageLayoutAuto),
 		OutputTemplate:         "{input_basename}_{provider}_{timestamp}.svg",
 		OverlayColor:           "#111111",
 		OverlayOpacity:         1,
@@ -210,6 +212,12 @@ func (c *Config) normalize() {
 	if c.DefaultFontWeight == "" {
 		c.DefaultFontWeight = defaults.DefaultFontWeight
 	}
+	pageLayout := strings.ToLower(strings.TrimSpace(c.DefaultPageLayout))
+	if !base.IsValidPageLayout(base.PageLayout(pageLayout)) {
+		c.DefaultPageLayout = defaults.DefaultPageLayout
+	} else {
+		c.DefaultPageLayout = pageLayout
+	}
 	if c.OutputTemplate == "" {
 		c.OutputTemplate = defaults.OutputTemplate
 	}
@@ -273,6 +281,7 @@ func (c *Config) ApplyEnv(lookup func(string) (string, bool)) error {
 		EnvPrefix + "DEFAULT_OUTPUT_DIR":    &c.DefaultOutputDir,
 		EnvPrefix + "DEFAULT_FONT_FAMILY":   &c.DefaultFontFamily,
 		EnvPrefix + "DEFAULT_FONT_WEIGHT":   &c.DefaultFontWeight,
+		EnvPrefix + "DEFAULT_PAGE_LAYOUT":   &c.DefaultPageLayout,
 		EnvPrefix + "OUTPUT_TEMPLATE":       &c.OutputTemplate,
 		EnvPrefix + "OVERLAY_COLOR":         &c.OverlayColor,
 		EnvPrefix + "TEXT_OUTLINE_COLOR":    &c.TextOutlineColor,
@@ -430,6 +439,8 @@ func (c *Config) Set(key, value string) error {
 		c.DefaultFontSize = fontSize
 	case "default_font_weight":
 		c.DefaultFontWeight = value
+	case "default_page_layout":
+		c.DefaultPageLayout = value
 	case "output_template":
 		c.OutputTemplate = value
 	case "overlay_color":
@@ -533,6 +544,7 @@ func (c Config) RenderOptions() base.RenderOptions {
 	return base.RenderOptions{
 		FontFamily:         c.DefaultFontFamily,
 		DefaultFontSize:    c.DefaultFontSize,
+		PageLayout:         base.PageLayout(c.DefaultPageLayout),
 		TextColor:          c.OverlayColor,
 		Opacity:            c.OverlayOpacity,
 		HasOpacity:         true,

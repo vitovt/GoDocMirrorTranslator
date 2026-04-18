@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	base "godocmirrortranslator/internal/renderer"
 )
 
 func TestResolvePathPrefersExplicitAndEnvThenUserConfigDir(t *testing.T) {
@@ -203,6 +205,7 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 		EnvPrefix + "DEFAULT_RENDERER":        "fodg",
 		EnvPrefix + "DEFAULT_FONT_SIZE":       "22.5",
 		EnvPrefix + "DEFAULT_FONT_WEIGHT":     "bold",
+		EnvPrefix + "DEFAULT_PAGE_LAYOUT":     "landscape",
 		EnvPrefix + "OVERLAY_OPACITY":         "0.7",
 		EnvPrefix + "TEXT_BACKGROUND_ENABLED": "true",
 		EnvPrefix + "TEXT_SHADOW_ENABLED":     "true",
@@ -231,6 +234,9 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 	}
 	if cfg.DefaultFontWeight != "bold" {
 		t.Fatalf("DefaultFontWeight = %q, want bold", cfg.DefaultFontWeight)
+	}
+	if cfg.DefaultPageLayout != "landscape" {
+		t.Fatalf("DefaultPageLayout = %q, want landscape", cfg.DefaultPageLayout)
 	}
 	if cfg.OverlayOpacity != 0.7 {
 		t.Fatalf("OverlayOpacity = %v, want 0.7", cfg.OverlayOpacity)
@@ -398,6 +404,16 @@ func TestSetSupportsKnownKeysAndRejectsUnknownKeys(t *testing.T) {
 				t.Helper()
 				if cfg.DefaultFontWeight != "bold" {
 					t.Fatalf("DefaultFontWeight = %q, want bold", cfg.DefaultFontWeight)
+				}
+			},
+		},
+		{
+			key:   "default_page_layout",
+			value: "portrait",
+			check: func(t *testing.T, cfg Config) {
+				t.Helper()
+				if cfg.DefaultPageLayout != "portrait" {
+					t.Fatalf("DefaultPageLayout = %q, want portrait", cfg.DefaultPageLayout)
 				}
 			},
 		},
@@ -571,6 +587,7 @@ func TestRenderOptionsAndProviderConfigMirrorConfig(t *testing.T) {
 	cfg.DefaultFontFamily = "Fira Sans"
 	cfg.DefaultFontSize = 19
 	cfg.DefaultFontWeight = "bold"
+	cfg.DefaultPageLayout = "portrait"
 	cfg.OverlayColor = "#334455"
 	cfg.OverlayOpacity = 0.6
 	cfg.TextOutlineColor = "#ffffff"
@@ -597,6 +614,7 @@ func TestRenderOptionsAndProviderConfigMirrorConfig(t *testing.T) {
 	if renderOpts.FontFamily != "Fira Sans" ||
 		renderOpts.DefaultFontSize != 19 ||
 		renderOpts.FontWeight != "bold" ||
+		renderOpts.PageLayout != base.PageLayoutPortrait ||
 		renderOpts.TextColor != "#334455" ||
 		renderOpts.Opacity != 0.6 ||
 		!renderOpts.HasOpacity ||
@@ -648,6 +666,9 @@ func TestNormalizeAndPreferenceHelpersOnZeroConfig(t *testing.T) {
 	defaults := Default()
 	if cfg.Timeout != defaults.Timeout || cfg.DefaultProvider != defaults.DefaultProvider || cfg.DefaultRenderer != defaults.DefaultRenderer || cfg.DefaultFontFamily != defaults.DefaultFontFamily || cfg.DefaultFontSize != defaults.DefaultFontSize {
 		t.Fatalf("normalize() did not apply defaults: %#v", cfg)
+	}
+	if cfg.DefaultPageLayout != defaults.DefaultPageLayout {
+		t.Fatalf("DefaultPageLayout = %q, want %q", cfg.DefaultPageLayout, defaults.DefaultPageLayout)
 	}
 	if cfg.OutputTemplate != defaults.OutputTemplate || cfg.OverlayColor != defaults.OverlayColor {
 		t.Fatalf("normalize() did not apply output defaults: %#v", cfg)
