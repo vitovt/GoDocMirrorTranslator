@@ -276,12 +276,14 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.installChangeHandlers()
 	ui.layoutRoot = newResponsiveRoot(ui.content(), ui.handleResponsiveLayout)
 	window.SetContent(ui.layoutRoot)
-	ui.applyConfig(cfg)
-	ui.refreshRendererGuidance()
-	ui.syncModelOptions()
-	ui.syncAdvancedOptions()
-	ui.applyShellState()
-	ui.refreshValidation()
+	fyne.DoAndWait(func() {
+		ui.applyConfig(cfg)
+		ui.refreshRendererGuidance()
+		ui.syncModelOptions()
+		ui.syncAdvancedOptions()
+		ui.applyShellState()
+		ui.refreshValidation()
+	})
 
 	return ui
 }
