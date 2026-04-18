@@ -418,3 +418,92 @@ gcc: error: unrecognized command-line option ‘-mthreads’; did you mean ‘-p
 make: *** [Makefile:281: windows] Error 1
 
 3. add to the .gitignore all release paths
+
+---
+
+The app won't start on android, I see startup screen until kill the app:
+```
+$ adb logcat -v time --pid=$(adb shell pidof com.vitovt.godocmirrortranslator)
+--------- beginning of main
+04-18 17:15:07.451 I/libc    (31328): SetHeapTaggingLevel: tag level set to 0
+04-18 17:15:07.455 I/irrortranslator(31328): Late-enabling -Xcheck:jni
+04-18 17:15:07.472 I/irrortranslator(31328): Using CollectorTypeCMC GC.
+04-18 17:15:07.497 D/nativeloader(31328): Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+04-18 17:15:07.527 D/ApplicationLoaders(31328): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+04-18 17:15:07.534 D/nativeloader(31328): Configuring clns-7 for other apk /data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/base.apk. target_sdk_version=29, uses_libraries=, library_path=/data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/lib/arm64:/data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.vitovt.godocmirrortranslator
+04-18 17:15:07.534 D/nativeloader(31328): Extending system_exposed_libraries: libteeservice_client.trustonic.so:libapuwareapusys.mtk.so:libapuwareapusys_v2.mtk.so:libapuwarexrp.mtk.so:libapuwarexrp_v2.mtk.so:libapuwareutils.mtk.so:libapuwareutils_v2.mtk.so:libapuwarehmp.mtk.so:libneuron_graph_delegate.mtk.so:libneuronusdk_adapter.mtk.so:libtflite_mtk.mtk.so:libarmnn_ndk.mtk.so:libcmdl_ndk.mtk.so:libnir_neon_driver_ndk.mtk.so:libmvpu_runtime.mtk.so:libmvpu_runtime_pub.mtk.so:libmvpu_engine_pub.mtk.so:libmvpu_pattern_pub.mtk.so:libmvpuop_mtk_cv.mtk.so:libmvpuop_mtk_nn.mtk.so:libmvpu_runtime_25.mtk.so:libmvpu_runtime_25_pub.mtk.so:libmvpu_engine_25_pub.mtk.so:libmvpu_pattern_25_pub.mtk.so:libmvpuop25_mtk_cv.mtk.so:libmvpuop25_mtk_nn.mtk.so:libmvpu_config.mtk.so
+04-18 17:15:07.548 V/GraphicsEnvironment(31328): Currently set values for:
+04-18 17:15:07.548 V/GraphicsEnvironment(31328):   angle_gl_driver_selection_pkgs=[]
+04-18 17:15:07.548 V/GraphicsEnvironment(31328):   angle_gl_driver_selection_values=[]
+04-18 17:15:07.548 V/GraphicsEnvironment(31328): Global.Settings values are invalid: number of packages: 0, number of values: 0
+04-18 17:15:07.548 V/GraphicsEnvironment(31328): Neither updatable production driver nor prerelease driver is supported.
+04-18 17:15:07.573 D/libMEOW (31328): meow new tls: 0x779ccf1080
+04-18 17:15:07.574 D/libMEOW (31328): meow reload base cfg path: na
+04-18 17:15:07.574 D/libMEOW (31328): meow reload overlay cfg path: na
+04-18 17:15:07.574 W/QT      (31328): qt_process_init() called
+04-18 17:15:07.574 E/QT      (31328): [QT]file does not exist
+04-18 17:15:07.574 W/QT      (31328): Support!!
+04-18 17:15:07.575 E/QT      (31328): [QT]file does not exist
+04-18 17:15:07.575 D/libMEOW (31328): applied 1 plugins for [com.vitovt.godocmirrortranslator]:
+04-18 17:15:07.576 D/libMEOW (31328):   plugin 1: [libMEOW_gift.so]: 0xb40000782cc88030
+04-18 17:15:07.576 D/libMEOW (31328): rebuild call chain: 0x779cd310c0
+04-18 17:15:07.577 D/libMEOW (31328): meow delete tls: 0x779ccf1080
+04-18 17:15:07.584 I/hxy     (31328): pkg:::com.vitovt.godocmirrortranslator---name::::android.software.picture_in_picture
+04-18 17:15:07.589 D/nativeloader(31328): Load /data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/lib/arm64/libgodocmirrortranslator.so using class loader ns clns-7 (caller=/data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/base.apk): ok
+04-18 17:15:07.597 I/Fyne    (31328): Fyne error:  Failed to load user locales
+04-18 17:15:07.597 I/Fyne    (31328):   Cause: no current JVM
+04-18 17:15:07.597 I/Fyne    (31328):   At: /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/lang/lang.go:205
+04-18 17:15:07.604 I/hxy     (31328): pkg:::com.vitovt.godocmirrortranslator---name::::android.hardware.type.watch
+04-18 17:15:07.632 D/nativeloader(31328): Load /data/app/~~YchKEMwetTk6oc2uFFKxrQ==/com.vitovt.REDACTED/lib/arm64/libgodocmirrortranslator.so using class loader ns clns-7 (caller=<unknown>): ok
+
+```
+
+```
+adb logcat -v time ActivityManager:I AndroidRuntime:E System.err:W *:S
+
+04-18 17:16:24.621 I/ActivityManager( 1531): Start proc 2475:com.vitovt.godocmirrortranslator/u0a422 for next-top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:24.850 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2475) has died: fg  TOP 
+04-18 17:16:24.863 I/ActivityManager( 1531): Start proc 2522:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.045 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2522) has died: fg  TOP 
+04-18 17:16:25.059 I/ActivityManager( 1531): Start proc 2559:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.244 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2559) has died: fg  TOP 
+04-18 17:16:25.257 I/ActivityManager( 1531): Start proc 2589:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.442 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2589) has died: fg  TOP 
+04-18 17:16:25.455 I/ActivityManager( 1531): Start proc 2637:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.651 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2637) has died: fg  TOP 
+04-18 17:16:25.666 I/ActivityManager( 1531): Start proc 2681:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:25.858 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2681) has died: fg  TOP 
+04-18 17:16:25.871 I/ActivityManager( 1531): Start proc 2723:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.065 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2723) has died: fg  TOP 
+04-18 17:16:26.078 I/ActivityManager( 1531): Start proc 2760:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.295 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2760) has died: fg  TOP 
+04-18 17:16:26.308 I/ActivityManager( 1531): Start proc 2786:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.502 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2786) has died: fg  TOP 
+04-18 17:16:26.515 I/ActivityManager( 1531): Start proc 2812:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.709 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2812) has died: fg  TOP 
+04-18 17:16:26.722 I/ActivityManager( 1531): Start proc 2838:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:26.911 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2838) has died: fg  TOP 
+04-18 17:16:26.924 I/ActivityManager( 1531): Start proc 2884:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.115 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2884) has died: fg  TOP 
+04-18 17:16:27.128 I/ActivityManager( 1531): Start proc 2917:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.312 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2917) has died: fg  TOP 
+04-18 17:16:27.326 I/ActivityManager( 1531): Start proc 2961:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.518 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2961) has died: fg  TOP 
+04-18 17:16:27.532 I/ActivityManager( 1531): Start proc 2995:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.725 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 2995) has died: fg  TOP 
+04-18 17:16:27.740 I/ActivityManager( 1531): Start proc 3026:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:27.938 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3026) has died: fg  TOP 
+04-18 17:16:27.951 I/ActivityManager( 1531): Start proc 3065:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.142 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3065) has died: fg  TOP 
+04-18 17:16:28.154 I/ActivityManager( 1531): Start proc 3093:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.343 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3093) has died: fg  TOP 
+04-18 17:16:28.355 I/ActivityManager( 1531): Start proc 3117:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.542 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3117) has died: fg  TOP 
+04-18 17:16:28.555 I/ActivityManager( 1531): Start proc 3144:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.740 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3144) has died: fg  TOP 
+04-18 17:16:28.755 I/ActivityManager( 1531): Start proc 3169:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+04-18 17:16:28.947 I/ActivityManager( 1531): Process com.vitovt.godocmirrortranslator (pid 3169) has died: fg  TOP 
+04-18 17:16:28.962 I/ActivityManager( 1531): Start proc 3226:com.vitovt.godocmirrortranslator/u0a422 for top-activity {com.vitovt.godocmirrortranslator/org.golang.app.GoNativeActivity}
+^C
+
+```
