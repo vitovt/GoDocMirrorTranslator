@@ -60,6 +60,7 @@ The application must:
 The application must:
 - send the image to the selected AI provider;
 - request structured output in a unified internal schema;
+- optionally include user-provided document context that helps the provider recognize the document type, field meanings, abbreviations, or conventions, while omitting that context entirely when it is empty;
 - detect text blocks approximately matching the original layout;
 - translate text from the configured source language to the configured target language;
 - by default source language is **Ukrainian** and target language is **German**;
@@ -85,6 +86,7 @@ The GUI must support:
 - selecting an output directory;
 - editing an output filename template;
 - selecting an output format;
+- editing an optional image description/context field used only for AI analysis;
 - selecting provider, model, and provider-specific advanced options;
 - network/AI timeout;
 - entering and saving API keys locally;
@@ -198,7 +200,7 @@ type Provider interface {
 ```
 
 ### 6.3.1 AnalyzeRequest and ProviderConfig
-`AnalyzeRequest` must include a readable source image reference or bytes, original source image width and height, source language, target language, selected model, and request timeout.
+`AnalyzeRequest` must include a readable source image reference or bytes, original source image width and height, source language, target language, optional user-provided image/document description context, selected model, and request timeout.
 
 `ProviderConfig` must include API key or equivalent credential reference, default model if any, and provider-specific advanced options loaded from local config.
 
@@ -263,11 +265,14 @@ The provider request must instruct the model to:
 
 * read handwritten or mixed handwritten/printed text in the configured source language;
 * translate it into the configured target language;
+* incorporate optional user-provided document context when present, but omit that context entirely when it is empty;
 * group content into approximate text blocks;
 * preserve rough visual layout;
 * return only structured output;
 * avoid hallucinating missing text;
 * mark uncertain or unreadable text explicitly.
+
+Optional user-provided document context must be treated only as recognition aid for document type, field meanings, abbreviations, and conventions. It must not be used to invent text that is not visibly present in the image.
 
 ### 8.4 Unreadable Content
 
@@ -358,6 +363,7 @@ The main window must contain:
 * output directory field
 * output directory browse button
 * output filename template field
+* image description for AI field
 * output format selector
 * provider selector
 * model selector

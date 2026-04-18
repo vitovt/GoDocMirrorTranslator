@@ -28,6 +28,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Initial Fyne desktop GUI shell with validation, async processing, config persistence, picker adapters, layout-JSON rerender flow, and overwrite confirmation
 - GUI design settings now expose readability controls for font weight, outline, background, and shadow, all mapped to shared renderer options
 - GUI now presents text/background/shadow opacity as percentages and shows renderer-specific formatting guidance so SVG-vs-FODG differences are visible in-app
+- GUI main settings now include an optional persisted image-description context field that is passed into shared provider prompts during Analyze only and omitted entirely when empty
 - GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
 - Desktop GUI builds now use OS-native file and folder pickers via `github.com/sqweek/dialog`, with Fyne dialog fallback kept for Android and unsupported desktop backends
 - Linux-host Windows builds now default to the MinGW-w64 cross-compiler path in `make windows` / `make snapshot` via `WINDOWS_CC`, instead of relying on the host `gcc`
@@ -43,6 +44,7 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - Provider adapters must normalize into one internal `DocumentPage` / `TextBlock` model.
 - Provider instances are constructed per render from effective runtime config so credentials and advanced options do not leak into global mutable state.
 - OpenAI and Gemini adapters share one prompt builder and one provider response schema, with transport kept provider-specific.
+- Optional user-provided image/document description context is injected only through the shared prompt builder during provider analysis; rerender and saved layout JSON remain independent of that context.
 - OpenAI and Gemini adapters also share structured-output text parsing/normalization inside `internal/provider` so transport-specific code does not duplicate JSON cleanup or parse behavior.
 - No business logic inside GUI widgets.
 - The GUI defaults to the shared application core and only orchestrates config, validation, picker input, and async render invocation.
