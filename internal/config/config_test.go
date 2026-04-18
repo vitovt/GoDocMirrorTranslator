@@ -42,6 +42,29 @@ func TestResolvePathPrefersExplicitAndEnvThenUserConfigDir(t *testing.T) {
 	}
 }
 
+func TestResolvePathFallsBackToFilesDirWhenUserConfigDirUnavailable(t *testing.T) {
+	t.Setenv(ConfigPathEnv, "")
+	if runtime.GOOS == "windows" {
+		t.Setenv("AppData", "")
+	} else {
+		t.Setenv("XDG_CONFIG_HOME", "")
+		t.Setenv("HOME", "")
+	}
+
+	filesDir := filepath.Join(t.TempDir(), "files")
+	t.Setenv(filesDirEnv, filesDir)
+
+	resolved, err := ResolvePath("")
+	if err != nil {
+		t.Fatalf("ResolvePath(files dir fallback) error = %v", err)
+	}
+
+	want := filepath.Join(filesDir, "fyne", defaultConfigDir, "config.json")
+	if resolved != want {
+		t.Fatalf("ResolvePath(files dir fallback) = %q, want %q", resolved, want)
+	}
+}
+
 func TestLoadReturnsDefaultsWhenConfigMissing(t *testing.T) {
 	cfg, resolvedPath, err := Load(filepath.Join(t.TempDir(), "missing.json"))
 	if err != nil {

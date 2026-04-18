@@ -17,6 +17,7 @@ const (
 	EnvPrefix        = "GODOCMIRRORTRANSLATOR_"
 	ConfigPathEnv    = EnvPrefix + "CONFIG"
 	defaultConfigDir = "handwritten-overlay-translator"
+	filesDirEnv      = "FILESDIR"
 )
 
 type Config struct {
@@ -94,10 +95,13 @@ func ResolvePath(explicit string) (string, error) {
 		return fromEnv, nil
 	}
 	userConfigDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("resolve user config dir: %w", err)
+	if err == nil {
+		return filepath.Join(userConfigDir, defaultConfigDir, "config.json"), nil
 	}
-	return filepath.Join(userConfigDir, defaultConfigDir, "config.json"), nil
+	if filesDir := strings.TrimSpace(os.Getenv(filesDirEnv)); filesDir != "" {
+		return filepath.Join(filesDir, "fyne", defaultConfigDir, "config.json"), nil
+	}
+	return "", fmt.Errorf("resolve user config dir: %w", err)
 }
 
 func Load(path string) (Config, string, error) {
