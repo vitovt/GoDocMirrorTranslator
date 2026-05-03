@@ -29,6 +29,8 @@ A Go-based desktop and CLI tool that submits a handwritten or mixed document ima
 - GUI design settings now expose readability controls for font weight, outline, background, and shadow, all mapped to shared renderer options
 - GUI now presents text/background/shadow opacity as percentages and shows renderer-specific formatting guidance so SVG-vs-FODG differences are visible in-app
 - GUI main settings now include an optional persisted image-description context field that is passed into shared provider prompts during Analyze only and omitted entirely when empty
+- GUI keeps the `Preserve Columns` control visible but disabled until analysis-side support is implemented, so the UI no longer suggests it already affects output
+- Render `Font Size` now acts as an explicit output-size formatting control for rendered text instead of only a fallback when provider block font sizes are missing
 - GUI output action now adapts by platform: desktop opens the output folder, mobile opens the generated output file
 - Desktop GUI builds now use OS-native file and folder pickers via `github.com/sqweek/dialog`, with Fyne dialog fallback kept for Android and unsupported desktop backends
 - Linux-host Windows builds now default to the MinGW-w64 cross-compiler path in `make windows` / `make snapshot` via `WINDOWS_CC`, instead of relying on the host `gcc`
