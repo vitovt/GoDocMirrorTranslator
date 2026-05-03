@@ -1,0 +1,63 @@
+The main solution you've proposed is good. Implement it.
+> I think Font Size Mode: Uniform / Proportional is clearer and easier to extend later.
+ok. But rename Uniform to Unisizefont.
+And another improvement: by default text block size should be wide enough (fit text width).
+Now I should manually resize every, because text area block are too narrow. Especially for large font sizes.
+
+---
+
+I've successfully exported in both modes but suddenly, when I try to switch mode again the app crashes:
+```
+$ dist/0.99.0-a0de6b1-dev-dirty/godocmirrortranslator_0.99.0-a0de6b1-dev-dirty_linux_amd64
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0xa8 pc=0x7e479a]
+
+goroutine 1 [running, locked to thread]:
+fyne.io/fyne/v2/internal/widget.(*overlayRenderer).MinSize(0xe729f8?)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/widget/overlay_container.go:85 +0x1a
+fyne.io/fyne/v2/internal/widget.(*Base).MinSize(0xc001abe5b0?)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/widget/base.go:74 +0x2e
+fyne.io/fyne/v2/widget.NewPopUpMenu(0xc00023d380, {0x0, 0x0})
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/widget/popup_menu.go:31 +0x205
+fyne.io/fyne/v2/widget.(*Select).showPopUp(0xc0002a1180)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/widget/select.go:283 +0x234
+fyne.io/fyne/v2/widget.(*Select).Tapped(0xc0002a1180, 0xd28c60?)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/widget/select.go:230 +0x50
+fyne.io/fyne/v2/internal/driver/glfw.(*window).mouseClickedHandleTapDoubleTap(0xc0003aa000, {0xe70320, 0xc0002a1180}, 0xc0022281b0)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/driver/glfw/window.go:581 +0x182
+fyne.io/fyne/v2/internal/driver/glfw.(*window).processMouseClicked(0xc0003aa000, 0x1, 0x0, 0x0)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/driver/glfw/window.go:542 +0x73c
+fyne.io/fyne/v2/internal/driver/glfw.(*window).mouseClicked(0xc00213c990?, 0xaf11c0?, 0x1ade600?, 0xc00213c990?, 0xc00023d4f0?)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/driver/glfw/window_desktop.go:409 +0xaf
+github.com/go-gl/glfw/v3.3/glfw.goMouseButtonCB(0xc00023d568?, 0x0, 0x0, 0x0)
+        /home/vitovt/go/pkg/mod/github.com/go-gl/glfw/v3.3/glfw@v0.0.0-20240506104042-037f3cc74f2a/input.go:333 +0x51
+github.com/go-gl/glfw/v3.3/glfw._Cfunc_glfwPollEvents()
+        _cgo_gotypes.go:1600 +0x3f
+github.com/go-gl/glfw/v3.3/glfw.PollEvents()
+        /home/vitovt/go/pkg/mod/github.com/go-gl/glfw/v3.3/glfw@v0.0.0-20240506104042-037f3cc74f2a/window.go:931 +0x13
+fyne.io/fyne/v2/internal/driver/glfw.(*gLDriver).pollEvents(...)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/driver/glfw/loop_desktop.go:22
+fyne.io/fyne/v2/internal/driver/glfw.(*gLDriver).runGL(0xc002795110?)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/driver/glfw/loop.go:154 +0x1aa
+fyne.io/fyne/v2/internal/driver/glfw.(*gLDriver).Run(0xc00038e9a0)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/driver/glfw/driver.go:162 +0x72
+fyne.io/fyne/v2/app.(*fyneApp).Run(0xc00038ea50)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/app/app.go:77 +0x102
+fyne.io/fyne/v2/internal/driver/glfw.(*window).ShowAndRun(0xc0003aa000)
+        /home/vitovt/go/pkg/mod/fyne.io/fyne/v2@v2.7.0/internal/driver/glfw/window.go:217 +0x64
+godocmirrortranslator/internal/gui.Run({0xe6ad80, 0x1b238c0}, 0xc00039a620, {0xd3a00b, 0x3}, {0x0?, 0xb9a4a0?})
+        /home/vitovt/Desktop/Dev/GoDocMirrorTranslator/internal/gui/gui.go:148 +0x438
+main.main()
+        /home/vitovt/Desktop/Dev/GoDocMirrorTranslator/cmd/app/main.go:15 +0xbb
+
+```
+What it could be ?
+
+---
+
+Make better vertical aligning. For example when I set font to 7 - horisontally everything is ok. But vertically all blocks are overlapped.
+Example:
+/home/vitovt/Dropbox/Documents/BUH-DOC-Other/Доки-скани/Weiterbildung-bewerbung-JC/Univer/bakalavr-2.fodg 
+It looks so:
+[Image #1]
+Everything white with blue border is my overlaped translated text.
