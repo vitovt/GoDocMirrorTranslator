@@ -312,6 +312,9 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 func TestApplyConfigDisplaysOpacityAsPercent(t *testing.T) {
 	ui, _, _ := newTestUI(t)
 
+	if !ui.preserveColumns.Disabled() {
+		t.Fatal("preserveColumns should be visible but disabled")
+	}
 	if ui.pageLayoutSelect.Selected != "auto" {
 		t.Fatalf("pageLayoutSelect.Selected = %q, want auto", ui.pageLayoutSelect.Selected)
 	}

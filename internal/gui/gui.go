@@ -332,7 +332,7 @@ func (u *UI) content() fyne.CanvasObject {
 
 	designForm := widget.NewForm(
 		widget.NewFormItem("Font Family", u.fontFamilyEntry),
-		widget.NewFormItem("Font Size", u.fontSizeEntry),
+		widget.NewFormItem("Font Size (pt)", u.fontSizeEntry),
 		widget.NewFormItem("Font Weight", u.fontWeightSelect),
 		widget.NewFormItem("Page Layout", u.pageLayoutSelect),
 		widget.NewFormItem("Text Color", u.colorEntry),
@@ -589,6 +589,7 @@ func (u *UI) refreshInteractivity() {
 	}
 
 	u.syncAdvancedOptions()
+	u.preserveColumns.Disable()
 	if u.hasOutputTarget() {
 		u.openOutputButton.Enable()
 		return

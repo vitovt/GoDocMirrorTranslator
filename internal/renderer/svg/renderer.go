@@ -124,16 +124,13 @@ func svgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale, 
 		text = block.SourceText
 	}
 
-	fontFamily := block.FontFamily
+	fontFamily := opts.FontFamily
 	if fontFamily == "" {
-		fontFamily = opts.FontFamily
+		fontFamily = block.FontFamily
 	}
-	fontSize := block.FontSize * scale
-	if fontSize <= 0 {
-		fontSize = opts.DefaultFontSize * scale
-	}
-	if fontSize < 2.5 {
-		fontSize = 2.5
+	fontSize := opts.DefaultFontSize * base.MillimetersPerPoint
+	if fontSize < 0.5 {
+		fontSize = 0.5
 	}
 	color := block.Color
 	if color == "" {

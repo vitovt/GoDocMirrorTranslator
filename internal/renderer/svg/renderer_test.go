@@ -48,6 +48,52 @@ func TestRenderEmbedsImageAndText(t *testing.T) {
 	}
 }
 
+func TestRenderUsesConfiguredUniformFontSize(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 800, 1000)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  800,
+		SourceImageHeight: 1000,
+		Blocks: []domain.TextBlock{
+			{
+				SourceText:     "One",
+				TranslatedText: "One",
+				X:              100,
+				Y:              200,
+				Width:          300,
+				Height:         100,
+				FontSize:       22,
+			},
+			{
+				SourceText:     "Two",
+				TranslatedText: "Two",
+				X:              100,
+				Y:              320,
+				Width:          300,
+				Height:         100,
+				FontSize:       28,
+			},
+		},
+	}
+
+	output, err := r.Render(context.Background(), page, base.RenderOptions{
+		FontFamily:      "Noto Sans",
+		DefaultFontSize: 7,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	content := string(output)
+	if strings.Count(content, `font-size="2.4694"`) != 2 {
+		t.Fatalf("Render() output = %q, want both text elements to use configured 7pt size", content)
+	}
+}
+
 func TestRenderOffsetsAlignedTextByBlockWidth(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")

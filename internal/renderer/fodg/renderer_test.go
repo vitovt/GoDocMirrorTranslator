@@ -61,6 +61,52 @@ func TestRenderEmbedsImageAndText(t *testing.T) {
 	}
 }
 
+func TestRenderUsesConfiguredUniformFontSize(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 800, 1000)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  800,
+		SourceImageHeight: 1000,
+		Blocks: []domain.TextBlock{
+			{
+				SourceText:     "One",
+				TranslatedText: "One",
+				X:              100,
+				Y:              200,
+				Width:          300,
+				Height:         100,
+				FontSize:       22,
+			},
+			{
+				SourceText:     "Two",
+				TranslatedText: "Two",
+				X:              100,
+				Y:              320,
+				Width:          300,
+				Height:         100,
+				FontSize:       28,
+			},
+		},
+	}
+
+	output, err := r.Render(context.Background(), page, base.RenderOptions{
+		FontFamily:      "Noto Sans",
+		DefaultFontSize: 7,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	content := string(output)
+	if strings.Count(content, `fo:font-size="7.0000pt"`) != 2 {
+		t.Fatalf("Render() output = %q, want both text styles to use configured 7pt size", content)
+	}
+}
+
 func TestRenderAppliesReadabilityDecorations(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")
@@ -251,6 +297,7 @@ func TestRenderRoundTripsThroughLibreOffice(t *testing.T) {
 	}
 
 	cmd := exec.Command("soffice", "--headless", "--convert-to", "svg", "--outdir", tempDir, fodgPath)
+	cmd.Env = libreOfficeTestEnv(tempDir)
 	combined, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("soffice convert error = %v, output = %s", err, string(combined))
@@ -303,6 +350,7 @@ func TestRenderLandscapeRemainsLandscapeInLibreOffice(t *testing.T) {
 	}
 
 	cmd := exec.Command("soffice", "--headless", "--convert-to", "svg", "--outdir", tempDir, fodgPath)
+	cmd.Env = libreOfficeTestEnv(tempDir)
 	combined, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("soffice convert error = %v, output = %s", err, string(combined))
@@ -381,6 +429,7 @@ func TestRenderImportsReadablePropertiesInLibreOffice(t *testing.T) {
 	}
 
 	listener := exec.Command("soffice", "--headless", "--nologo", "--nodefault", "--nofirststartwizard", "--accept=socket,host=127.0.0.1,port=2011;urp;StarOffice.ComponentContext")
+	listener.Env = libreOfficeTestEnv(tempDir)
 	if err := listener.Start(); err != nil {
 		t.Fatalf("start soffice listener: %v", err)
 	}
@@ -431,6 +480,7 @@ doc.close(True)
 print(json.dumps(data))
 `
 	cmd := exec.Command("python3", "-c", script, fodgPath)
+	cmd.Env = libreOfficeTestEnv(tempDir)
 	combined, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("inspect imported properties: %v, output = %s", err, string(combined))
@@ -458,8 +508,8 @@ print(json.dumps(data))
 	if props.FontName != "Noto Sans" {
 		t.Fatalf("imported font name = %q, want %q", props.FontName, "Noto Sans")
 	}
-	if math.Abs(props.FontSize-17.9) > 0.2 {
-		t.Fatalf("imported font size = %v, want about 17.9", props.FontSize)
+	if math.Abs(props.FontSize-18.0) > 0.2 {
+		t.Fatalf("imported font size = %v, want about 18.0", props.FontSize)
 	}
 	if props.FontColor != 0xffffff {
 		t.Fatalf("imported font color = %#x, want %#x", props.FontColor, 0xffffff)
@@ -512,4 +562,22 @@ func firstSVGTag(svg string) string {
 		}
 	}
 	return svg
+}
+
+func libreOfficeTestEnv(tempDir string) []string {
+	runtimeDir := filepath.Join(tempDir, "runtime")
+	cacheDir := filepath.Join(tempDir, "cache")
+	configDir := filepath.Join(tempDir, "config")
+	_ = os.MkdirAll(runtimeDir, 0o700)
+	_ = os.MkdirAll(cacheDir, 0o700)
+	_ = os.MkdirAll(configDir, 0o700)
+
+	env := append([]string{}, os.Environ()...)
+	env = append(env,
+		"HOME="+tempDir,
+		"XDG_RUNTIME_DIR="+runtimeDir,
+		"XDG_CACHE_HOME="+cacheDir,
+		"XDG_CONFIG_HOME="+configDir,
+	)
+	return env
 }

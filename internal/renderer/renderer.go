@@ -6,6 +6,8 @@ import (
 	"godocmirrortranslator/internal/domain"
 )
 
+const MillimetersPerPoint = 25.4 / 72.0
+
 type PageLayout string
 
 const (

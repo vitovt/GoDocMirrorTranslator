@@ -15,8 +15,6 @@ import (
 	base "godocmirrortranslator/internal/renderer"
 )
 
-const mmPerPoint = 25.4 / 72.0
-
 type Renderer struct{}
 
 func New() *Renderer {
@@ -164,14 +162,11 @@ type fodgTextMetrics struct {
 
 func fodgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale, offsetX, offsetY float64) fodgTextMetrics {
 	text := renderedText(block)
-	fontFamily := block.FontFamily
+	fontFamily := opts.FontFamily
 	if fontFamily == "" {
-		fontFamily = opts.FontFamily
+		fontFamily = block.FontFamily
 	}
-	fontSizeMM := block.FontSize * scale
-	if fontSizeMM <= 0 {
-		fontSizeMM = opts.DefaultFontSize * scale
-	}
+	fontSizeMM := opts.DefaultFontSize * base.MillimetersPerPoint
 	if fontSizeMM < 0.9 {
 		fontSizeMM = 0.9
 	}
@@ -326,7 +321,7 @@ func odfLength(valueMM float64) string {
 }
 
 func odfPoint(valueMM float64) string {
-	return fmt.Sprintf("%.4fpt", valueMM/mmPerPoint)
+	return fmt.Sprintf("%.4fpt", valueMM/base.MillimetersPerPoint)
 }
 
 func odfPercent(value float64) string {
