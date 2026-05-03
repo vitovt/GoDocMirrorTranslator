@@ -1,0 +1,5 @@
+The main solution you've proposed is good. Implement it.
+> I think Font Size Mode: Uniform / Proportional is clearer and easier to extend later.
+ok. But rename Uniform to Unisizefont.
+And another improvement: by default text block size should be wide enough (fit text width).
+Now I should manually resize every, because text area block are too narrow. Especially for large font sizes.
