@@ -229,6 +229,7 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	ui.targetLangEntry.SetText("German")
 	ui.imageDescriptionEntry.SetText("Employment record book page with handwritten job history rows")
 	ui.opacityEntry.SetText("25")
+	ui.fontSizeModeSelect.SetSelected("Proportional")
 	ui.fontWeightSelect.SetSelected("bold")
 	ui.pageLayoutSelect.SetSelected("Landscape")
 	ui.outlineColorEntry.SetText("#ffffff")
@@ -274,6 +275,9 @@ func TestSaveSettingsPersistsConfig(t *testing.T) {
 	if loaded.OverlayOpacity != 0.25 {
 		t.Fatalf("OverlayOpacity = %v, want 0.25", loaded.OverlayOpacity)
 	}
+	if loaded.DefaultFontSizeMode != string(base.FontSizeModeProportional) {
+		t.Fatalf("DefaultFontSizeMode = %q, want %q", loaded.DefaultFontSizeMode, base.FontSizeModeProportional)
+	}
 	if loaded.DefaultFontWeight != "bold" {
 		t.Fatalf("DefaultFontWeight = %q, want bold", loaded.DefaultFontWeight)
 	}
@@ -317,6 +321,9 @@ func TestApplyConfigDisplaysOpacityAsPercent(t *testing.T) {
 	}
 	if ui.pageLayoutSelect.Selected != "auto" {
 		t.Fatalf("pageLayoutSelect.Selected = %q, want auto", ui.pageLayoutSelect.Selected)
+	}
+	if ui.fontSizeModeSelect.Selected != "Unisizefont" {
+		t.Fatalf("fontSizeModeSelect.Selected = %q, want Unisizefont", ui.fontSizeModeSelect.Selected)
 	}
 	if ui.opacityEntry.Text != "100" {
 		t.Fatalf("opacityEntry.Text = %q, want 100", ui.opacityEntry.Text)

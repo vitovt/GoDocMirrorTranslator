@@ -204,6 +204,7 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 		EnvPrefix + "DEFAULT_PROVIDER":        "gemini",
 		EnvPrefix + "DEFAULT_RENDERER":        "fodg",
 		EnvPrefix + "DEFAULT_FONT_SIZE":       "22.5",
+		EnvPrefix + "DEFAULT_FONT_SIZE_MODE":  "proportional",
 		EnvPrefix + "DEFAULT_FONT_WEIGHT":     "bold",
 		EnvPrefix + "DEFAULT_PAGE_LAYOUT":     "landscape",
 		EnvPrefix + "OVERLAY_OPACITY":         "0.7",
@@ -232,6 +233,9 @@ func TestApplyEnvOverridesDefaults(t *testing.T) {
 	}
 	if cfg.DefaultFontSize != 22.5 {
 		t.Fatalf("DefaultFontSize = %v, want 22.5", cfg.DefaultFontSize)
+	}
+	if cfg.DefaultFontSizeMode != "proportional" {
+		t.Fatalf("DefaultFontSizeMode = %q, want proportional", cfg.DefaultFontSizeMode)
 	}
 	if cfg.DefaultFontWeight != "bold" {
 		t.Fatalf("DefaultFontWeight = %q, want bold", cfg.DefaultFontWeight)
@@ -398,6 +402,16 @@ func TestSetSupportsKnownKeysAndRejectsUnknownKeys(t *testing.T) {
 				t.Helper()
 				if cfg.DefaultFontSize != 23.5 {
 					t.Fatalf("DefaultFontSize = %v, want 23.5", cfg.DefaultFontSize)
+				}
+			},
+		},
+		{
+			key:   "default_font_size_mode",
+			value: "proportional",
+			check: func(t *testing.T, cfg Config) {
+				t.Helper()
+				if cfg.DefaultFontSizeMode != "proportional" {
+					t.Fatalf("DefaultFontSizeMode = %q, want proportional", cfg.DefaultFontSizeMode)
 				}
 			},
 		},
@@ -600,6 +614,7 @@ func TestRenderOptionsAndProviderConfigMirrorConfig(t *testing.T) {
 	cfg := Default()
 	cfg.DefaultFontFamily = "Fira Sans"
 	cfg.DefaultFontSize = 19
+	cfg.DefaultFontSizeMode = "proportional"
 	cfg.DefaultFontWeight = "bold"
 	cfg.DefaultPageLayout = "portrait"
 	cfg.OverlayColor = "#334455"
@@ -627,6 +642,7 @@ func TestRenderOptionsAndProviderConfigMirrorConfig(t *testing.T) {
 	renderOpts := cfg.RenderOptions()
 	if renderOpts.FontFamily != "Fira Sans" ||
 		renderOpts.DefaultFontSize != 19 ||
+		renderOpts.FontSizeMode != base.FontSizeModeProportional ||
 		renderOpts.FontWeight != "bold" ||
 		renderOpts.PageLayout != base.PageLayoutPortrait ||
 		renderOpts.TextColor != "#334455" ||
@@ -678,7 +694,7 @@ func TestNormalizeAndPreferenceHelpersOnZeroConfig(t *testing.T) {
 	cfg.normalize()
 
 	defaults := Default()
-	if cfg.Timeout != defaults.Timeout || cfg.DefaultProvider != defaults.DefaultProvider || cfg.DefaultRenderer != defaults.DefaultRenderer || cfg.DefaultFontFamily != defaults.DefaultFontFamily || cfg.DefaultFontSize != defaults.DefaultFontSize {
+	if cfg.Timeout != defaults.Timeout || cfg.DefaultProvider != defaults.DefaultProvider || cfg.DefaultRenderer != defaults.DefaultRenderer || cfg.DefaultFontFamily != defaults.DefaultFontFamily || cfg.DefaultFontSize != defaults.DefaultFontSize || cfg.DefaultFontSizeMode != defaults.DefaultFontSizeMode {
 		t.Fatalf("normalize() did not apply defaults: %#v", cfg)
 	}
 	if cfg.DefaultPageLayout != defaults.DefaultPageLayout {

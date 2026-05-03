@@ -16,9 +16,17 @@ const (
 	PageLayoutLandscape PageLayout = "landscape"
 )
 
+type FontSizeMode string
+
+const (
+	FontSizeModeUnisizefont  FontSizeMode = "unisizefont"
+	FontSizeModeProportional FontSizeMode = "proportional"
+)
+
 type RenderOptions struct {
 	FontFamily         string
 	DefaultFontSize    float64
+	FontSizeMode       FontSizeMode
 	PageLayout         PageLayout
 	TextColor          string
 	Opacity            float64
@@ -51,6 +59,7 @@ func DefaultRenderOptions() RenderOptions {
 	return RenderOptions{
 		FontFamily:         "Noto Sans",
 		DefaultFontSize:    18,
+		FontSizeMode:       FontSizeModeUnisizefont,
 		PageLayout:         PageLayoutAuto,
 		TextColor:          "#111111",
 		Opacity:            1,
@@ -80,6 +89,9 @@ func (o RenderOptions) Normalized() RenderOptions {
 	}
 	if o.DefaultFontSize <= 0 {
 		o.DefaultFontSize = defaults.DefaultFontSize
+	}
+	if !IsValidFontSizeMode(o.FontSizeMode) {
+		o.FontSizeMode = defaults.FontSizeMode
 	}
 	if !IsValidPageLayout(o.PageLayout) {
 		o.PageLayout = defaults.PageLayout
@@ -130,6 +142,15 @@ func (o RenderOptions) Normalized() RenderOptions {
 func IsValidPageLayout(layout PageLayout) bool {
 	switch layout {
 	case PageLayoutAuto, PageLayoutPortrait, PageLayoutLandscape:
+		return true
+	default:
+		return false
+	}
+}
+
+func IsValidFontSizeMode(mode FontSizeMode) bool {
+	switch mode {
+	case FontSizeModeUnisizefont, FontSizeModeProportional:
 		return true
 	default:
 		return false

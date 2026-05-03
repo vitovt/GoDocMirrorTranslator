@@ -55,6 +55,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	shadowBlur := opts.ShadowBlur * scale
 	shadowOffsetX := opts.ShadowOffsetX * scale
 	shadowOffsetY := opts.ShadowOffsetY * scale
+	fontSizer := base.NewFontSizer(page, opts)
 
 	var b strings.Builder
 	b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -67,7 +68,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString(fmt.Sprintf("  <image x=\"%.4f\" y=\"%.4f\" width=\"%.4f\" height=\"%.4f\" href=\"data:%s;base64,%s\" />\n", offsetX, offsetY, imageWidth, imageHeight, mimeType, base64.StdEncoding.EncodeToString(imageBytes)))
 
 	for _, block := range page.Blocks {
-		metrics := svgMetricsForBlock(block, opts, scale, offsetX, offsetY)
+		metrics := svgMetricsForBlock(block, opts, fontSizer, scale, offsetX, offsetY)
 		if opts.BackgroundEnabled && opts.BackgroundOpacity > 0 {
 			paddingX := opts.BackgroundPaddingX * scale
 			paddingY := opts.BackgroundPaddingY * scale
@@ -118,7 +119,7 @@ type svgTextMetrics struct {
 	Transform  string
 }
 
-func svgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale, offsetX, offsetY float64) svgTextMetrics {
+func svgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, fontSizer base.FontSizer, scale, offsetX, offsetY float64) svgTextMetrics {
 	text := block.TranslatedText
 	if text == "" {
 		text = block.SourceText
@@ -128,10 +129,7 @@ func svgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale, 
 	if fontFamily == "" {
 		fontFamily = block.FontFamily
 	}
-	fontSize := opts.DefaultFontSize * base.MillimetersPerPoint
-	if fontSize < 0.5 {
-		fontSize = 0.5
-	}
+	fontSize := fontSizer.MillimeterSize(block)
 	color := block.Color
 	if color == "" {
 		color = opts.TextColor
@@ -160,9 +158,10 @@ func svgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale, 
 	}
 
 	lines := strings.Split(text, "\n")
+	estimatedWidth := estimatedTextWidth(lines, fontSize)
 	boxWidth := block.Width * scale
-	if boxWidth <= 0 {
-		boxWidth = estimatedTextWidth(lines, fontSize)
+	if boxWidth < estimatedWidth {
+		boxWidth = estimatedWidth
 	}
 	boxHeight := block.Height * scale
 	minHeight := estimatedTextHeight(lines, fontSize, lineHeight)

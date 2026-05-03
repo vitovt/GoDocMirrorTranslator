@@ -34,6 +34,7 @@ const (
 var supportedImageExtensions = []string{".jpg", ".jpeg", ".png", ".webp"}
 
 var pageLayoutOptions = []string{"auto", "Portrait", "Landscape"}
+var fontSizeModeOptions = []string{"Unisizefont", "Proportional"}
 
 type UI struct {
 	ctx         context.Context
@@ -82,6 +83,7 @@ type UI struct {
 	timeoutEntry            *widget.Entry
 	fontFamilyEntry         *widget.Entry
 	fontSizeEntry           *widget.Entry
+	fontSizeModeSelect      *widget.Select
 	fontWeightSelect        *widget.Select
 	pageLayoutSelect        *widget.Select
 	colorEntry              *widget.Entry
@@ -202,6 +204,9 @@ func newUI(ctx context.Context, guiApp fyne.App, device fyne.Device, window fyne
 	ui.timeoutEntry = widget.NewEntry()
 	ui.fontFamilyEntry = widget.NewEntry()
 	ui.fontSizeEntry = widget.NewEntry()
+	ui.fontSizeModeSelect = widget.NewSelect(fontSizeModeOptions, func(string) {
+		ui.refreshValidation()
+	})
 	ui.fontWeightSelect = widget.NewSelect([]string{"normal", "bold"}, func(string) {
 		ui.refreshValidation()
 	})
@@ -332,6 +337,7 @@ func (u *UI) content() fyne.CanvasObject {
 
 	designForm := widget.NewForm(
 		widget.NewFormItem("Font Family", u.fontFamilyEntry),
+		widget.NewFormItem("Font Size Mode", u.fontSizeModeSelect),
 		widget.NewFormItem("Font Size (pt)", u.fontSizeEntry),
 		widget.NewFormItem("Font Weight", u.fontWeightSelect),
 		widget.NewFormItem("Page Layout", u.pageLayoutSelect),
@@ -467,6 +473,7 @@ func (u *UI) applyConfig(cfg config.Config) {
 	u.targetLangEntry.SetText(cfg.TargetLanguage)
 	u.timeoutEntry.SetText(cfg.Timeout.String())
 	u.fontFamilyEntry.SetText(cfg.DefaultFontFamily)
+	u.fontSizeModeSelect.SetSelected(fontSizeModeLabel(cfg.DefaultFontSizeMode))
 	u.fontSizeEntry.SetText(fmt.Sprintf("%g", cfg.DefaultFontSize))
 	u.fontWeightSelect.SetSelected(cfg.DefaultFontWeight)
 	u.pageLayoutSelect.SetSelected(pageLayoutLabel(cfg.DefaultPageLayout))
@@ -620,6 +627,9 @@ func (u *UI) settingsValidationError() error {
 	if cfg.DefaultFontSize <= 0 {
 		return fmt.Errorf("font size must be positive")
 	}
+	if !base.IsValidFontSizeMode(base.FontSizeMode(cfg.DefaultFontSizeMode)) {
+		return fmt.Errorf("font size mode must be unisizefont or proportional")
+	}
 	if cfg.OverlayOpacity < 0 || cfg.OverlayOpacity > 1 {
 		return fmt.Errorf("text opacity must be between 0%% and 100%%")
 	}
@@ -756,6 +766,7 @@ func (u *UI) configFromWidgets() (config.Config, error) {
 	cfg.TargetLanguage = strings.TrimSpace(u.targetLangEntry.Text)
 	cfg.Timeout = timeout
 	cfg.DefaultFontFamily = strings.TrimSpace(u.fontFamilyEntry.Text)
+	cfg.DefaultFontSizeMode = selectedFontSizeMode(u.fontSizeModeSelect.Selected)
 	cfg.DefaultFontSize = fontSize
 	cfg.DefaultFontWeight = strings.TrimSpace(u.fontWeightSelect.Selected)
 	cfg.DefaultPageLayout = selectedPageLayout(u.pageLayoutSelect.Selected)
@@ -1067,6 +1078,13 @@ func defaultPageLayout(layout string) string {
 	return strings.TrimSpace(layout)
 }
 
+func defaultFontSizeMode(mode string) string {
+	if !base.IsValidFontSizeMode(base.FontSizeMode(strings.TrimSpace(mode))) {
+		return string(base.FontSizeModeUnisizefont)
+	}
+	return strings.TrimSpace(mode)
+}
+
 func pageLayoutLabel(layout string) string {
 	switch defaultPageLayout(layout) {
 	case string(base.PageLayoutPortrait):
@@ -1075,6 +1093,15 @@ func pageLayoutLabel(layout string) string {
 		return "Landscape"
 	default:
 		return "auto"
+	}
+}
+
+func fontSizeModeLabel(mode string) string {
+	switch defaultFontSizeMode(mode) {
+	case string(base.FontSizeModeProportional):
+		return "Proportional"
+	default:
+		return "Unisizefont"
 	}
 }
 
@@ -1089,12 +1116,22 @@ func selectedPageLayout(label string) string {
 	}
 }
 
+func selectedFontSizeMode(label string) string {
+	switch strings.TrimSpace(label) {
+	case "Proportional":
+		return string(base.FontSizeModeProportional)
+	default:
+		return string(base.FontSizeModeUnisizefont)
+	}
+}
+
 func rendererGuidanceText(renderer string) string {
 	switch defaultRendererName(renderer) {
 	case "fodg":
 		return strings.Join([]string{
 			"FODG / LibreOffice Draw:",
 			"Text color, font family, font size, and font weight are applied.",
+			"Unisizefont forces one point size; Proportional preserves relative block-size differences.",
 			"Text opacity is currently ignored by LibreOffice on import.",
 			"Outline width works as contour on/off only; it is not a true adjustable stroke width.",
 			"Outline color controls the contour color, and contoured text is hollow in LibreOffice.",
@@ -1105,6 +1142,7 @@ func rendererGuidanceText(renderer string) string {
 		return strings.Join([]string{
 			"SVG / Inkscape:",
 			"Text color and text opacity are applied directly.",
+			"Unisizefont forces one point size; Proportional preserves relative block-size differences.",
 			"Outline color and outline width are applied directly.",
 			"Background color, opacity, padding, and radius are applied directly.",
 			"Shadow color, opacity, blur, and offsets are applied directly.",
@@ -1382,6 +1420,7 @@ func (u *UI) interactiveControls() []disableable {
 		u.targetLangEntry,
 		u.timeoutEntry,
 		u.fontFamilyEntry,
+		u.fontSizeModeSelect,
 		u.fontSizeEntry,
 		u.fontWeightSelect,
 		u.pageLayoutSelect,

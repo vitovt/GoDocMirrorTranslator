@@ -2,6 +2,7 @@ package svg
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -91,6 +92,89 @@ func TestRenderUsesConfiguredUniformFontSize(t *testing.T) {
 	content := string(output)
 	if strings.Count(content, `font-size="2.4694"`) != 2 {
 		t.Fatalf("Render() output = %q, want both text elements to use configured 7pt size", content)
+	}
+}
+
+func TestRenderUsesConfiguredProportionalFontSize(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 800, 1000)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  800,
+		SourceImageHeight: 1000,
+		Blocks: []domain.TextBlock{
+			{SourceText: "One", TranslatedText: "One", X: 100, Y: 200, Width: 300, Height: 100, FontSize: 20},
+			{SourceText: "Two", TranslatedText: "Two", X: 100, Y: 320, Width: 300, Height: 100, FontSize: 24},
+			{SourceText: "Three", TranslatedText: "Three", X: 100, Y: 440, Width: 300, Height: 100, FontSize: 28},
+		},
+	}
+
+	output, err := r.Render(context.Background(), page, base.RenderOptions{
+		FontFamily:      "Noto Sans",
+		DefaultFontSize: 7,
+		FontSizeMode:    base.FontSizeModeProportional,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	content := string(output)
+	for _, fragment := range []string{
+		`font-size="2.0579"`,
+		`font-size="2.4694"`,
+		`font-size="2.8810"`,
+	} {
+		if !strings.Contains(content, fragment) {
+			t.Fatalf("Render() output missing %q in %q", fragment, content)
+		}
+	}
+}
+
+func TestRenderAutoFitsBoxWidthToTranslatedText(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 800, 1000)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  800,
+		SourceImageHeight: 1000,
+		Blocks: []domain.TextBlock{{
+			SourceText:     "short",
+			TranslatedText: "Very wide translated text line",
+			X:              100,
+			Y:              200,
+			Width:          10,
+			Height:         40,
+			FontSize:       24,
+		}},
+	}
+
+	output, err := r.Render(context.Background(), page, base.DefaultRenderOptions())
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	output, err = r.Render(context.Background(), page, base.RenderOptions{
+		FontFamily:         "Noto Sans",
+		DefaultFontSize:    18,
+		BackgroundEnabled:  true,
+		BackgroundColor:    "#ffffdd",
+		BackgroundOpacity:  0.85,
+		BackgroundPaddingX: 0,
+		BackgroundPaddingY: 0,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	expectedWidth := estimatedTextWidth([]string{"Very wide translated text line"}, 18*base.MillimetersPerPoint)
+	if !strings.Contains(string(output), `width="`+fmt.Sprintf("%.4f", expectedWidth)+`"`) {
+		t.Fatalf("Render() output did not auto-fit box width: %q", string(output))
 	}
 }
 

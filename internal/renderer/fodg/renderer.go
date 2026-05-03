@@ -54,6 +54,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	offsetX := (pageWidth - imageWidth) / 2
 	offsetY := (pageHeight - imageHeight) / 2
 	mimeType := http.DetectContentType(imageBytes)
+	fontSizer := base.NewFontSizer(page, opts)
 
 	var b strings.Builder
 	b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -76,7 +77,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString("  <style:style style:name=\"dp1\" style:family=\"drawing-page\"/>\n")
 	b.WriteString("  <style:style style:name=\"grImage\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\"/></style:style>\n")
 	for i, block := range page.Blocks {
-		metrics := fodgMetricsForBlock(block, opts, scale, offsetX, offsetY)
+		metrics := fodgMetricsForBlock(block, opts, fontSizer, scale, offsetX, offsetY)
 		if strings.TrimSpace(metrics.Text) == "" {
 			continue
 		}
@@ -102,7 +103,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString("  </draw:frame>\n")
 
 	for i, block := range page.Blocks {
-		metrics := fodgMetricsForBlock(block, opts, scale, offsetX, offsetY)
+		metrics := fodgMetricsForBlock(block, opts, fontSizer, scale, offsetX, offsetY)
 		if strings.TrimSpace(metrics.Text) == "" {
 			continue
 		}
@@ -160,16 +161,13 @@ type fodgTextMetrics struct {
 	TransformAttr string
 }
 
-func fodgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale, offsetX, offsetY float64) fodgTextMetrics {
+func fodgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, fontSizer base.FontSizer, scale, offsetX, offsetY float64) fodgTextMetrics {
 	text := renderedText(block)
 	fontFamily := opts.FontFamily
 	if fontFamily == "" {
 		fontFamily = block.FontFamily
 	}
-	fontSizeMM := opts.DefaultFontSize * base.MillimetersPerPoint
-	if fontSizeMM < 0.9 {
-		fontSizeMM = 0.9
-	}
+	fontSizeMM := fontSizer.MillimeterSize(block)
 	color := block.Color
 	if opts.OutlineWidth > 0 && opts.OutlineColor != "" {
 		color = opts.OutlineColor
@@ -187,9 +185,10 @@ func fodgMetricsForBlock(block domain.TextBlock, opts base.RenderOptions, scale,
 
 	frameX := offsetX + (block.X * scale)
 	frameY := offsetY + (block.Y * scale)
+	estimatedWidth := estimatedFrameWidth(text, fontSizeMM)
 	frameWidth := block.Width * scale
-	if frameWidth <= 0 {
-		frameWidth = estimatedFrameWidth(text, fontSizeMM)
+	if frameWidth < estimatedWidth {
+		frameWidth = estimatedWidth
 	}
 	frameHeight := block.Height * scale
 	minHeight := frameMinHeight(text, fontSizeMM, lineHeight)

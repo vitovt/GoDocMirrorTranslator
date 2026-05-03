@@ -30,6 +30,7 @@ type Config struct {
 	DefaultOutputDir       string                       `json:"default_output_dir,omitempty"`
 	DefaultFontFamily      string                       `json:"default_font_family"`
 	DefaultFontSize        float64                      `json:"default_font_size"`
+	DefaultFontSizeMode    string                       `json:"default_font_size_mode,omitempty"`
 	DefaultFontWeight      string                       `json:"default_font_weight,omitempty"`
 	DefaultPageLayout      string                       `json:"default_page_layout,omitempty"`
 	OutputTemplate         string                       `json:"output_template"`
@@ -64,6 +65,7 @@ func Default() Config {
 		DefaultRenderer:        "svg",
 		DefaultFontFamily:      "Noto Sans",
 		DefaultFontSize:        18,
+		DefaultFontSizeMode:    string(base.FontSizeModeUnisizefont),
 		DefaultFontWeight:      "normal",
 		DefaultPageLayout:      string(base.PageLayoutAuto),
 		OutputTemplate:         "{input_basename}_{provider}_{timestamp}.svg",
@@ -210,6 +212,12 @@ func (c *Config) normalize() {
 	if c.DefaultFontSize <= 0 {
 		c.DefaultFontSize = defaults.DefaultFontSize
 	}
+	fontSizeMode := strings.ToLower(strings.TrimSpace(c.DefaultFontSizeMode))
+	if !base.IsValidFontSizeMode(base.FontSizeMode(fontSizeMode)) {
+		c.DefaultFontSizeMode = defaults.DefaultFontSizeMode
+	} else {
+		c.DefaultFontSizeMode = fontSizeMode
+	}
 	if c.DefaultFontWeight == "" {
 		c.DefaultFontWeight = defaults.DefaultFontWeight
 	}
@@ -274,23 +282,24 @@ func (c *Config) normalize() {
 
 func (c *Config) ApplyEnv(lookup func(string) (string, bool)) error {
 	stringMappings := map[string]*string{
-		EnvPrefix + "OPENAI_API_KEY":        &c.OpenAIAPIKey,
-		EnvPrefix + "GEMINI_API_KEY":        &c.GeminiAPIKey,
-		EnvPrefix + "DEFAULT_PROVIDER":      &c.DefaultProvider,
-		EnvPrefix + "DEFAULT_RENDERER":      &c.DefaultRenderer,
-		EnvPrefix + "DEFAULT_MODEL":         &c.DefaultModel,
-		EnvPrefix + "DEFAULT_OUTPUT_DIR":    &c.DefaultOutputDir,
-		EnvPrefix + "DEFAULT_FONT_FAMILY":   &c.DefaultFontFamily,
-		EnvPrefix + "DEFAULT_FONT_WEIGHT":   &c.DefaultFontWeight,
-		EnvPrefix + "DEFAULT_PAGE_LAYOUT":   &c.DefaultPageLayout,
-		EnvPrefix + "OUTPUT_TEMPLATE":       &c.OutputTemplate,
-		EnvPrefix + "OVERLAY_COLOR":         &c.OverlayColor,
-		EnvPrefix + "TEXT_OUTLINE_COLOR":    &c.TextOutlineColor,
-		EnvPrefix + "TEXT_BACKGROUND_COLOR": &c.TextBackgroundColor,
-		EnvPrefix + "TEXT_SHADOW_COLOR":     &c.TextShadowColor,
-		EnvPrefix + "SOURCE_LANGUAGE":       &c.SourceLanguage,
-		EnvPrefix + "TARGET_LANGUAGE":       &c.TargetLanguage,
-		EnvPrefix + "IMAGE_DESCRIPTION":     &c.ImageDescription,
+		EnvPrefix + "OPENAI_API_KEY":         &c.OpenAIAPIKey,
+		EnvPrefix + "GEMINI_API_KEY":         &c.GeminiAPIKey,
+		EnvPrefix + "DEFAULT_PROVIDER":       &c.DefaultProvider,
+		EnvPrefix + "DEFAULT_RENDERER":       &c.DefaultRenderer,
+		EnvPrefix + "DEFAULT_MODEL":          &c.DefaultModel,
+		EnvPrefix + "DEFAULT_OUTPUT_DIR":     &c.DefaultOutputDir,
+		EnvPrefix + "DEFAULT_FONT_FAMILY":    &c.DefaultFontFamily,
+		EnvPrefix + "DEFAULT_FONT_SIZE_MODE": &c.DefaultFontSizeMode,
+		EnvPrefix + "DEFAULT_FONT_WEIGHT":    &c.DefaultFontWeight,
+		EnvPrefix + "DEFAULT_PAGE_LAYOUT":    &c.DefaultPageLayout,
+		EnvPrefix + "OUTPUT_TEMPLATE":        &c.OutputTemplate,
+		EnvPrefix + "OVERLAY_COLOR":          &c.OverlayColor,
+		EnvPrefix + "TEXT_OUTLINE_COLOR":     &c.TextOutlineColor,
+		EnvPrefix + "TEXT_BACKGROUND_COLOR":  &c.TextBackgroundColor,
+		EnvPrefix + "TEXT_SHADOW_COLOR":      &c.TextShadowColor,
+		EnvPrefix + "SOURCE_LANGUAGE":        &c.SourceLanguage,
+		EnvPrefix + "TARGET_LANGUAGE":        &c.TargetLanguage,
+		EnvPrefix + "IMAGE_DESCRIPTION":      &c.ImageDescription,
 	}
 	for envKey, target := range stringMappings {
 		if value, ok := lookup(envKey); ok {
@@ -439,6 +448,8 @@ func (c *Config) Set(key, value string) error {
 			return fmt.Errorf("parse default_font_size: %w", err)
 		}
 		c.DefaultFontSize = fontSize
+	case "default_font_size_mode":
+		c.DefaultFontSizeMode = value
 	case "default_font_weight":
 		c.DefaultFontWeight = value
 	case "default_page_layout":
@@ -548,6 +559,7 @@ func (c Config) RenderOptions() base.RenderOptions {
 	return base.RenderOptions{
 		FontFamily:         c.DefaultFontFamily,
 		DefaultFontSize:    c.DefaultFontSize,
+		FontSizeMode:       base.FontSizeMode(c.DefaultFontSizeMode),
 		PageLayout:         base.PageLayout(c.DefaultPageLayout),
 		TextColor:          c.OverlayColor,
 		Opacity:            c.OverlayOpacity,
