@@ -1,0 +1,20 @@
+try to make commit now
+
+---
+
+Those changes works.
+This way I want 2 options in GUI:
+  - force all textes provided font size (like we've just implemented)
+  - make them proportional calculating (like it was) but font-size settings in app changes proportions.
+  Ther shoulnd't be hardcoded sized, only default values
+  Everything should be valid for FODG. SVG I didn't tested.
+What we can implement ? Maybe separate settings ?
+  Offer the way you can do it and give me an option to choose. Don't write any changes until I approve.
+
+---
+
+The main solution you've proposed is good. Implement it.
+> I think Font Size Mode: Uniform / Proportional is clearer and easier to extend later.
+ok. But rename Uniform to Unisizefont.
+And another improvement: by default text block size should be wide enough (fit text width).
+Now I should manually resize every, because text area block are too narrow. Especially for large font sizes.
