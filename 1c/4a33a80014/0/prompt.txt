@@ -1,5 +1,14 @@
-The main solution you've proposed is good. Implement it.
-> I think Font Size Mode: Uniform / Proportional is clearer and easier to extend later.
-ok. But rename Uniform to Unisizefont.
-And another improvement: by default text block size should be wide enough (fit text width).
-Now I should manually resize every, because text area block are too narrow. Especially for large font sizes.
+<image name=[Image #1]>
+
+---
+
+</image>
+
+---
+
+Make better vertical aligning. For example when I set font to 7 - horisontally everything is ok. But vertically all blocks are overlapped.
+Example:
+/home/vitovt/Dropbox/Documents/BUH-DOC-Other/Доки-скани/Weiterbildung-bewerbung-JC/Univer/bakalavr-2.fodg 
+It looks so:
+[Image #1]
+Everything white with blue border is my overlaped translated text.
