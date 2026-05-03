@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"sort"
 	"strings"
 
 	"godocmirrortranslator/internal/domain"
@@ -16,6 +17,12 @@ import (
 )
 
 type Renderer struct{}
+
+const (
+	frameWidthSafetyFactor = 1.3
+	minVerticalGapFactor   = 0.15
+	firstLineHeightFactor  = 1.15
+)
 
 func New() *Renderer {
 	return &Renderer{}
@@ -55,6 +62,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	offsetY := (pageHeight - imageHeight) / 2
 	mimeType := http.DetectContentType(imageBytes)
 	fontSizer := base.NewFontSizer(page, opts)
+	metrics := resolveMetrics(page, opts, fontSizer, scale, offsetX, offsetY)
 
 	var b strings.Builder
 	b.WriteString("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
@@ -76,8 +84,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString(fmt.Sprintf("  <style:page-layout style:name=\"pm1\"><style:page-layout-properties fo:margin-top=\"0mm\" fo:margin-bottom=\"0mm\" fo:margin-left=\"0mm\" fo:margin-right=\"0mm\" fo:page-width=\"%s\" fo:page-height=\"%s\" style:print-orientation=\"%s\"/></style:page-layout>\n", odfLength(pageWidth), odfLength(pageHeight), page.Orientation))
 	b.WriteString("  <style:style style:name=\"dp1\" style:family=\"drawing-page\"/>\n")
 	b.WriteString("  <style:style style:name=\"grImage\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"none\" draw:fill=\"none\" fo:padding-top=\"0mm\" fo:padding-bottom=\"0mm\" fo:padding-left=\"0mm\" fo:padding-right=\"0mm\"/></style:style>\n")
-	for i, block := range page.Blocks {
-		metrics := fodgMetricsForBlock(block, opts, fontSizer, scale, offsetX, offsetY)
+	for i, metrics := range metrics {
 		if strings.TrimSpace(metrics.Text) == "" {
 			continue
 		}
@@ -102,8 +109,7 @@ func (r *Renderer) Render(ctx context.Context, page *domain.DocumentPage, opts b
 	b.WriteString(fmt.Sprintf("   <draw:image draw:mime-type=\"%s\"><office:binary-data>%s</office:binary-data><text:p/></draw:image>\n", html.EscapeString(mimeType), base64.StdEncoding.EncodeToString(imageBytes)))
 	b.WriteString("  </draw:frame>\n")
 
-	for i, block := range page.Blocks {
-		metrics := fodgMetricsForBlock(block, opts, fontSizer, scale, offsetX, offsetY)
+	for i, metrics := range metrics {
 		if strings.TrimSpace(metrics.Text) == "" {
 			continue
 		}
@@ -138,7 +144,7 @@ func frameMinHeight(text string, fontSizeMM, lineHeight float64) float64 {
 	if lineCount < 1 {
 		lineCount = 1
 	}
-	height := fontSizeMM
+	height := fontSizeMM * firstLineHeightFactor
 	if lineCount == 1 {
 		return height
 	}
@@ -224,7 +230,58 @@ func estimatedFrameWidth(text string, fontSizeMM float64) float64 {
 			maxLen = lineLen
 		}
 	}
-	return float64(maxLen) * fontSizeMM * 0.62
+	return float64(maxLen) * fontSizeMM * 0.62 * frameWidthSafetyFactor
+}
+
+func resolveMetrics(page *domain.DocumentPage, opts base.RenderOptions, fontSizer base.FontSizer, scale, offsetX, offsetY float64) []fodgTextMetrics {
+	metrics := make([]fodgTextMetrics, 0, len(page.Blocks))
+	for _, block := range page.Blocks {
+		metrics = append(metrics, fodgMetricsForBlock(block, opts, fontSizer, scale, offsetX, offsetY))
+	}
+	avoidVerticalOverlap(metrics)
+	return metrics
+}
+
+func avoidVerticalOverlap(metrics []fodgTextMetrics) {
+	indexes := make([]int, 0, len(metrics))
+	for i, metric := range metrics {
+		if strings.TrimSpace(metric.Text) == "" {
+			continue
+		}
+		indexes = append(indexes, i)
+	}
+
+	sort.SliceStable(indexes, func(i, j int) bool {
+		left := metrics[indexes[i]]
+		right := metrics[indexes[j]]
+		if left.FrameY == right.FrameY {
+			return left.FrameX < right.FrameX
+		}
+		return left.FrameY < right.FrameY
+	})
+
+	for pos, idx := range indexes {
+		current := &metrics[idx]
+		requiredY := current.FrameY
+		for prevPos := 0; prevPos < pos; prevPos++ {
+			prev := metrics[indexes[prevPos]]
+			if !overlapsHorizontally(prev, *current) {
+				continue
+			}
+			minGap := math.Min(prev.FontSizeMM, current.FontSizeMM) * minVerticalGapFactor
+			prevBottom := prev.FrameY + prev.FrameHeight + minGap
+			if prevBottom > requiredY {
+				requiredY = prevBottom
+			}
+		}
+		current.FrameY = requiredY
+	}
+}
+
+func overlapsHorizontally(left, right fodgTextMetrics) bool {
+	leftEnd := left.FrameX + left.FrameWidth
+	rightEnd := right.FrameX + right.FrameWidth
+	return left.FrameX < rightEnd && right.FrameX < leftEnd
 }
 
 func fontWeightAttr(weight string) string {

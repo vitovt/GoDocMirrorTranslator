@@ -177,6 +177,101 @@ func TestRenderAutoFitsFrameWidthToTranslatedText(t *testing.T) {
 	}
 }
 
+func TestRenderPushesOverlappingRowsDownInSameColumn(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 800, 1000)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  800,
+		SourceImageHeight: 1000,
+		Blocks: []domain.TextBlock{
+			{
+				SourceText:     "One",
+				TranslatedText: "Long translated line one",
+				X:              100,
+				Y:              200,
+				Width:          120,
+				Height:         20,
+				FontSize:       22,
+			},
+			{
+				SourceText:     "Two",
+				TranslatedText: "Long translated line two",
+				X:              100,
+				Y:              220,
+				Width:          120,
+				Height:         20,
+				FontSize:       22,
+			},
+		},
+	}
+
+	output, err := r.Render(context.Background(), page, base.RenderOptions{
+		FontFamily:      "Noto Sans",
+		DefaultFontSize: 12,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	content := string(output)
+	if !strings.Contains(content, `svg:y="69.7500mm"`) {
+		t.Fatalf("Render() output missing first row y in %q", content)
+	}
+	if !strings.Contains(content, `svg:y="75.6350mm"`) {
+		t.Fatalf("Render() output missing pushed-down second row y in %q", content)
+	}
+}
+
+func TestRenderDoesNotPushSeparateColumnsDown(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "page.png")
+	writeTestPNG(t, inputPath, 800, 1000)
+
+	r := New()
+	page := &domain.DocumentPage{
+		SourceImagePath:   inputPath,
+		SourceImageWidth:  800,
+		SourceImageHeight: 1000,
+		Blocks: []domain.TextBlock{
+			{
+				SourceText:     "Left",
+				TranslatedText: "Left column line",
+				X:              100,
+				Y:              200,
+				Width:          120,
+				Height:         20,
+				FontSize:       22,
+			},
+			{
+				SourceText:     "Right",
+				TranslatedText: "Right column line",
+				X:              500,
+				Y:              200,
+				Width:          120,
+				Height:         20,
+				FontSize:       22,
+			},
+		},
+	}
+
+	output, err := r.Render(context.Background(), page, base.RenderOptions{
+		FontFamily:      "Noto Sans",
+		DefaultFontSize: 12,
+	})
+	if err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	content := string(output)
+	if strings.Count(content, `svg:y="69.7500mm"`) != 2 {
+		t.Fatalf("Render() output = %q, want both columns to keep the same y", content)
+	}
+}
+
 func TestRenderAppliesReadabilityDecorations(t *testing.T) {
 	tempDir := t.TempDir()
 	inputPath := filepath.Join(tempDir, "page.png")
