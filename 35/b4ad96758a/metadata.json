@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.5.6-nightly.202604180633.957f073f",
+  "checkpoint_id": "35b4ad96758a",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "internal/config/config.go",
+    "internal/config/config_test.go",
+    "internal/gui/gui.go",
+    "internal/gui/gui_test.go",
+    "internal/renderer/fodg/renderer.go",
+    "internal/renderer/fodg/renderer_test.go",
+    "internal/renderer/font_sizing.go",
+    "internal/renderer/renderer.go",
+    "internal/renderer/renderer_test.go",
+    "internal/renderer/svg/renderer.go",
+    "internal/renderer/svg/renderer_test.go"
+  ],
+  "sessions": [
+    {
+      "metadata": "/35/b4ad96758a/0/metadata.json",
+      "transcript": "/35/b4ad96758a/0/full.jsonl",
+      "content_hash": "/35/b4ad96758a/0/content_hash.txt",
+      "prompt": "/35/b4ad96758a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7056998,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 6921344,
+    "output_tokens": 42171,
+    "api_call_count": 61
+  }
+}
