@@ -4,6 +4,11 @@ The app takes a photo or scan of a document page, sends it to an AI provider, an
 
 The result is an **A4 SVG** for **Inkscape** or an **A4 FODG** for **LibreOffice Draw**. The background stays the original page image, while the translated text is written as editable text objects so you can fine-tune the result manually afterward.
 
+## Screenshots
+
+### Result of usage
+<img width="360" alt="Source document" src="screenshots/translator1.png"> <img width="360" alt="Document with a later of translation" src="screenshots/translator2.png">
+
 ## What This App Does
 
 Use it when you have:
